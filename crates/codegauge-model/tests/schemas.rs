@@ -14,6 +14,16 @@ fn checked_in_schemas_match_authoritative_dtos() {
     .unwrap();
     assert_eq!(result["$id"], "codegauge-result/v1");
     assert_eq!(error["$id"], "codegauge-error/v1");
+    assert_eq!(
+        result["$defs"]["InputArtifact"]["properties"]["sha256"]["$ref"],
+        "#/$defs/Sha256Digest"
+    );
+    assert_eq!(
+        error["$defs"]["ErrorDetails"]["properties"]["sha256"]["anyOf"][0]["$ref"],
+        "#/$defs/Sha256Digest"
+    );
+    assert_eq!(result["$defs"]["Sha256Digest"]["pattern"], "^[0-9a-f]{64}$");
+    assert_eq!(error["$defs"]["Sha256Digest"]["pattern"], "^[0-9a-f]{64}$");
     let mut generated_result = serde_json::to_value(schema_for!(ResultDocument)).unwrap();
     let mut generated_error = serde_json::to_value(schema_for!(ErrorDocument)).unwrap();
     generated_result["$id"] = result["$id"].clone();

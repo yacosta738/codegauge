@@ -15,7 +15,7 @@ fn fixture(name: &str) -> &'static [u8] {
 }
 
 fn one<'a>(report: &'a ProviderObservations, id: &str) -> &'a SymbolResult {
-    report.symbols.iter().find(|s| s.symbol.id == id).unwrap()
+    report.symbols.iter().find(|s| s.symbol.id() == id).unwrap()
 }
 
 fn has(report: &ProviderObservations, predicate: impl Fn(&SymbolResult) -> bool) -> bool {
@@ -45,7 +45,7 @@ fn valid_full_zero_partial_and_generated_methods_are_observed_without_crap() {
     }
     assert!(report.symbols.iter().all(|s| s.metrics.crap.is_none()));
     for name in ["<init>", "<clinit>", "synthetic", "bridge", "lambda$run$0"] {
-        assert!(has(&report, |s| s.symbol.name == name));
+        assert!(has(&report, |s| s.symbol.name() == name));
     }
 }
 
@@ -56,9 +56,9 @@ fn descriptor_overloads_are_distinct_and_aggregate_counters_are_ignored() {
         "java:com/acme/Order#overload()V",
         "java:com/acme/Order#overload(I)V",
     ] {
-        assert!(has(&report, |s| s.symbol.id == id));
+        assert!(has(&report, |s| s.symbol.id() == id));
     }
-    assert!(!has(&report, |s| s.symbol.name == "aggregate"));
+    assert!(!has(&report, |s| s.symbol.name() == "aggregate"));
     assert_eq!(report.diagnostics.len(), 4);
 }
 
@@ -66,7 +66,7 @@ fn descriptor_overloads_are_distinct_and_aggregate_counters_are_ignored() {
 fn missing_invalid_zero_denominator_and_oversized_counts_are_indeterminate() {
     let report = collect(fixture("valid")).unwrap();
     for name in ["missing", "invalid", "zero-denominator", "optional-only"] {
-        assert!(!has(&report, |s| s.symbol.name == name));
+        assert!(!has(&report, |s| s.symbol.name() == name));
     }
     for code in [
         DiagnosticCode::MissingRequiredCounter,
@@ -98,6 +98,21 @@ fn duplicate_missing_identity_and_invalid_descriptor_are_fatal() {
 }
 
 #[test]
+fn descriptor_parameter_slots_enforce_the_jvm_limit() {
+    let too_many_parameters = format!("{}D", "J".repeat(127));
+    let too_many = format!(
+        "<report><class name=\"C\"><method name=\"m\" desc=\"({too_many_parameters})V\"/></class></report>"
+    );
+    invalid(too_many.as_bytes());
+
+    let boundary_parameters = format!("{}DI", "J".repeat(126));
+    let boundary = format!(
+        "<report><class name=\"C\"><method name=\"m\" desc=\"({boundary_parameters})V\"/></class></report>"
+    );
+    assert!(collect(boundary.as_bytes()).is_ok());
+}
+
+#[test]
 fn malformed_hostile_encoding_bom_and_limits_follow_the_boundary() {
     for name in ["malformed", "doctype", "entity", "encoding"] {
         invalid(fixture(name));
@@ -106,7 +121,9 @@ fn malformed_hostile_encoding_bom_and_limits_follow_the_boundary() {
     bom.extend_from_slice(fixture("valid"));
     assert_eq!(collect(&bom).unwrap().symbols.len(), 10);
 
-    invalid(format!("<report>{}</report>", "<x>".repeat(129)).as_bytes());
+    let groups = "<group>".repeat(129);
+    let closing_groups = "</group>".repeat(129);
+    invalid(format!("<report>{groups}{closing_groups}</report>").as_bytes());
     let classes = (0..100_001)
         .map(|i| format!("<class name=\"C{i}\"/>"))
         .collect::<String>();

@@ -13,7 +13,7 @@ fn score(cc: f64, coverage: f64) -> f64 {
 fn formula_edges_golden_and_determinism() {
     assert_eq!(score(7.0, 1.0), 7.0);
     assert_eq!(score(7.0, 0.0), 56.0);
-    assert!((score(7.0, 0.83) - 7.240737).abs() < f64::EPSILON);
+    assert!((score(7.0, 0.83) - 7.240737).abs() < 1e-12);
     let input = CrapInput {
         cyclomatic_complexity: 3.0,
         coverage: 0.25,

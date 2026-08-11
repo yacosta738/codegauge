@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
         let descriptor = required(e, b"desc")?;
         if name.is_empty() || !valid_descriptor(&descriptor) { return Err(bad()); }
         let symbol = SymbolIdentity::java_method(self.class.as_ref().unwrap(), name, descriptor);
-        if !self.identities.insert(symbol.id.clone()) { return Err(bad()); }
+        if !self.identities.insert(symbol.id().into()) { return Err(bad()); }
         self.method = Some(Method { symbol, counts: [Count::Missing; 4], counter_count: 0, counter_types: HashSet::new() });
         Ok(())
     }
@@ -210,7 +210,7 @@ impl<'a> Parser<'a> {
 
     fn finish(&mut self) {
         let Some(method) = self.method.take() else { return; };
-        let id = Some(bound_id(&method.symbol.id));
+        let id = Some(bound_id(method.symbol.id()));
         if method.counts.iter().any(|v| matches!(v, Count::Missing)) { self.diagnose(DiagnosticCode::MissingRequiredCounter, id); return; }
         if method.counts.iter().any(|v| matches!(v, Count::Invalid)) { self.diagnose(DiagnosticCode::InvalidRequiredCounter, id); return; }
         let [Count::Valid(cm), Count::Valid(cc), Count::Valid(im), Count::Valid(ic)] = method.counts else { return; };
@@ -265,8 +265,8 @@ fn bound_id(id: &str) -> String { if id.len() <= 256 { id.into() } else { id.cha
 
 #[rustfmt::skip]
 fn valid_descriptor(value: &str) -> bool {
-    let b = value.as_bytes(); if b.first() != Some(&b'(') { return false; } let mut i = 1;
-    while i < b.len() && b[i] != b')' { if !field_type(b, &mut i) { return false; } }
+    let b = value.as_bytes(); if b.first() != Some(&b'(') { return false; } let mut i = 1; let mut parameter_slots = 0usize;
+    while i < b.len() && b[i] != b')' { let parameter_start = i; if !field_type(b, &mut i) { return false; } let slots = match b.get(parameter_start) { Some(b'J') | Some(b'D') => 2, Some(b'[') => 1, Some(_) => 1, None => return false }; if parameter_slots + slots > 255 { return false; } parameter_slots += slots; }
     if b.get(i) != Some(&b')') { return false; } i += 1;
     if b.get(i) == Some(&b'V') { i += 1; } else if !field_type(b, &mut i) { return false; } i == b.len()
 }

@@ -33,7 +33,7 @@ fn observed<'a>(report: &'a ProviderObservations, id: &str) -> &'a SymbolResult 
     report
         .symbols
         .iter()
-        .find(|symbol| symbol.symbol.id == id)
+        .find(|symbol| symbol.symbol.id() == id)
         .unwrap_or_else(|| panic!("missing symbol {id}"))
 }
 
@@ -41,7 +41,7 @@ fn result_symbol<'a>(result: &'a ResultDocument, id: &str) -> &'a SymbolResult {
     result
         .symbols
         .iter()
-        .find(|symbol| symbol.symbol.id == id)
+        .find(|symbol| symbol.symbol.id() == id)
         .unwrap_or_else(|| panic!("missing result symbol {id}"))
 }
 
@@ -115,21 +115,21 @@ fn valid_vector_covers_edges_overloads_generated_methods_and_core_join() {
             !report
                 .symbols
                 .iter()
-                .any(|symbol| symbol.symbol.name == name)
+                .any(|symbol| symbol.symbol.name() == name)
         );
     }
     for id in [
         "java:com/acme/Order#overload()V",
         "java:com/acme/Order#overload(I)V",
     ] {
-        assert!(report.symbols.iter().any(|symbol| symbol.symbol.id == id));
+        assert!(report.symbols.iter().any(|symbol| symbol.symbol.id() == id));
     }
     for name in ["<init>", "<clinit>", "synthetic", "bridge", "lambda$run$0"] {
         assert!(
             report
                 .symbols
                 .iter()
-                .any(|symbol| symbol.symbol.name == name)
+                .any(|symbol| symbol.symbol.name() == name)
         );
     }
     for code in [
@@ -171,8 +171,9 @@ fn invalid_hostile_and_limit_vectors_are_rejected_or_indeterminate() {
     ));
 
     let nested = format!(
-        "<report>{}</report>",
-        (0..128).map(|_| "<x>").collect::<String>() + &(0..128).map(|_| "</x>").collect::<String>()
+        "<report>{}{}</report>",
+        "<group>".repeat(129),
+        "</group>".repeat(129)
     );
     assert!(collect(nested.as_bytes()).is_err());
     let classes = (0..100_001)
@@ -235,7 +236,11 @@ fn schemas_equal_authoritative_dtos_and_contract_documents_parse() {
         Some("../../fixtures/jacoco/malformed.xml")
     );
     assert_eq!(
-        invalid.details().sha256.as_deref(),
+        invalid
+            .details()
+            .sha256
+            .as_ref()
+            .map(|digest| digest.as_str()),
         Some(sha256_hex(fixture("malformed")).as_str())
     );
     let parsed: ErrorDocument =
@@ -258,7 +263,7 @@ fn golden_order_summary_digest_and_numbers_are_stable_except_timestamp() {
         result
             .symbols
             .windows(2)
-            .all(|pair| pair[0].symbol.id.as_bytes() <= pair[1].symbol.id.as_bytes())
+            .all(|pair| pair[0].symbol.id().as_bytes() <= pair[1].symbol.id().as_bytes())
     );
     let scores = result
         .symbols
@@ -323,8 +328,8 @@ fn repeatability_and_descriptor_identity_have_no_path_range_or_policy_fallback()
     let overloads = report
         .symbols
         .iter()
-        .filter(|symbol| symbol.symbol.name == "overload")
-        .map(|symbol| symbol.symbol.id.as_str())
+        .filter(|symbol| symbol.symbol.name() == "overload")
+        .map(|symbol| symbol.symbol.id())
         .collect::<Vec<_>>();
     assert_eq!(
         overloads,
