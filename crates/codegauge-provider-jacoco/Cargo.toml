@@ -1,0 +1,10 @@
+[package]
+name = "codegauge-provider-jacoco"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+codegauge-application = { path = "../codegauge-application" }
+codegauge-model = { path = "../codegauge-model" }
+quick-xml.workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "codegauge-conformance"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+codegauge-application = { path = "../codegauge-application" }
+codegauge-core = { path = "../codegauge-core" }
+codegauge-model = { path = "../codegauge-model" }
+codegauge-provider-jacoco = { path = "../codegauge-provider-jacoco" }
+
+[dev-dependencies]
+schemars.workspace = true
+serde_json.workspace = true

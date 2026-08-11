@@ -1,0 +1,18 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/codegauge-model",
+    "crates/codegauge-core",
+    "crates/codegauge-application",
+    "crates/codegauge-provider-jacoco",
+    "crates/codegauge-cli",
+    "crates/codegauge-conformance",
+]
+
+[workspace.dependencies]
+schemars = { version = "=1.2.2", features = ["derive"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+quick-xml = { version = "=0.38.3", default-features = false }
+sha2 = { version = "=0.10.9", default-features = false }
+clap = { version = "=4.5.45", default-features = false, features = ["derive", "std"] }
