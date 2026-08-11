@@ -1,0 +1,18 @@
+[package]
+name = "codegauge-cli"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "codegauge"
+path = "src/main.rs"
+
+[dependencies]
+codegauge-application = { path = "../codegauge-application" }
+codegauge-model = { path = "../codegauge-model" }
+codegauge-provider-jacoco = { path = "../codegauge-provider-jacoco" }
+clap.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

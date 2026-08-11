@@ -1,0 +1,11 @@
+[package]
+name = "codegauge-application"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+codegauge-core = { path = "../codegauge-core" }
+codegauge-model = { path = "../codegauge-model" }
+serde_json.workspace = true
+sha2.workspace = true
