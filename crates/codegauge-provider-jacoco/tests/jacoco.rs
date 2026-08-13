@@ -165,3 +165,17 @@ fn unknown_wrappers_and_incompatible_jacoco_parents_are_rejected() {
     invalid(&unknown_wrapper);
     invalid(b"<report><class name=\"C\"><package/></class></report>");
 }
+
+#[test]
+fn predefined_attribute_entities_keep_canonical_method_identity() {
+    let report = collect(
+        br#"<report><class name="com/acme/&lt;Order&gt;"><method name="run" desc="()V"><counter type="COMPLEXITY" missed="0" covered="1"/><counter type="INSTRUCTION" missed="0" covered="1"/></method></class></report>"#,
+    )
+    .unwrap();
+
+    assert_eq!(report.symbols.len(), 1);
+    assert_eq!(
+        report.symbols[0].symbol.id(),
+        "java:com/acme/<Order>#run()V"
+    );
+}

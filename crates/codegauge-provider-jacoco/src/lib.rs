@@ -234,7 +234,10 @@ fn attr(e: &BytesStart<'_>, wanted: &[u8]) -> Result<Option<String>, ProviderErr
         if seen.len() >= 64 { return Err(bad()); }
         let a = item.map_err(|_| bad())?; let key = a.key.as_ref(); let raw = a.value.as_ref();
         if key.len() > 4096 || raw.len() > 4096 || !seen.insert(key.to_vec()) || forbidden(raw) { return Err(bad()); }
-        let value = a.unescape_value().map_err(|_| bad())?.into_owned();
+        let value = a
+            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+            .map_err(|_| bad())?
+            .into_owned();
         if value.len() > 4096 || value.contains('&') { return Err(bad()); }
         if key == wanted { found = Some(value); }
     }
