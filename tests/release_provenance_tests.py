@@ -59,6 +59,8 @@ def main() -> int:
     assert "uses: ./.github/workflows/release.yml" in release_please
     assert "steps.release.outputs" in release_please
 
+    version = read_workspace_version(ROOT)
+    validate_package_versions(version)
     for component in (
         "codegauge-linux-x64-gnu",
         "codegauge-linux-arm64-gnu",

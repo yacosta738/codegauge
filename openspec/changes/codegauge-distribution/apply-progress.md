@@ -179,3 +179,21 @@
 - Verification: distribution, bootstrap, README, Python compilation, and whitespace checks pass;
   no production files, branches, commits, credentials, publication, or `state.yaml` changes were
   made.
+
+## Release Please Cargo parser compatibility follow-up
+
+- [x] Confirmed all six crate package manifests declare the synchronized literal `version = "0.1.0"`
+  and the root workspace version remains the canonical `0.1.0` value.
+- [x] Confirmed `release-please-config.json` contains the TOML extra-file mapping for
+  `/Cargo.toml` at `$.workspace.package.version`; the focused distribution regression accepts the
+  configuration and rejects package-version drift.
+- [x] Fresh focused validation passed: `tests/release_provenance_tests.py`,
+  `tests/distribution_checks.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, `tests/oci_distribution_failure_tests.py`,
+  `python3 -m compileall -q scripts tests`, `cargo metadata --locked --no-deps --format-version 1`,
+  `cargo check --workspace --all-targets --locked`, `actionlint`, and `git diff --check`.
+- [x] No defect was exposed, so no additional production/configuration change was required and no
+  task checkbox or `state.yaml` entry was mutated.
+- [x] A local `release-please manifest-pr --dry-run` invocation was inspected but could not run:
+  the repository has no installed/local release-please CLI, and `npx --no-install` refused to
+  fetch the missing package. No credentials or hosted release operation were used.

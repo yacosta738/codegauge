@@ -65,6 +65,44 @@ separate `docker_config_digest`, `docker_platform_digest`, `oci_config_digest`, 
 OCI archive, and Docker identity was compared only with Docker-derived identities. Runtime version,
 profile, contract JSON, non-root UID 100, and arm64 QEMU evidence all passed.
 
+## Release Please Cargo parser compatibility follow-up
+
+The uncommitted follow-up is technically coherent with the pinned release tooling and is limited to
+version-provenance compatibility:
+
+| Boundary | Inspection result |
+|---|---|
+| Cargo package manifests | All six workspace crate manifests declare literal `version = "0.1.0"`; edition, toolchain, license, repository, and README fields still inherit workspace values; `codegauge-conformance` remains private. |
+| Canonical workspace version | Root `Cargo.toml` retains `workspace.package.version = "0.1.0"`; `Cargo.lock` remains synchronized and the virtual workspace root is not a package. |
+| Release Please configuration | `release-please-config.json` maps `{ "type": "toml", "path": "/Cargo.toml", "jsonpath": "$.workspace.package.version" }`, which targets the repository-root canonical version through the generic TOML updater. |
+| Release Please compatibility | The exact `googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7` bundle is v5.0.0 and embeds release-please 17.6.0. The v17.6.0 Cargo workspace plugin requires each member `package.version` to be a string, while its generic TOML updater supports the configured JSONPath. |
+| Provenance enforcement | `verify_release_provenance.py` now requires each crate manifest version to equal the requested release version; it does not relax the root, lockfile, npm, linked-component, archive, binary, or source-revision checks. |
+| Scope | No RFC-0001 engine, profile, schema, fixture, golden, JSON, error, or exit behavior changed. `Cargo.lock` did not require a content change because the synchronized version remains `0.1.0`. |
+
+### Fresh focused evidence
+
+| Command/check | Result |
+|---|---|
+| `python3 tests/release_provenance_tests.py` | PASS |
+| `python3 tests/distribution_checks.py` | PASS |
+| `python3 tests/oci_distribution_static_tests.py` | PASS |
+| `python3 tests/oci_distribution_evidence_tests.py` | PASS |
+| `python3 tests/oci_distribution_failure_tests.py` | PASS |
+| `python3 -m compileall -q scripts tests` | PASS |
+| `cargo metadata --locked --no-deps --format-version 1` | PASS |
+| `cargo check --workspace --all-targets --locked` | PASS |
+| `actionlint .github/workflows/*.yml` | PASS |
+| `git diff --check` | PASS |
+
+The focused provenance regression rejects a requested version drift (`9.9.9`) and the distribution
+checks reject any crate manifest that does not contain the synchronized literal version or the root
+TOML mapping. No Release Please CLI is installed, so an actual local `release-please` dry-run was not
+fabricated; no hosted workflow, tag/release operation, credential use, registry publication, or
+parent-repository gitlink update was performed.
+
+**Follow-up result: PASS locally.** The fix is ready for PR review. This local result does not claim
+hosted release-please, immutable-tag, non-host target, publication, or registry-attestation evidence.
+
 ## Prior critical finding recheck
 
 | Prior finding / requested boundary | Fresh result | Evidence |
@@ -178,6 +216,9 @@ None.
 5. The worktree is intentionally dirty, so commit ordering for strict TDD cannot be independently
    proven from Git history.
 6. No coverage threshold is configured.
+7. The exact Release Please CLI dry-run remains unavailable because no local CLI is installed; exact
+   v17.6.0 source/action-bundle inspection plus focused local regressions provide compatibility
+   evidence without claiming executable hosted release behavior.
 
 ### SUGGESTION
 
@@ -204,17 +245,24 @@ a delegated agent.
 | R-E real OCI positive evidence | ✅ | ✅ real Docker amd64/arm64 | CRITICAL (prior) | Closed |
 | Docker inspect ID vs Docker platform-manifest identity | ✅ | ✅ | CRITICAL (prior) | Closed |
 | Docker/OCI config, platform, index, and metadata evidence remain separately recorded | ✅ | ✅ | WARNING | Closed |
+| Release Please 17.6.0 Cargo parser compatibility and root TOML version mapping | ✅ | ✅ focused regressions and Cargo metadata/check | WARNING | Closed locally; CLI/hosted rehearsal unavailable |
 | RFC-0001 algorithms/schemas/goldens/contracts | ✅ | ✅ 31 Rust tests | CRITICAL | Preserved |
 | Registry publication, final attestation, and rollback rehearsal | ✅ | ⚠️ intentionally not run | WARNING | External gate pending |
 
 ## Final verdict
 
-**PASS WITH WARNINGS** — all implementation tasks are complete; locked Cargo quality gates, Python
-distribution/provenance/OCI tests, npm typecheck/tests/pack, generator checks, actionlint/ShellCheck,
-archive/checksum smoke, RFC-0001 boundary checks, and fresh real Docker amd64/arm64 validation pass.
+**PASS WITH WARNINGS** — all implementation tasks are complete; the Release Please Cargo parser
+compatibility follow-up is minimal, preserves version/package provenance, and passes its fresh focused
+regressions plus Cargo metadata/check. Locked Cargo quality gates, Python distribution/provenance/OCI
+tests, npm typecheck/tests/pack, generator checks, actionlint/ShellCheck, archive/checksum smoke,
+RFC-0001 boundary checks, and fresh real Docker amd64/arm64 validation pass.
 The prior critical checkout-pin, attestation-permission, checksum, release-provenance, and OCI
 digest-domain findings are closed. Remaining warnings are explicitly external hosted release/tag,
 non-host native target, publication, final registry-attestation, and rollback-rehearsal gates.
+
+PR readiness is **READY** for this follow-up. No technical blocker was found in the inspected diff or
+fresh safe checks. Release/archive readiness remains blocked by the acceptance limitations recorded in
+`qa-report.md`, and the branch is six commits behind `origin/main`.
 
 Technical verification is complete. Hand off to **`sdd-qa`** for acceptance scenarios and
 `qa-report.md`; do not treat this report as user/operator acceptance.

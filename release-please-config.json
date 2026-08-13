@@ -3,6 +3,11 @@
   "include-component-in-tag": false,
   "separate-pull-requests": false,
   "extra-files": [
+    {
+      "type": "toml",
+      "path": "/Cargo.toml",
+      "jsonpath": "$.workspace.package.version"
+    },
     "README.md",
     "tests/golden/valid-methods.json",
     "crates/codegauge-model/tests/contracts.rs",
