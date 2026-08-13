@@ -1,0 +1,14 @@
+{
+  "crates/codegauge-model": "0.1.0",
+  "crates/codegauge-core": "0.1.0",
+  "crates/codegauge-application": "0.1.0",
+  "crates/codegauge-provider-jacoco": "0.1.0",
+  "crates/codegauge-cli": "0.1.0",
+  "npm/codegauge": "0.1.0",
+  "npm/packages/codegauge-linux-x64-gnu": "0.1.0",
+  "npm/packages/codegauge-linux-arm64-gnu": "0.1.0",
+  "npm/packages/codegauge-darwin-x64": "0.1.0",
+  "npm/packages/codegauge-darwin-arm64": "0.1.0",
+  "npm/packages/codegauge-win32-x64-msvc": "0.1.0",
+  "npm/packages/codegauge-win32-arm64-msvc": "0.1.0"
+}
