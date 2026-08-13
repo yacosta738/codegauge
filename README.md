@@ -106,6 +106,41 @@ commands, installation, source mutation, and plugins are rejected or absent.
 dependencies, or runners from them. A future `agent-harness` integration consumes a released
 executable and its result/error contract, not CodeGauge crates, the formula, or build/test runners.
 
+## Distribution channels
+
+The approved release version is synchronized across the `codegauge-cli` binary, the publishable
+Cargo runtime graph, npm packages, archives, and OCI metadata. The registry/source channels are:
+
+- Cargo: the runtime crates publish in dependency order — `codegauge-model`, `codegauge-core`,
+  `codegauge-application`, `codegauge-provider-jacoco`, then `codegauge-cli` — with source/Git at an
+  immutable revision retained as a fallback. The virtual workspace root is not a package.
+- npm: install `@yacosta738/codegauge`; it selects exactly one of the six GNU platform packages:
+  `@yacosta738/codegauge-linux-x64-gnu`, `@yacosta738/codegauge-linux-arm64-gnu`,
+  `@yacosta738/codegauge-darwin-x64`, `@yacosta738/codegauge-darwin-arm64`,
+  `@yacosta738/codegauge-win32-x64-msvc`, or `@yacosta738/codegauge-win32-arm64-msvc`.
+  Linux musl is intentionally rejected by npm even though musl release archives exist.
+- Archives: the complete viable matrix is `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`,
+  `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`, `x86_64-apple-darwin`,
+  `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, and `aarch64-pc-windows-msvc`. Unix archives
+  are `tar.gz`; Windows archives are `zip`; every archive has a lowercase SHA-256 sidecar and a
+  manifest containing `source_revision`.
+- OCI: `ghcr.io/yacosta738/codegauge` publishes only verified `linux/amd64` and `linux/arm64`
+  images, runs as the non-root `codegauge` user, and carries immutable version/source labels.
+
+Release automation is intentionally ordered and fail-stop: quality, package, target, checksum, and
+metadata gates run before upload; Cargo dependencies precede dependents; npm platform packages
+precede the wrapper; and OCI publication follows the archive/npm gates. Dry runs are safe only when
+the workflow's `dry_run` input is honored. No registry credential belongs in this repository.
+
+### Provenance and rollback
+
+Each release records its immutable Git `source_revision`, Rust toolchain, target, archive name, and
+lowercase SHA-256. Publication across Cargo, GitHub Releases, npm, and GHCR is not atomic. If a later
+publisher fails, later jobs stop, logs and successful artifacts remain auditable, and recovery uses
+a corrected patch: Cargo versions cannot be deleted, while escaped npm or OCI artifacts must be
+deprecated, superseded, or retagged according to registry policy. Disable release triggers while
+recovering when necessary.
+
 ## Release checklist
 
 - [ ] Release from an immutable Git revision; retain the exact `codegauge 0.1.0` version and profile/schema IDs.
