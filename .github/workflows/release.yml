@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Exact release-please tag"
+        required: true
+        type: string
+      release_sha:
+        description: "Exact commit SHA returned by release-please"
+        required: true
+        type: string
+      main_sha:
+        description: "Expected merged-main commit SHA"
+        required: true
+        type: string
+      release_url:
+        description: "URL of the release-please-created GitHub Release"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing"
+        required: false
+        default: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Exact release-please tag"
+        required: true
+        type: string
+      release_sha:
+        description: "Exact commit SHA returned by release-please"
+        required: true
+        type: string
+      main_sha:
+        description: "Expected merged-main commit SHA"
+        required: true
+        type: string
+      release_url:
+        description: "URL of the release-please-created GitHub Release"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  release-build:
+    uses: ./.github/workflows/release-build.yml
+    with:
+      release_tag: ${{ inputs.release_tag }}
+      release_sha: ${{ inputs.release_sha }}
+      main_sha: ${{ inputs.main_sha }}
+      release_url: ${{ inputs.release_url }}
+      dry_run: ${{ inputs.dry_run }}
+    permissions:
+      contents: read
+
+  release-publish:
+    needs: release-build
+    uses: ./.github/workflows/release-publish.yml
+    with:
+      release_tag: ${{ inputs.release_tag }}
+      release_sha: ${{ inputs.release_sha }}
+      main_sha: ${{ inputs.main_sha }}
+      release_url: ${{ inputs.release_url }}
+      dry_run: ${{ inputs.dry_run }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    secrets: inherit

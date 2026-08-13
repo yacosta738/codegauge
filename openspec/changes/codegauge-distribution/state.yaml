@@ -1,0 +1,38 @@
+change: codegauge-distribution
+title: "CI/CD and distribution through Cargo, npm, Docker, and release artifacts"
+current_phase: qa
+completed:
+  - init
+  - explore
+  - propose
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - qa
+next: qa
+updated: "2026-08-13"
+
+baseline:
+  repository: yacosta738/codegauge
+  remote: git@github.com:yacosta738/codegauge.git
+  branch: main
+  commit: 6477eb1
+
+summary: |
+  Specification and design define production CI/CD and distribution slices for Cargo/source, npm,
+  OCI, and GitHub Release channels while preserving engine and contract semantics. The user approved
+  crates.io runtime-graph publication, `@yacosta738/codegauge`, `ghcr.io/yacosta738/codegauge`, the
+  complete viable target matrix, and A→E chained PRs. Apply may proceed; the existing Clippy failure
+  was resolved without semantic engine changes. R-C npm, R-D release provenance, and R-E OCI
+  remediation layers are complete. Technical verification is PASS WITH WARNINGS, including real
+  Docker amd64/arm64 build/load/inspect/runtime evidence. Acceptance QA is BLOCKED until an immutable
+  release-please tag on merged main exists and authorized hosted evidence covers non-host targets,
+  registry publication, final attestation, and rollback rehearsal.
+
+blocked:
+  - no v0.1.0 release/tag or GitHub Release exists
+  - hosted release-please and failure-injection rehearsal not executed
+  - Cargo/npm/GitHub Release/GHCR publication and attestation not authorized/executed
+  - native evidence for seven non-host targets unavailable
