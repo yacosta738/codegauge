@@ -33,6 +33,11 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
     with:
       release_tag: ${{ needs.release-please.outputs.release_tag }}
       release_sha: ${{ needs.release-please.outputs.release_sha }}

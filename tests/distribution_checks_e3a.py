@@ -265,6 +265,19 @@ def check_release_topology(errors: list[str]) -> None:
     if "dry_run: false" not in release_please:
         errors.append("release-please must invoke the publication caller with dry_run false")
 
+    release_job = job_block(release_please, "release")
+    required_permissions = (
+        "permissions:\n"
+        "      contents: write\n"
+        "      packages: write\n"
+        "      id-token: write\n"
+        "      attestations: write"
+    )
+    if required_permissions not in release_job:
+        errors.append(
+            "release-please caller must grant the release reusable workflow its required publication permissions"
+        )
+
 
 def run_checks() -> list[str]:
     errors: list[str] = []
