@@ -1,8 +1,13 @@
 [package]
 name = "codegauge-model"
-version = "0.1.0"
-edition = "2024"
-publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Canonical, policy-free CodeGauge result and error contracts"
+exclude = ["tests/**"]
 
 [dependencies]
 schemars.workspace = true

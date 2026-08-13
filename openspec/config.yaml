@@ -1,0 +1,47 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Rust 2024 workspace with six Cargo crates, pinned Rust/Cargo 1.97.1, Clap, serde/schemars, quick-xml, and sha2.
+  Architecture: Inward-only model -> core -> application -> provider -> CLI layers, plus a conformance crate and checked-in schema/fixture contracts.
+  Distribution: This change covers CI/CD and release distribution through Cargo, npm, Docker, and GitHub Release artifacts; no CI, npm, or Docker files exist yet.
+  Testing: cargo test --workspace --locked, Rust unit/integration/conformance tests, and Python contract checks under tests/.
+  Style: cargo fmt --all -- --check and cargo clippy --workspace --all-targets --locked -- -D warnings.
+  strict_tdd: true
+
+testing:
+  strict_tdd: true
+  runner: cargo test --workspace --locked
+  layers:
+    - Rust unit tests in the crate sources and integration tests under crates/*/tests/
+    - Cross-crate conformance tests in codegauge-conformance
+    - Python contract checks: python3 tests/bootstrap_checks.py and python3 tests/readme_checks.py
+  coverage: unavailable (no coverage tool or threshold configured)
+  formatter: cargo fmt --all -- --check
+  linter: cargo clippy --workspace --all-targets --locked -- -D warnings
+  type_checker: cargo check --workspace --locked (Rust compiler via Cargo; no separate checker configured)
+
+rules:
+  proposal:
+    - Include rollback plans for release, registry, image, and artifact changes.
+    - Identify affected crates, workflows, package manifests, Docker files, and release assets.
+    - Keep CodeGauge engine/profile/schema semantics out of scope unless explicitly proposed.
+  specs:
+    - Use Given/When/Then scenarios and RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Define CI gates, publish ordering, version provenance, checksums, and failure behavior explicitly.
+  design:
+    - Include sequence diagrams for release and package-resolution flows when they are non-trivial.
+    - Document architecture decisions and distribution trade-offs with rationale.
+  tasks:
+    - Group tasks by infrastructure, implementation, testing, and release verification phases.
+    - Use hierarchical numbering, keep tasks session-sized, and forecast the 400-line review budget.
+  apply:
+    - Preserve the existing inward-only crate boundaries and public engine contracts.
+    - Follow strict TDD: write or update a failing test before production behavior changes.
+    - Keep registry credentials and generated release secrets out of the repository.
+  verify:
+    - Run the locked Cargo test, format, Clippy, and Python contract checks when relevant.
+    - Validate workflow pinning, version synchronization, artifact checksums, package contents, and image metadata.
+    - Compare implementation against every spec scenario and record unavailable external credentials as warnings.
+  archive:
+    - Warn before merging destructive deltas or changing released profile/schema contracts.

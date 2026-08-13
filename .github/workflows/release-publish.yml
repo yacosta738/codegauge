@@ -1,0 +1,329 @@
+name: Release Publish
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Exact release-please tag"
+        required: true
+        type: string
+      release_sha:
+        description: "Exact commit SHA returned by release-please"
+        required: true
+        type: string
+      main_sha:
+        description: "Expected merged-main commit SHA"
+        required: true
+        type: string
+      release_url:
+        description: "URL of the release-please-created GitHub Release"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_REF: ${{ inputs.release_tag }}
+  RELEASE_SHA: ${{ inputs.release_sha }}
+  MAIN_SHA: ${{ inputs.main_sha }}
+  RELEASE_URL: ${{ inputs.release_url }}
+  DRY_RUN: ${{ inputs.dry_run }}
+  RUST_TOOLCHAIN: 1.97.1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-cargo-model:
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish leaf Cargo crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          cargo publish -p codegauge-model --locked --dry-run
+          cargo publish -p codegauge-model --locked
+
+  publish-cargo-core:
+    needs: publish-cargo-model
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish Cargo core crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          sleep 30
+          cargo publish -p codegauge-core --locked --dry-run
+          cargo publish -p codegauge-core --locked
+
+  publish-cargo-application:
+    needs: publish-cargo-core
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish Cargo application crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          sleep 30
+          cargo publish -p codegauge-application --locked --dry-run
+          cargo publish -p codegauge-application --locked
+
+  publish-cargo-provider:
+    needs: publish-cargo-application
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish JaCoCo provider crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          sleep 30
+          cargo publish -p codegauge-provider-jacoco --locked --dry-run
+          cargo publish -p codegauge-provider-jacoco --locked
+
+  publish-cargo-cli:
+    needs: publish-cargo-provider
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish CLI Cargo crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          sleep 30
+          cargo publish -p codegauge-cli --locked --dry-run
+          cargo publish -p codegauge-cli --locked
+
+  publish-release:
+    needs: publish-cargo-cli
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archive-*
+          path: release-out
+          merge-multiple: true
+      - name: Verify sidecars before GitHub upload
+        run: |
+          set -euo pipefail
+          find release-out -name '*.sha256' -print0 | xargs -0 -n1 sh -c "cd \"\$(dirname \"\$0\")\" && sha256sum --check \"\$(basename \"\$0\")\""
+      - name: Verify release-please-created GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
+          test "$(printf '%s' "$release_json" | jq -r .tagName)" = "$RELEASE_REF"
+          test "$(printf '%s' "$release_json" | jq -r .url)" = "$RELEASE_URL"
+      - name: Upload verified assets to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${RELEASE_REF}" release-out/* --repo "$GITHUB_REPOSITORY" --clobber
+      - uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        with:
+          subject-path: release-out/*
+
+  publish-npm:
+    needs: publish-release
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: npm-packages
+          path: npm/packages
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archive-*
+          path: release-out
+          merge-multiple: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.15.0
+      - name: Publish verified platform packages, then wrapper
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="${RELEASE_REF}"
+          test "$(git describe --tags --exact-match HEAD)" = "${RELEASE_TAG}"
+          test "$(git rev-parse HEAD)" = "${RELEASE_SHA}"
+          test "$(git rev-parse "${RELEASE_TAG}^{commit}")" = "${RELEASE_SHA}"
+          SOURCE_REVISION="${RELEASE_SHA}"
+          RELEASE_VERSION="${RELEASE_REF#v}"
+          npm --prefix npm/codegauge install --omit=optional --ignore-scripts --no-audit --no-fund --no-package-lock
+          npm --prefix npm/codegauge run build
+          node npm/codegauge/dist/preflight.js \
+            --release-version "${RELEASE_VERSION}" \
+            --source-revision "${SOURCE_REVISION}" \
+            --release-out release-out \
+            --npm-root npm
+          (cd npm/packages/codegauge-linux-x64-gnu && npm publish --provenance --access public)
+          (cd npm/packages/codegauge-linux-arm64-gnu && npm publish --provenance --access public)
+          (cd npm/packages/codegauge-darwin-x64 && npm publish --provenance --access public)
+          (cd npm/packages/codegauge-darwin-arm64 && npm publish --provenance --access public)
+          (cd npm/packages/codegauge-win32-x64-msvc && npm publish --provenance --access public)
+          (cd npm/packages/codegauge-win32-arm64-msvc && npm publish --provenance --access public)
+          (cd npm/codegauge && npm publish --provenance --access public)
+
+  publish-oci:
+    needs: publish-npm
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Download verified OCI build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: oci-build-evidence-${{ inputs.release_tag }}
+          path: oci-evidence
+      - name: Load verified OCI architecture images
+        run: |
+          set -euo pipefail
+          docker load --input oci-evidence/amd64.docker.tar
+          docker load --input oci-evidence/arm64.docker.tar
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish final verified OCI digests
+        id: publish-manifest
+        env:
+          IMAGE: ghcr.io/yacosta738/codegauge
+        run: |
+          set -euo pipefail
+          RELEASE_VERSION="${RELEASE_REF#v}"
+          amd64_digest=""
+          arm64_digest=""
+          for architecture in amd64 arm64; do
+            STAGING_IMAGE="codegauge-oci-${architecture}:${RELEASE_SHA}"
+            FINAL_TAG="$IMAGE:${RELEASE_VERSION}-${architecture}"
+            EVIDENCE_OUTPUT="oci-evidence/${architecture}.json"
+            docker tag "$STAGING_IMAGE" "$FINAL_TAG"
+            docker push "$FINAL_TAG" 2>&1 | tee "oci-evidence/${architecture}.push.log"
+            REMOTE_MANIFEST="$(docker buildx imagetools inspect --raw "$FINAL_TAG")"
+            EXPECTED_OCI_CONFIG_DIGEST="$(jq -er '.oci_config_digest' "$EVIDENCE_OUTPUT")"
+            PUBLISHED_CONFIG_DIGEST="$(printf '%s' "$REMOTE_MANIFEST" | jq -er '.config.digest')"
+            test "$PUBLISHED_CONFIG_DIGEST" = "$EXPECTED_OCI_CONFIG_DIGEST"
+            PUBLISHED_DIGEST="$(docker buildx imagetools inspect "$FINAL_TAG" --format '{{json .Manifest}}' | jq -er '.digest')"
+            jq -en --arg digest "$PUBLISHED_DIGEST" '$digest | test("^sha256:[0-9a-f]{64}$")'
+            jq --exit-status \
+              --arg digest "$PUBLISHED_DIGEST" \
+              --arg config_digest "$PUBLISHED_CONFIG_DIGEST" \
+              --arg reference "$FINAL_TAG" \
+              'select(.verified == true) | .published_digest = $digest | .published_config_digest = $config_digest | .published_reference = $reference' \
+              "$EVIDENCE_OUTPUT" > "${EVIDENCE_OUTPUT}.tmp"
+            mv "${EVIDENCE_OUTPUT}.tmp" "$EVIDENCE_OUTPUT"
+            if [[ "$architecture" == "amd64" ]]; then
+              amd64_digest="$PUBLISHED_DIGEST"
+            else
+              arm64_digest="$PUBLISHED_DIGEST"
+            fi
+          done
+          test -n "$amd64_digest"
+          test -n "$arm64_digest"
+          docker buildx imagetools create \
+            --tag "$IMAGE:${RELEASE_VERSION}" \
+            "$IMAGE@${amd64_digest}" \
+            "$IMAGE@${arm64_digest}"
+          docker buildx imagetools create \
+            --tag "$IMAGE:latest" \
+            "$IMAGE@${amd64_digest}" \
+            "$IMAGE@${arm64_digest}"
+          FINAL_RAW="$(docker buildx imagetools inspect --raw "$IMAGE:${RELEASE_VERSION}")"
+          jq -e \
+            --arg amd64 "$amd64_digest" \
+            --arg arm64 "$arm64_digest" \
+            '([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64" and .digest == $amd64)] | length == 1) and ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64" and .digest == $arm64)] | length == 1)' \
+            <<< "$FINAL_RAW"
+          FINAL_DIGEST="$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:${RELEASE_VERSION}")"
+          jq -en --arg digest "$FINAL_DIGEST" '$digest | test("^sha256:[0-9a-f]{64}$")'
+          LATEST_DIGEST="$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:latest")"
+          test "$LATEST_DIGEST" = "$FINAL_DIGEST"
+          printf '%s\n' "$FINAL_DIGEST" > oci-evidence/manifest.digest
+          printf 'manifest_digest=%s\n' "$FINAL_DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Attest verified OCI manifest
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-name: ghcr.io/yacosta738/codegauge
+          subject-digest: ${{ steps.publish-manifest.outputs.manifest_digest }}
+          push-to-registry: true
+      - name: OCI architecture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: oci-evidence-${{ inputs.release_tag }}
+          path: oci-evidence/
+          if-no-files-found: error
+          retention-days: 14

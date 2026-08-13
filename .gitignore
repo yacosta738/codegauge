@@ -8,10 +8,20 @@ build/
 out/
 target/
 
+# Generated distribution payloads
+npm/codegauge/dist/
+npm/packages/*/bin/
+release-out/
+*.tgz
+__pycache__/
+
 # Environment
 .env
 .env.*
 !.env.example
+
+# Local agent metadata
+.atl/
 
 # OS / editor
 .DS_Store

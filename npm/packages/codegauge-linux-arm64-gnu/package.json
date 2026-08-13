@@ -1,0 +1,23 @@
+{
+  "name": "@yacosta738/codegauge-linux-arm64-gnu",
+  "version": "0.1.0",
+  "description": "CodeGauge executable for Linux arm64 GNU",
+  "license": "MIT",
+  "repository": "yacosta738/codegauge",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "bin": {
+    "codegauge": "bin/codegauge"
+  },
+  "files": [
+    "package.json",
+    "bin/codegauge"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

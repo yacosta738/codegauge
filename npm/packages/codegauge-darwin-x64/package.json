@@ -1,0 +1,23 @@
+{
+  "name": "@yacosta738/codegauge-darwin-x64",
+  "version": "0.1.0",
+  "description": "CodeGauge executable for macOS x64",
+  "license": "MIT",
+  "repository": "yacosta738/codegauge",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "codegauge": "bin/codegauge"
+  },
+  "files": [
+    "package.json",
+    "bin/codegauge"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,343 @@
+name: Release Build
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Exact release-please tag"
+        required: true
+        type: string
+      release_sha:
+        description: "Exact commit SHA returned by release-please"
+        required: true
+        type: string
+      main_sha:
+        description: "Expected merged-main commit SHA"
+        required: true
+        type: string
+      release_url:
+        description: "URL of the release-please-created GitHub Release"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_REF: ${{ inputs.release_tag }}
+  RELEASE_SHA: ${{ inputs.release_sha }}
+  MAIN_SHA: ${{ inputs.main_sha }}
+  RELEASE_URL: ${{ inputs.release_url }}
+  DRY_RUN: ${{ inputs.dry_run }}
+  RUST_TOOLCHAIN: 1.97.1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Install Rust 1.97.1
+        run: rustup toolchain install 1.97.1 --profile minimal
+      - name: Verify release-please provenance and synchronized metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$DRY_RUN" != "true" ]]; then
+            echo "manual release dispatch is rehearsal-only; publication must be initiated by release-please"
+            exit 1
+          fi
+          git fetch --force origin main:refs/remotes/origin/main
+          args=(
+            inputs
+            --release-tag "$RELEASE_REF"
+            --release-sha "$RELEASE_SHA"
+            --main-sha "$MAIN_SHA"
+            --release-url "$RELEASE_URL"
+            --repository "$GITHUB_REPOSITORY"
+          )
+          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          python3 scripts/verify_release_provenance.py "${args[@]}"
+      - name: Validate locked Cargo metadata
+        run: cargo +1.97.1 metadata --locked --format-version 1
+
+  quality:
+    needs: release-preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Install Rust 1.97.1
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy
+      - run: cargo +1.97.1 metadata --locked --format-version 1
+      - run: cargo +1.97.1 test --workspace --locked
+      - run: cargo +1.97.1 fmt --all -- --check
+      - run: cargo +1.97.1 clippy --workspace --all-targets --locked -- -D warnings
+      - run: python3 tests/bootstrap_checks.py
+      - run: python3 tests/readme_checks.py
+      - run: python3 tests/distribution_checks.py
+      - run: python3 tests/release_provenance_tests.py
+      - run: python3 tests/oci_distribution_tests.py
+
+  archives:
+    needs: [release-preflight, quality]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu # codegauge-0.1.0-x86_64-unknown-linux-gnu.tar.gz
+            runner: ubuntu-24.04
+            evidence_mode: native
+          - target: aarch64-unknown-linux-gnu # codegauge-0.1.0-aarch64-unknown-linux-gnu.tar.gz
+            runner: ubuntu-24.04-arm
+            evidence_mode: native
+          - target: x86_64-unknown-linux-musl # codegauge-0.1.0-x86_64-unknown-linux-musl.tar.gz
+            runner: ubuntu-24.04
+            evidence_mode: native
+          - target: aarch64-unknown-linux-musl # codegauge-0.1.0-aarch64-unknown-linux-musl.tar.gz
+            runner: ubuntu-24.04-arm
+            evidence_mode: native
+          - target: x86_64-apple-darwin # codegauge-0.1.0-x86_64-apple-darwin.tar.gz
+            runner: macos-15-intel
+            evidence_mode: native
+          - target: aarch64-apple-darwin # codegauge-0.1.0-aarch64-apple-darwin.tar.gz
+            runner: macos-14
+            evidence_mode: native
+          - target: x86_64-pc-windows-msvc # codegauge-0.1.0-x86_64-pc-windows-msvc.zip
+            runner: windows-2025
+            evidence_mode: native
+          - target: aarch64-pc-windows-msvc # codegauge-0.1.0-aarch64-pc-windows-msvc.zip
+            runner: windows-2025
+            evidence_mode: cross-target
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Install target and toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add --toolchain 1.97.1 "${{ matrix.target }}"
+          if [[ "${{ matrix.target }}" =~ musl$ ]]; then
+            sudo apt-get update
+            sudo apt-get install --yes musl-tools
+          fi
+      - name: Build codegauge
+        run: cargo +1.97.1 build --release --locked --package codegauge-cli --bin codegauge --target "${{ matrix.target }}"
+      - name: Assert codegauge version and codegauge profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The helper executes the exact `codegauge version` and `codegauge profiles` checks
+          # for native targets and records explicit cross-target evidence otherwise.
+          case "${{ matrix.target }}" in
+            *windows*) binary="target/${{ matrix.target }}/release/codegauge.exe" ;;
+            *) binary="target/${{ matrix.target }}/release/codegauge" ;;
+          esac
+          python3 scripts/verify_release_provenance.py binary \
+            --binary "$binary" \
+            --version "${RELEASE_REF#v}" \
+            --target "${{ matrix.target }}" \
+            --mode "${{ matrix.evidence_mode }}" \
+            --evidence-output binary-evidence.json
+      - name: Package archive and checksum
+        shell: bash
+        run: |
+          case "${{ matrix.target }}" in
+            *windows*) binary="target/${{ matrix.target }}/release/codegauge.exe" ;;
+            *) binary="target/${{ matrix.target }}/release/codegauge" ;;
+          esac
+          python3 scripts/package_release.py \
+            --binary "$binary" \
+            --target "${{ matrix.target }}" \
+            --version "${RELEASE_REF#v}" \
+            --revision "$RELEASE_SHA" \
+            --rust-toolchain "$RUST_TOOLCHAIN" \
+            --binary-evidence binary-evidence.json \
+            --output-dir release-out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: archive-${{ matrix.target }}
+          path: release-out/
+          if-no-files-found: error
+          retention-days: 14
+
+  cargo-preflight:
+    needs: [release-preflight, quality]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Package all runtime crates
+        run: |
+          set -euo pipefail
+          cargo package --locked -p codegauge-model
+          cargo package --locked -p codegauge-core --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"'
+          cargo package --locked -p codegauge-application \
+            --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
+            --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"'
+          cargo package --locked -p codegauge-provider-jacoco \
+            --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
+            --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"' \
+            --config 'patch.crates-io.codegauge-application.path="crates/codegauge-application"'
+          cargo package --locked -p codegauge-cli \
+            --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
+            --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"' \
+            --config 'patch.crates-io.codegauge-application.path="crates/codegauge-application"' \
+            --config 'patch.crates-io.codegauge-provider-jacoco.path="crates/codegauge-provider-jacoco"'
+      - name: Record dependency-order publication gate
+        run: |
+          printf '%s\n' \
+            codegauge-model \
+            codegauge-core \
+            codegauge-application \
+            codegauge-provider-jacoco \
+            codegauge-cli
+
+  npm-preflight:
+    needs: [release-preflight, archives]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archive-*
+          path: release-out
+          merge-multiple: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.15.0
+      - name: Verify every archive sidecar before extraction
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="${RELEASE_REF}"
+          test "$(git describe --tags --exact-match HEAD)" = "${RELEASE_TAG}"
+          test "$(git rev-parse HEAD)" = "${RELEASE_SHA}"
+          test "$(git rev-parse "${RELEASE_TAG}^{commit}")" = "${RELEASE_SHA}"
+          SOURCE_REVISION="${RELEASE_SHA}"
+          export RELEASE_TAG SOURCE_REVISION
+          find release-out -name '*.sha256' -print0 | xargs -0 -n1 sh -c "cd \"\$(dirname \"\$0\")\" && sha256sum --check \"\$(basename \"\$0\")\""
+          test -n "${SOURCE_REVISION}" # source_revision is recorded in every release-manifest-*.json
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifests = sorted(Path("release-out").glob("release-manifest-*.json"))
+          assert len(manifests) == 8, f"expected 8 release manifests, found {len(manifests)}"
+          for path in manifests:
+              manifest = json.loads(path.read_text(encoding="utf-8"))
+              assert manifest["source_revision"] == os.environ["SOURCE_REVISION"]
+              assert manifest["rust_toolchain"] == "1.97.1"
+          PY
+      - name: Generate npm platform package payloads
+        run: |
+          set -euo pipefail
+          RELEASE_VERSION="${RELEASE_REF#v}"
+          SOURCE_REVISION="${RELEASE_SHA}"
+          export RELEASE_VERSION
+          npm --prefix npm/codegauge install --omit=optional --ignore-scripts --no-audit --no-fund --no-package-lock
+          npm --prefix npm/codegauge run build
+          node npm/codegauge/dist/preflight.js \
+            --release-version "${RELEASE_VERSION}" \
+            --source-revision "${SOURCE_REVISION}" \
+            --release-out release-out \
+            --npm-root npm \
+            --archives-only
+          python3 scripts/generate_npm_packages.py --check
+          for package in npm/packages/*; do mkdir -p "$package/bin"; done
+          tar -xzf "release-out/codegauge-${RELEASE_REF#v}-x86_64-unknown-linux-gnu.tar.gz" -C npm/packages/codegauge-linux-x64-gnu/bin
+          tar -xzf "release-out/codegauge-${RELEASE_REF#v}-aarch64-unknown-linux-gnu.tar.gz" -C npm/packages/codegauge-linux-arm64-gnu/bin
+          tar -xzf "release-out/codegauge-${RELEASE_REF#v}-x86_64-apple-darwin.tar.gz" -C npm/packages/codegauge-darwin-x64/bin
+          tar -xzf "release-out/codegauge-${RELEASE_REF#v}-aarch64-apple-darwin.tar.gz" -C npm/packages/codegauge-darwin-arm64/bin
+          unzip -q "release-out/codegauge-${RELEASE_REF#v}-x86_64-pc-windows-msvc.zip" -d npm/packages/codegauge-win32-x64-msvc/bin
+          unzip -q "release-out/codegauge-${RELEASE_REF#v}-aarch64-pc-windows-msvc.zip" -d npm/packages/codegauge-win32-arm64-msvc/bin
+          test -x npm/packages/codegauge-linux-x64-gnu/bin/codegauge
+          test -x npm/packages/codegauge-linux-arm64-gnu/bin/codegauge
+          test -x npm/packages/codegauge-darwin-x64/bin/codegauge
+          test -x npm/packages/codegauge-darwin-arm64/bin/codegauge
+          test -f npm/packages/codegauge-win32-x64-msvc/bin/codegauge.exe
+          test -f npm/packages/codegauge-win32-arm64-msvc/bin/codegauge.exe
+          node npm/codegauge/dist/preflight.js \
+            --release-version "${RELEASE_VERSION}" \
+            --source-revision "${SOURCE_REVISION}" \
+            --release-out release-out \
+            --npm-root npm
+          for package in npm/packages/*; do (cd "$package" && npm pack --dry-run); done
+          (cd npm/codegauge && npm pack --dry-run)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: npm-packages
+          path: npm/packages/
+          if-no-files-found: error
+          retention-days: 14
+
+  release-verify:
+    needs: [release-preflight, archives, cargo-preflight, npm-preflight]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archive-*
+          path: release-out
+          merge-multiple: true
+      - name: Verify archive manifest, checksum, binary evidence, and immutable revision
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_provenance.py archives \
+            --release-version "${RELEASE_REF#v}" \
+            --source-revision "$RELEASE_SHA" \
+            --release-out release-out
+
+  oci-preflight:
+    needs: [release-preflight, release-verify]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Build, inspect, and smoke-test every OCI architecture
+        run: bash scripts/build_oci_release.sh
+      - name: OCI architecture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: oci-build-evidence-${{ inputs.release_tag }}
+          path: oci-evidence/
+          if-no-files-found: error
+          retention-days: 14

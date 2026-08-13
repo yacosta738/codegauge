@@ -1,0 +1,16 @@
+.git
+.github
+.atl
+openspec
+target
+node_modules
+npm/*/node_modules
+npm/*/dist
+release-out
+tests
+fixtures
+schemas
+examples
+Dockerfile
+.dockerignore
+*.log

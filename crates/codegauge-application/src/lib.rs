@@ -9,7 +9,7 @@ use codegauge_model::{Analysis,AnalysisStatus,CrapSummary,DerivedMetrics,ErrorCo
 use sha2::{Digest,Sha256};
 use std::{fs::File,io::{self,Read},path::Path,time::{SystemTime,UNIX_EPOCH}};
 
-pub const TOOL_NAME:&str="codegauge"; pub const TOOL_VERSION:&str="0.1.0"; pub const MAX_INPUT_BYTES:usize=64*1024*1024;
+pub const TOOL_NAME:&str="codegauge"; pub const TOOL_VERSION:&str=env!("CARGO_PKG_VERSION"); pub const MAX_INPUT_BYTES:usize=64*1024*1024;
 #[derive(Clone,Debug,Eq,PartialEq)] pub enum DiagnosticCode{MissingRequiredCounter,InvalidRequiredCounter,ZeroDenominator}
 #[derive(Clone,Debug,Eq,PartialEq)] pub struct Diagnostic{pub code:DiagnosticCode,pub symbol_id:Option<String>}
 #[derive(Clone,Debug,PartialEq)] pub struct ProviderObservations{pub symbols:Vec<SymbolResult>,pub diagnostics:Vec<Diagnostic>}
