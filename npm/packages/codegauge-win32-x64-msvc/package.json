@@ -1,0 +1,23 @@
+{
+  "name": "@yacosta738/codegauge-win32-x64-msvc",
+  "version": "0.1.0",
+  "description": "CodeGauge executable for Windows x64 MSVC",
+  "license": "MIT",
+  "repository": "yacosta738/codegauge",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "codegauge": "bin/codegauge.exe"
+  },
+  "files": [
+    "package.json",
+    "bin/codegauge.exe"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
