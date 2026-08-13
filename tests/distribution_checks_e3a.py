@@ -7,6 +7,7 @@ exist before later npm, archive, and OCI checks are enabled.
 from __future__ import annotations
 
 import re
+import json
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,18 @@ def load_toml(path: Path, errors: list[str]) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
+    text = read_text(path, errors)
+    if not text:
+        return {}
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as error:
+        errors.append(f"invalid JSON in {relative(path)}: {error}")
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
 def require_fragments(path: Path, fragments: tuple[str, ...], errors: list[str]) -> str:
     text = read_text(path, errors)
     for fragment in fragments:
@@ -110,9 +123,13 @@ def check_cargo(errors: list[str]) -> None:
         package = load_toml(path, errors).get("package", {})
         if package.get("name") != name:
             errors.append(f"{relative(path)} has an unexpected package name")
-        for key in ("version", "edition", "rust-version", "license", "repository", "readme"):
+        for key in ("edition", "rust-version", "license", "repository", "readme"):
             if package.get(key) != {"workspace": True}:
                 errors.append(f"{relative(path)} must inherit workspace {key}")
+        if package.get("version") != version:
+            errors.append(
+                f"{relative(path)} must declare package.version equal to the workspace version for Release Please"
+            )
         if not package.get("description"):
             errors.append(f"{relative(path)} needs package description metadata")
         if name in RUNTIME_CRATES and package.get("publish") is False:
@@ -149,6 +166,19 @@ def check_cargo(errors: list[str]) -> None:
         missing = [dependency for dependency in dependencies if dependency not in actual]
         if missing:
             errors.append(f"Cargo.lock graph for {name} is missing {', '.join(missing)}")
+
+    release_config = load_json(ROOT / "release-please-config.json", errors)
+    extra_files = release_config.get("extra-files", [])
+    if not any(
+        isinstance(extra_file, dict)
+        and extra_file.get("type") == "toml"
+        and extra_file.get("path") == "/Cargo.toml"
+        and extra_file.get("jsonpath") == "$.workspace.package.version"
+        for extra_file in extra_files
+    ):
+        errors.append(
+            "release-please must update the canonical workspace Cargo version"
+        )
 
 
 def workflow_section(text: str, heading: str, next_heading: str | None = None) -> str:

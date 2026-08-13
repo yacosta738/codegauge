@@ -141,8 +141,8 @@ def validate_package_versions(version: str, root: Path = ROOT) -> None:
         if not path.is_file() or tomllib is None:
             raise ProvenanceError(f"missing Cargo manifest for {crate}")
         package = tomllib.loads(path.read_text(encoding="utf-8")).get("package", {})
-        if package.get("version") != {"workspace": True}:
-            raise ProvenanceError(f"{crate} must inherit the workspace version")
+        if package.get("version") != version:
+            raise ProvenanceError(f"{crate} Cargo manifest version does not match the workspace version")
 
     base_path = root / "npm" / "codegauge" / "package.json"
     base = load_json(base_path)
