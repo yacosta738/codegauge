@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: Rust and contract quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Rust 1.97.1
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy
+      - name: Cargo metadata
+        run: cargo metadata --locked --format-version 1
+      - name: Cargo tests
+        run: cargo test --workspace --locked
+      - name: Cargo format
+        run: cargo fmt --all -- --check
+      - name: Cargo Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Python bootstrap checks
+        run: python3 tests/bootstrap_checks.py
+      - name: Python README checks
+        run: python3 tests/readme_checks.py
