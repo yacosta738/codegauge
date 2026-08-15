@@ -128,6 +128,15 @@ and temporary-variable cleanup; no tags, releases, registries, credentials, or l
 were used. `sdd-archive` must remain gated; this is a production distribution change, not a
 documentation/config-only exception, and no product or release acceptance is claimed.
 
+### Orchestration decision recorded — 2026-08-15
+
+The operator chose to stop at `qa` rather than execute `sdd-archive`. The authorized scope was the
+protected dry-run rehearsal only; any live release will be performed manually by the operator under
+their own authorization. Archive is intentionally deferred because six P1 blockers remain open and
+the QA verdict is `BLOCKED`, which would otherwise violate the policy that requires `QA policy-allowed`
+and no unresolved `CRITICAL/P0/P1` findings before archive. This section makes the decision explicit so
+it is not silently re-interpreted as acceptance by a future reviewer or session.
+
 ## Historical Phase 14 independent acceptance QA — 2026-08-15
 
 ### Identity and technical-verification handoff

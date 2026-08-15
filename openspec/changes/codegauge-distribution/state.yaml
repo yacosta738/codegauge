@@ -11,8 +11,16 @@ completed:
   - apply
   - verify
   - qa
-next: archive
+next: external-authorization-required
 updated: "2026-08-15"
+sdd_archive_gated: true
+sdd_archive_rationale: |
+  sdd-archive is intentionally NOT executed. The QA verdict is BLOCKED with six P1
+  acceptance blockers still open, which violates the policy that archive requires QA
+  policy-allowed status and no unresolved CRITICAL/P0/P1 findings. The user explicitly
+  authorized only the protected dry-run rehearsal; the operator will perform the live
+  release manually under their own authorization. This state must remain visible so
+  the next session and any reviewer can see that archive was deferred, not completed.
 
 baseline:
   repository: yacosta738/codegauge
@@ -29,6 +37,11 @@ summary: |
   no-op/replay/dry-run plus corrected private/npm parser acceptance only. Canonical live tag delivery,
   downstream release, Stage-A rerun, native targets, registry/publication, attestation, failure
   injection, rollback, dependent Cargo registry verification, and secret isolation remain blocked.
+
+  Orchestration decision 2026-08-15: the operator chose to stop at QA rather than execute
+  sdd-archive, and will perform any live release manually under their own authorization. The
+  rehearsal was the authorized scope; archive is gated by six open P1 blockers (see
+  open_p1_findings).
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
