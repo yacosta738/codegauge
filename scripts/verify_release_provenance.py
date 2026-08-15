@@ -247,6 +247,9 @@ RUNTIME_CARGO_MANIFEST_DEPENDENCIES = {
     "crates/codegauge-model/Cargo.toml": (),
     **RUNTIME_CARGO_DEPENDENCIES,
 }
+HUNK_HEADER_RE = re.compile(
+    r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: .*)?$"
+)
 NPM_BASE_PACKAGE_PATH = "npm/codegauge/package.json"
 NPM_PLATFORM_PACKAGE_PATHS = {
     f"npm/packages/{package.removeprefix('@yacosta738/')}/package.json": package
@@ -723,7 +726,14 @@ def _patch_change_lines(
     *,
     path: str,
 ) -> tuple[list[str], list[str], list[str]]:
-    """Return added/deleted patch lines after validating complete GitHub metadata."""
+    """Return changed lines from one complete GitHub PR-file patch.
+
+    The GitHub PR files API returns the patch body without the file headers that
+    appear in a local unified diff.  The filename in the validated API entry is
+    the only file identity available for that hunk-only form.  Keep accepting
+    both that API form and a complete single-file unified diff, but never infer
+    completeness from the additions/deletions metadata alone.
+    """
 
     if entry.get("status") not in {"modified", "added"}:
         raise ProvenanceError(f"{path} must be an added or modified file")
@@ -738,35 +748,122 @@ def _patch_change_lines(
 
     patch = entry.get("patch")
     if not isinstance(patch, str) or not patch.strip():
-        raise ProvenanceError(f"{path} diff requires a complete unified patch")
+        raise ProvenanceError(f"{path} diff requires a complete patch")
     lines = patch.splitlines()
-    if lines.count(f"diff --git a/{path} b/{path}") != 1:
-        raise ProvenanceError(f"{path} diff has missing or unexpected file context")
-    if any(
-        line.startswith("diff --git ") and line != f"diff --git a/{path} b/{path}"
-        for line in lines
-    ):
-        raise ProvenanceError(f"{path} diff contains an unexpected file section")
-    if not any(line.startswith("@@") for line in lines):
-        raise ProvenanceError(f"{path} diff is missing a complete hunk")
-    if entry["status"] == "added":
-        if "--- /dev/null" not in lines or f"+++ b/{path}" not in lines:
-            raise ProvenanceError(f"{path} added-file patch has invalid headers")
-    elif f"--- a/{path}" not in lines or f"+++ b/{path}" not in lines:
-        raise ProvenanceError(f"{path} modified-file patch has invalid headers")
 
-    added: list[str] = []
-    deleted: list[str] = []
-    for line in lines:
-        if line.startswith(("+++ ", "--- ")) or line.startswith("\\ No newline"):
-            continue
-        if line.startswith("+"):
-            added.append(line[1:])
-        elif line.startswith("-"):
-            deleted.append(line[1:])
+    expected_diff_header = f"diff --git a/{path} b/{path}"
+    diff_headers = [
+        line
+        for line in lines
+        if line.startswith("diff --git ")
+    ]
+    if diff_headers:
+        if lines[0] != expected_diff_header or diff_headers != [expected_diff_header]:
+            raise ProvenanceError(f"{path} diff has missing or unexpected file context")
+        hunk_start = next(
+            (index for index, line in enumerate(lines) if line.startswith("@@")),
+            None,
+        )
+        if hunk_start is None:
+            raise ProvenanceError(f"{path} diff is missing a complete hunk")
+        preamble = lines[1:hunk_start]
+        expected_old_header = (
+            "--- /dev/null"
+            if entry["status"] == "added"
+            else f"--- a/{path}"
+        )
+        expected_new_header = f"+++ b/{path}"
+        if preamble.count(expected_old_header) != 1 or preamble.count(expected_new_header) != 1:
+            if entry["status"] == "added":
+                raise ProvenanceError(f"{path} added-file patch has invalid headers")
+            raise ProvenanceError(f"{path} modified-file patch has invalid headers")
+
+        metadata_patterns = (
+            re.compile(r"^index [0-9a-f]+\.\.[0-9a-f]+(?: \d+)?$"),
+            re.compile(r"^(?:new|deleted|old) file mode \d+$"),
+            re.compile(r"^(?:old|new) mode \d+$"),
+            re.compile(r"^(?:similarity|dissimilarity) index \d+%$"),
+            re.compile(r"^(?:rename from|rename to) .+$"),
+        )
+        for line in preamble:
+            if line in {expected_old_header, expected_new_header}:
+                continue
+            if not any(pattern.fullmatch(line) for pattern in metadata_patterns):
+                raise ProvenanceError(f"{path} diff has malformed or unexpected headers")
+    else:
+        if not lines[0].startswith("@@"):
+            raise ProvenanceError(f"{path} diff is neither a complete unified diff nor a hunk-only patch")
+        if any(line.startswith("diff --git ") for line in lines):
+            raise ProvenanceError(f"{path} diff contains an unexpected file section")
+        hunk_start = 0
+
+    added, deleted, hunk_counts = _parse_patch_hunks(
+        lines[hunk_start:],
+        path=path,
+    )
+    if entry["status"] == "added" and (
+        deleted or any(old_count != 0 for old_count, _ in hunk_counts)
+    ):
+        raise ProvenanceError(f"{path} added-file patch contains deleted or old-file context")
     if len(added) != entry["additions"] or len(deleted) != entry["deletions"]:
         raise ProvenanceError(f"{path} diff patch is truncated or has inconsistent counts")
     return added, deleted, lines
+
+
+def _parse_patch_hunks(
+    lines: list[str],
+    *,
+    path: str,
+) -> tuple[list[str], list[str], list[tuple[int, int]]]:
+    """Parse every hunk and verify its declared old/new line counts."""
+
+    if not lines or not lines[0].startswith("@@"):
+        raise ProvenanceError(f"{path} diff is missing a complete hunk")
+
+    added: list[str] = []
+    deleted: list[str] = []
+    hunk_counts: list[tuple[int, int]] = []
+    index = 0
+    while index < len(lines):
+        header = lines[index]
+        match = HUNK_HEADER_RE.fullmatch(header)
+        if match is None:
+            raise ProvenanceError(f"{path} diff contains a malformed hunk header")
+        old_count = int(match.group(2) or "1")
+        new_count = int(match.group(4) or "1")
+        index += 1
+        actual_old = 0
+        actual_new = 0
+        hunk_has_content = False
+        while index < len(lines) and not lines[index].startswith("@@"):
+            line = lines[index]
+            if line == r"\ No newline at end of file":
+                if not hunk_has_content:
+                    raise ProvenanceError(f"{path} diff has an orphaned newline marker")
+            elif line.startswith(" "):
+                actual_old += 1
+                actual_new += 1
+                hunk_has_content = True
+            elif line.startswith("+"):
+                actual_new += 1
+                added.append(line[1:])
+                hunk_has_content = True
+            elif line.startswith("-"):
+                actual_old += 1
+                deleted.append(line[1:])
+                hunk_has_content = True
+            else:
+                raise ProvenanceError(f"{path} diff contains an unexpected hunk line")
+            index += 1
+        if not hunk_has_content:
+            raise ProvenanceError(f"{path} diff contains an empty hunk")
+        if actual_old != old_count or actual_new != new_count:
+            raise ProvenanceError(f"{path} diff hunk is truncated or has inconsistent counts")
+        hunk_counts.append((old_count, new_count))
+
+    if not hunk_counts:
+        raise ProvenanceError(f"{path} diff is missing a complete hunk")
+    return added, deleted, hunk_counts
 
 
 def _annotation_tokens(line: str) -> list[str]:
@@ -1124,7 +1221,7 @@ def _validate_private_conformance_patch(
     if entry.get("status") != "modified":
         raise ProvenanceError("private conformance manifest must be an existing modified file")
 
-    added_patch_lines, deleted_patch_lines, _ = _patch_change_lines(
+    added_patch_lines, deleted_patch_lines, patch_lines = _patch_change_lines(
         entry,
         path=PRIVATE_CONFORMANCE_MANIFEST_PATH,
     )
@@ -1137,13 +1234,6 @@ def _validate_private_conformance_patch(
             "private conformance diff must contain exactly four additions and four deletions"
         )
 
-    patch = entry["patch"]
-    if (
-        f"--- a/{PRIVATE_CONFORMANCE_MANIFEST_PATH}" not in patch
-        or f"+++ b/{PRIVATE_CONFORMANCE_MANIFEST_PATH}" not in patch
-        or not any(line.startswith("@@") for line in patch.splitlines())
-    ):
-        raise ProvenanceError("private conformance diff patch is missing complete file context")
     required_context = {
         ' description = "Private cross-crate CodeGauge conformance suite"',
         " [dependencies]",
@@ -1151,7 +1241,7 @@ def _validate_private_conformance_patch(
         " schemars.workspace = true",
         " serde_json.workspace = true",
     }
-    if not required_context <= set(patch.splitlines()):
+    if not required_context <= set(patch_lines):
         raise ProvenanceError("private conformance diff patch is truncated")
 
     if len(deleted_patch_lines) != len(PRIVATE_CONFORMANCE_DEPENDENCIES) or len(

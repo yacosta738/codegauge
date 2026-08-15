@@ -20,12 +20,12 @@ baseline:
   commit: 6477eb1
 
 summary: |
-  Fresh Phase 9 verification passes locally. Exact Release Please 17.6.0 fake-SCM execution produces
-  the 32-path effective changeset, exactly four private dependency-version edits, synchronized public
-  Cargo/npm/lock values, six optional pin rewrites, one PR, and zero release/tag calls. The typed
-  golden updater, exact README/contract markers, synchronized copied-tree locked tests, and
-  content-aware Stage-B boundary all pass. Independent QA and protected hosted rehearsal remain
-  separate gates; no hosted success or external write is claimed.
+  Fresh technical verification passed the hosted GitHub PR-files hunk-only patch parser correction
+  from run #31878496886. Local evidence covers the exact 32-path Release Please 17.6.0 changeset,
+  private four-pin exception, generated-file validation, full unified diffs, hunk-only patches for
+  every content-bearing changed file, no-match no-op, dry-run/live gates, synchronized workspace
+  tests, and the no-publication boundary. Independent QA and the separately authorized hosted rerun
+  remain downstream gates; no hosted success or external write is claimed.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -37,10 +37,12 @@ decision:
 
 blocked:
   - Hosted PR #59 failed cargo metadata --locked because private conformance dependency pins remained ^0.1.0
+  - Hosted run #31878496886 found the parser rejected GitHub PR-files hunk-only patch context for .release-please-manifest.json
   - Prior Phase 9 verification found a synchronized-tree conformance golden/version failure (remediated locally in apply)
   - Prior Phase 9 verification found filename-only acceptance of a mutated approved generated file (remediated locally in apply)
   - Independent `sdd-qa` acceptance rerun is pending
   - Corrected private-pin behavior has no hosted verification; do not claim PR #59-equivalent success
+  - The hunk-only patch parser fix has no hosted verification; do not claim run #31878496886-equivalent success
   - Hosted Release Please/tag carrier/release workflow rehearsal remains unexecuted
   - Temporary carrier rehearsal guard is implemented locally but requires protected hosted observation
   - Carrier no-match correlation fix is locally verified but not yet hosted-verified; this is separate from the new conformance-pin blocker
@@ -55,6 +57,6 @@ blocked:
 qa:
   verdict: BLOCKED
   report: openspec/changes/codegauge-distribution/qa-report.md
-  local_acceptance: technical verification passes locally; independent acceptance and hosted evidence remain pending
+  local_acceptance: parser fix and local quality checks pass; independent acceptance and hosted evidence remain pending
   critical_or_p0_findings: none observed after the generated-version/updater boundary remediation
   open_p1_findings: hosted lifecycle/provenance, publication/attestation, and native target evidence

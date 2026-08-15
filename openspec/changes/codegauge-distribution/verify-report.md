@@ -1953,3 +1953,295 @@ private four-pin exception, locked workspace test, content-aware Stage-B mutatio
 dry-run/live/no-match behavior. No local defect remains. The only remaining blocker is protected
 hosted/acceptance evidence; hand off explicitly to **`sdd-qa`**. No hosted success, publication, or
 operator acceptance is claimed.
+
+## Apply handoff — hosted GitHub PR patch parser defect — 2026-08-15
+
+This newest section records the apply correction and does not replace a fresh `sdd-verify` verdict.
+
+### Hosted finding and fix
+
+- Hosted run `#31878496886` reached validation for the real merged Release Please PR `#59` and failed
+  with `RELEASE PROVENANCE: FAIL: .release-please-manifest.json diff has missing or unexpected file
+  context`.
+- GitHub `GET /pulls/59/files` returned a valid hunk-only `patch` beginning `@@ -1,15 +1,15 @@` and
+  containing no `diff --git`, `---`, or `+++` headers. `_patch_change_lines()` incorrectly required
+  complete local unified-diff headers and rejected the valid API entry.
+- The parser now accepts exactly a complete single-file unified diff or a filename-bound GitHub
+  PR-files hunk-only patch. It validates hunk bodies/counts, API additions/deletions/changes counts,
+  status-specific headers, path identity when headers exist, and rejects missing, malformed,
+  truncated, or unexpected multi-file sections. The private four-pin validator uses parsed hunk
+  context for both forms.
+
+### Local handoff evidence
+
+- **RED:** the new API-shaped manifest fixture failed before the fix with the hosted missing-context
+  error.
+- **GREEN/REFACTOR:** carrier/static/provenance/runtime/distribution, bootstrap/README, OCI,
+  compileall/package generation, locked Cargo metadata/tests/check/fmt/Clippy, five Cargo package
+  checks, npm typecheck/tests/seven pack dry-runs, actionlint, ShellCheck, Dockerfile, and whitespace
+  checks passed locally.
+- The exact 32-path Stage-A changeset, private four-pin exception, generated-file content validation,
+  no-match carrier no-op, dry-run/live gates, and no-publication contract remain preserved.
+- No tag, GitHub Release, Cargo/npm/GHCR publication, upload, attestation, workflow dispatch,
+  repository-variable change, credential use, merge, push, or hosted write occurred. Hosted run
+  `#31878496886` found the bug, and this fix is **not yet hosted-verified**.
+
+### Next gate
+
+Fresh `sdd-verify` must validate this updated patch-form boundary, followed by independent `sdd-qa`
+and a separately authorized protected hosted rerun. This apply handoff makes no operator or product
+acceptance claim.
+
+## Authoritative fresh sdd-verify — GitHub PR-files hunk-only parser — 2026-08-15
+
+This is the authoritative technical verification section for the current dirty checkout. Earlier
+sections remain audit history. Verification was local and read-only; it does not claim hosted,
+operator, or product acceptance.
+
+### Identity, scope, and safety
+
+| Field | Value |
+|---|---|
+| Change | `codegauge-distribution` |
+| Mode | OpenSpec |
+| Checkout | `/Users/acosta/Dev/agent-swarm/codegauge` |
+| Release Please | Exact installed `17.6.0` |
+| Synchronized release version | `0.2.0` |
+| Strict TDD | Configured true; verifier module is absent, and dirty-worktree commit ordering is not independently provable |
+| Safety boundary | No commit, push, merge, variable, tag, label, release, upload, publication, attestation, credential, dispatch, or hosted write |
+
+### Completeness
+
+The active numbered task list contains 43 entries: 36 checked and 7 still open. Open entries are
+`4.2`, `4.3`, `7.4`, `8.4`, `9.7`, `9.11`, and `10.4`; they are protected hosted rehearsals,
+independent QA, or composite handoffs, not local implementation defects.
+
+| Metric | Result |
+|---|---:|
+| Active numbered task entries | 43 |
+| Complete | 36 |
+| Incomplete | 7; hosted/downstream gates |
+| Local CRITICAL findings | 0 |
+| Technical verdict | **PASS WITH WARNINGS** |
+
+### Exact Release Please 17.6.0 evidence
+
+`python3 tests/release_please_runtime_tests.py` executed the package-level Manifest, NodeWorkspace,
+linked-versions, merge, and updater chain against a read-only fake SCM. It passed with:
+
+```text
+releaseVersion=0.2.0
+effectivePathCount=32
+privateDependencyUpdates=1 (exactly four dependency-version edits)
+synchronizedPullRequests=1
+releaseCalls=0
+tagCalls=0
+```
+
+The exact sorted effective path set was:
+
+```text
+.release-please-manifest.json
+Cargo.lock
+Cargo.toml
+README.md
+crates/codegauge-application/CHANGELOG.md
+crates/codegauge-application/Cargo.toml
+crates/codegauge-cli/CHANGELOG.md
+crates/codegauge-cli/Cargo.toml
+crates/codegauge-cli/tests/cli.rs
+crates/codegauge-conformance/Cargo.toml
+crates/codegauge-core/CHANGELOG.md
+crates/codegauge-core/Cargo.toml
+crates/codegauge-model/CHANGELOG.md
+crates/codegauge-model/Cargo.toml
+crates/codegauge-model/tests/contracts.rs
+crates/codegauge-provider-jacoco/CHANGELOG.md
+crates/codegauge-provider-jacoco/Cargo.toml
+npm/codegauge/CHANGELOG.md
+npm/codegauge/package.json
+npm/packages/codegauge-darwin-arm64/CHANGELOG.md
+npm/packages/codegauge-darwin-arm64/package.json
+npm/packages/codegauge-darwin-x64/CHANGELOG.md
+npm/packages/codegauge-darwin-x64/package.json
+npm/packages/codegauge-linux-arm64-gnu/CHANGELOG.md
+npm/packages/codegauge-linux-arm64-gnu/package.json
+npm/packages/codegauge-linux-x64-gnu/CHANGELOG.md
+npm/packages/codegauge-linux-x64-gnu/package.json
+npm/packages/codegauge-win32-arm64-msvc/CHANGELOG.md
+npm/packages/codegauge-win32-arm64-msvc/package.json
+npm/packages/codegauge-win32-x64-msvc/CHANGELOG.md
+npm/packages/codegauge-win32-x64-msvc/package.json
+tests/golden/valid-methods.json
+```
+
+The private manifest is not a Release Please candidate or linked component. Its updater changes
+only the four dependency `.version` fields; package version `0.1.0`, `publish = false`, identity,
+lock entry, changelog exclusion, and release/tag exclusion remain intact. The six npm optional
+dependencies all rewrite to `0.2.0`.
+
+### Hunk-only and unified-diff parser evidence
+
+The real `.release-please-manifest.json` fixture was shaped like a GitHub `GET /pulls/{number}/files`
+entry: validated `filename`, `status`, `additions`, `deletions`, `changes`, and a patch beginning
+`@@ -1,15 +1,15 @@` with no `diff --git`, `---`, or `+++` headers. It passed the complete manifest
+content validator. The same real manifest also passed as a complete single-file unified diff.
+
+Read-only generated matrices passed both patch forms for all 31 content-bearing Stage-A entries:
+the 6 root/content carriers, 5 runtime Cargo manifests, 7 npm manifests, 12 generated changelogs,
+and the private conformance manifest. The 32nd effective Release Please path is the intentionally
+unmarked `crates/codegauge-cli/tests/cli.rs` fixture; it has no release-version marker and receives
+no content mutation, so it is correctly absent from the changed-file patch matrix.
+
+| Parser contract | Runtime evidence | Result |
+|---|---|---|
+| Hunk-only real release manifest | `_patch_change_lines()` plus `validate_stage_a_diff()` | ✅ PASS |
+| Full unified release manifest | Same validator with matching file headers | ✅ PASS |
+| Hunk-only all content-bearing entries | 31-entry generated matrix | ✅ PASS |
+| Full unified all content-bearing entries | 31-entry generated matrix | ✅ PASS |
+| Multi-hunk patch parsing | Two complete hunk fixture | ✅ PASS |
+| Missing status/count/patch metadata | 9-case parser negative matrix and carrier fixtures | ✅ FAIL-CLOSED |
+| Inconsistent additions/deletions/changes | Parser negative and carrier fixtures | ✅ FAIL-CLOSED |
+| Truncated or malformed hunk/body | Parser negative and carrier fixtures | ✅ FAIL-CLOSED |
+| Unexpected second file section | Hunk-only and full-diff negative fixtures | ✅ FAIL-CLOSED |
+| Status/header/path identity | Added/modified and mismatched-header checks | ✅ FAIL-CLOSED |
+
+### Stage-B content and behavior matrix
+
+| Requirement/scenario | Covering executable evidence | Result |
+|---|---|---|
+| Generated-file wrong version/arbitrary content rejected | Golden/changelog mutation fixtures | ✅ LOCAL |
+| Private package version/publish/name/path/key/feature/comment mutations rejected | Private four-pin negative matrix | ✅ LOCAL |
+| Unapproved npm/changelog/private paths rejected | Exact allowlists and negative paths | ✅ LOCAL |
+| Missing root carrier files rejected | Each root carrier deleted in copied-tree tests | ✅ LOCAL |
+| Missing/filename-only patch rejected | Complete metadata/content requirement | ✅ LOCAL |
+| Malformed SemVer rejected before tag planning | Leading-zero, malformed, prerelease/build cases | ✅ LOCAL |
+| Tag conflicts and existing-release conflicts rejected | Tag planner and release-slot fixtures | ✅ LOCAL |
+| Golden uses `$.tool.version` only | Exact Release Please typed updater and copied tree | ✅ LOCAL |
+| README/contracts update only 4/2 annotated lines | Marker-count and line-pair assertions | ✅ LOCAL |
+| Synchronized tree runs complete workspace tests | Copied effective tree; golden `0.2.0`, conformance `0.1.0`/`publish=false` | ✅ LOCAL |
+| Ordinary main no-match | Classifier returns `status=skipped`, reason `no-matching-release-please-pr`; workflow gates before diff fetch | ✅ LOCAL |
+| Manual/push dry-run/live mode | Exact mode matrix; invalid values fail closed | ✅ LOCAL |
+| Stage A no release/tag writes | Fake-SCM counters | ✅ LOCAL |
+
+### Build, test, and coverage evidence
+
+| Command/check | Result |
+|---|---|
+| `python3 tests/release_carrier_tests.py` | **PASS** |
+| `python3 tests/release_carrier_static_tests.py` | **PASS** |
+| `python3 tests/release_provenance_tests.py` | **PASS** |
+| `python3 tests/release_please_runtime_tests.py` | **PASS**; exact 17.6.0, 32 paths, four private edits, six npm pins, one PR, zero release/tag calls |
+| `python3 tests/distribution_checks.py` | **PASS** |
+| `python3 tests/bootstrap_checks.py` and `python3 tests/readme_checks.py` | **PASS** |
+| `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` | **PASS** |
+| `cargo +1.97.1 metadata --locked --format-version 1` | **PASS** |
+| `cargo +1.97.1 test --workspace --locked` | **PASS**; 31 passed, 0 failed, 0 skipped |
+| `cargo +1.97.1 check --workspace --locked` | **PASS** |
+| `cargo +1.97.1 fmt --all -- --check` | **PASS** |
+| `cargo +1.97.1 clippy --workspace --all-targets --locked -- -D warnings` | **PASS** |
+| Five workflow-equivalent locked `cargo package` checks with local dependency patches | **PASS**; no publication |
+| npm wrapper typecheck and tests | **PASS**; 6 tests passed |
+| Wrapper plus six platform `npm pack --dry-run` checks | **PASS**; 7 packages |
+| OCI primary/static/evidence/failure suites | **PASS** |
+| `actionlint .github/workflows/*.yml` | **PASS** |
+| `shellcheck scripts/build_oci_release.sh` | **PASS** |
+| `docker buildx build --check --progress=plain .` | **PASS**; no warnings |
+| `git diff --check` | **PASS** |
+| Coverage | **UNAVAILABLE**; no tool or threshold configured |
+
+### Specification compliance matrix
+
+`LOCAL` means a covering runtime test or executable validator passed. `PARTIAL` means local/static
+evidence passed but hosted execution, publication, native-target evidence, or failure injection was
+not run or was prohibited. No local scenario is failing.
+
+| Spec area | Evidence | Result |
+|---|---|---|
+| CI pinned toolchain/lock and complete quality gate | Locked Cargo metadata/tests/check/fmt/Clippy plus Python checks | ✅ LOCAL |
+| CI immutable actions and least privilege | Distribution/carrier static suites plus actionlint | ✅ LOCAL / ⚠️ hosted runtime unrun |
+| Cargo private stale-pin failure and four-pin exception | Historical PR `#59` failure plus corrected synchronized fixture | ✅ LOCAL / ⚠️ hosted rerun |
+| Cargo RFC-0001 compatibility | 31 locked workspace tests and conformance suite | ✅ LOCAL |
+| Cargo package integrity/publication order | Five local package checks and workflow topology | ✅ LOCAL / ⚠️ registry unrun |
+| npm identity, six target packages, resolution, passthrough | npm tests, generator, and seven pack dry-runs | ✅ LOCAL |
+| OCI identity, architecture rejection, metadata, non-root/digest checks | Four OCI suites and Dockerfile check | ✅ LOCAL / ⚠️ registry unrun |
+| Exact 32-path Stage-A graph and zero Stage-A writes | Exact fake-SCM runtime result | ✅ LOCAL |
+| Typed/annotated/TOML/npm/generated/private Stage-B boundary | Positive and mutation matrices | ✅ LOCAL |
+| Hunk-only GitHub PR-files patch form | Real manifest plus 31-entry hunk-only matrix | ✅ LOCAL |
+| Ordinary-main zero-match correlation | Classifier/CLI/static matched-only gates | ✅ LOCAL / ⚠️ hosted event unrun |
+| Dry-run/live/idempotency/conflict behavior | Mode probe, workflow guards, and tag planner | ✅ LOCAL / ⚠️ hosted event unrun |
+| Canonical tag-only downstream ownership | Workflow topology/static checks | ✅ LOCAL / ⚠️ tag delivery unrun |
+| Archives/checksums/publication/attestation/rollback | Existing local validators/static checks | ⚠️ PARTIAL; external writes prohibited |
+
+### Correctness
+
+| Contract | Status | Evidence |
+|---|---|---|
+| GitHub hunk-only manifest patch is accepted without file headers | ✅ | Real API-shaped fixture and full carrier validation |
+| Full unified diffs remain accepted | ✅ | Full 31-entry matrix and existing carrier fixtures |
+| Patch metadata/hunk counts are independently strict | ✅ | Parser checks declared counts, body counts, and API totals |
+| Exact four private pins only | ✅ | Runtime updater pairs and content-aware private validator |
+| Exact 32 effective paths, six npm pins, one PR, zero release/tag calls | ✅ | Read-only v17.6.0 fake-SCM harness |
+| Generated/root/candidate mutations fail closed | ✅ | Content validator matrix |
+| Synchronized workspace tests remain green | ✅ | Copied effective tree plus current workspace run |
+| Ordinary no-match and dry-run/live gates remain intact | ✅ local | Classifier, static gates, and exact shell mode matrix |
+| Hosted PR/carrier/tag/publication acceptance | ⚠️ | Not executed or authorized; downstream QA/hosted rerun |
+
+### Design coherence
+
+| Design decision | Result | Evidence |
+|---|---|---|
+| Component-tagged Stage A plus trusted post-merge carrier | ✅ | Runtime counters and workflow/static checks |
+| Java root metadata carrier and private four-pin exception | ✅ | Exact updater selectors and private content matrix |
+| Stage-B validates content, not filenames | ✅ | Typed/annotated/TOML/npm/changelog/private fixtures |
+| Parser accepts GitHub hunk-only and complete unified forms only | ✅ | 31-entry positive matrix and parser negatives |
+| Stage A owns no release/tag; Stage B owns canonical tag | ✅ local | Fake-SCM zero calls and workflow topology |
+| No-match is a successful non-mutating carrier outcome | ✅ local | Classifier output and matched-only workflow conditions |
+| Dry-run is reversible and live default is preserved | ✅ local | Manual/push mode matrix and mutation guards |
+
+### Issues
+
+#### CRITICAL
+
+None.
+
+#### WARNING
+
+1. The protected hosted rerun remains unexecuted: the real merged PR/carrier path, ordinary-main
+   hosted no-match event, manual/variable rehearsal, canonical tag delivery, and downstream hosted
+   execution are not observable under the no-write boundary. This is the sole remaining technical
+   implementation/host boundary; no local defect remains.
+2. Independent `sdd-qa` remains required for acceptance scenarios involving hosted provenance,
+   publication/attestation, native non-host targets, failure injection, and rollback. This report
+   does not convert local technical evidence into operator acceptance.
+3. Strict-TDD commit ordering cannot be independently proven from the intentionally dirty worktree;
+   the configured `strict-tdd-verify.md` module is absent. This is an evidence/tooling limitation,
+   not an observed implementation failure.
+
+#### SUGGESTION
+
+1. Preserve the 31-entry hunk-only matrix and the exact mode/no-match probes as checked-in regression
+   evidence when the separately authorized hosted rerun is performed.
+
+### Verdict table
+
+| Finding | Judge A | Judge B | Severity | Status |
+|---------|---------|---------|----------|--------|
+| Real GitHub hunk-only manifest patch is accepted | ✅ carrier runtime | ✅ 31-entry hunk-only matrix | SUGGESTION | Confirmed locally |
+| Full unified diffs remain accepted | ✅ existing fixtures | ✅ full 31-entry matrix | SUGGESTION | Confirmed locally |
+| Missing/truncated/inconsistent/malformed/unexpected patches fail closed | ✅ parser negatives | ✅ content validators/static gates | SUGGESTION | Confirmed locally |
+| Exact 32-path graph, four pins, six npm pins, one PR, zero release/tag calls | ✅ exact v17.6.0 runtime | ✅ harness counters/path assertions | SUGGESTION | Confirmed locally |
+| Generated/private/unapproved/root/SemVer/conflict boundaries | ✅ mutation matrix | ✅ validator/source inspection | SUGGESTION | Confirmed locally |
+| Synchronized workspace and quality/package checks | ✅ Cargo/npm/Python/OCI execution | ✅ workflow/package/diff diagnostics | SUGGESTION | Confirmed locally |
+| Ordinary no-match and dry-run/live gates | ✅ classifier/mode probes | ✅ static matched-only conditions | SUGGESTION | Confirmed locally; hosted unrun |
+| Hosted rerun, publication, and acceptance | ✅ no-write policy boundary | ❌ not executed or authorized | WARNING | External gate remains |
+
+### Final verdict
+
+**PASS WITH WARNINGS** — every requested local contract passed, including the real GitHub-shaped
+hunk-only manifest patch, full unified diffs, strict fail-closed parser negatives, exact 32-path
+Release Please 17.6.0 result, private four-pin exception, generated/root content validation,
+synchronized workspace tests, no-match behavior, and dry-run/live gates. No local defect remains.
+The remaining blocker is the separately authorized hosted rerun and downstream acceptance evidence;
+hand off explicitly to **`sdd-qa`**. No hosted success, publication, or operator acceptance is
+claimed.
