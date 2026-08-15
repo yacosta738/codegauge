@@ -21,12 +21,13 @@ baseline:
   commit: 6477eb1
 
 summary: |
-  Independent QA re-ran the focused local acceptance capabilities on
-  fix/release-carrier-private-patch-context after the Phase 12 correction. The exact PR #59 private
-  hunk-only patch, fail-closed parser/private mutation matrix, Release Please 17.6.0 harness, carrier
-  modes/replay, and fake-GitHub dry-run no-write plan passed locally. Hosted replay, tag delivery,
-  publication, native targets, registry package order, attestation, and rollback remain blocked under
-  the explicit no-write/no-secret boundary.
+  Independent Phase 14 acceptance QA re-ran the exact read-only PR #59 files API list (31 files), the
+  seven-pair base npm formatting boundary, fail-closed npm/private mutation matrix, Release Please
+  17.6.0 harness, carrier/replay/mode, dry-run no-write, Cargo, npm, OCI, archive, package, and local
+  workflow capabilities. All executable local scenarios passed or rejected as expected. Hosted runs
+  31886141725 and 31888439750 remain pre-fix failures only; corrected hosted replay, downstream tag
+  delivery, native targets, registry/publication, attestation, failure injection, rollback, and
+  dependent Cargo registry verification remain blocked.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -37,8 +38,10 @@ decision:
   private_conformance_exception: "four exact dependency .version JSONPaths only; package version remains 0.1.0 and publish=false"
 
 blocked:
-  - "Hosted run 31886141725 remains a failure observation for the valid PR #59 hunk-only private patch;
-    no hosted replay success is claimed"
+  - "Hosted run 31888439750 remains the pre-fix failure observation for the valid PR #59 npm hunk-only
+    base-package patch; no corrected hosted replay success is claimed"
+  - "Hosted run 31886141725 remains a separate pre-fix failure observation for the valid private
+    conformance hunk-only patch"
   - The separately authorized protected hosted replay and downstream acceptance remain required
   - "Corrected hosted Stage-A/version-PR rerun, ordinary-main carrier, and historical replay runs remain
     unexecuted; the original PR #59 Stage-A observation is failure evidence for this boundary"
@@ -51,6 +54,6 @@ blocked:
 qa:
   verdict: BLOCKED
   report: openspec/changes/codegauge-distribution/qa-report.md
-  local_acceptance: local executable capabilities re-ran and passed; static-only checks are not recorded as QA passes; hosted/provider acceptance remains blocked
+  local_acceptance: Phase 14 sdd-qa reran executable local acceptance; exact PR #59/API/npm/private/carry/replay/dry-run/Cargo/npm/OCI/package capabilities passed, while static-only diagnostics remain NOT TESTED and hosted/provider acceptance remains BLOCKED
   critical_or_p0_findings: none observed
-  open_p1_findings: hosted lifecycle/replay/tag delivery, publication/attestation, native targets, dependent Cargo registry verification, and rollback/failure-injection
+  open_p1_findings: corrected hosted replay, downstream tag delivery, registry/publication, attestation, native targets, dependent Cargo registry verification, hosted security/failure injection, and rollback

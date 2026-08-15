@@ -6,15 +6,155 @@
 |---|---|
 | Change | `codegauge-distribution` (R-F6) |
 | Mode | OpenSpec |
-| Phase | `sdd-qa` |
+| Phase | `sdd-qa` — Phase 14 independent acceptance rerun |
 | Date | 2026-08-15 |
 | Target branch | `fix/release-carrier-private-patch-context` |
 | Target checkout | `/Users/acosta/Dev/agent-swarm/codegauge` |
-| Target HEAD | `cdd91baf9cbd0fb416ecfe67977310253d9b7534` |
+| Target HEAD | `aa27efe0f6ce10707abd1c19f5b020a4db8dfa46` plus the intentional dirty remediation/QA-artifact diff |
 | Final QA verdict | `BLOCKED` |
 
 This is independent acceptance QA for observable local behavior. It does not claim hosted, operator,
 registry, or product acceptance.
+
+## Latest authoritative Phase 14 independent acceptance QA — 2026-08-15
+
+### Identity and technical-verification handoff
+
+- Change: `codegauge-distribution` (R-F6), OpenSpec mode, branch
+  `fix/release-carrier-private-patch-context`.
+- Target: `/Users/acosta/Dev/agent-swarm/codegauge`, `HEAD=aa27efe0f6ce10707abd1c19f5b020a4db8dfa46`.
+- Technical handoff: `verify-report.md` reports local **PASS WITH WARNINGS** for the Phase 13 npm
+  formatting correction; it does not claim hosted replay, publication, or operator acceptance.
+- Source artifacts read: proposal, all five delta specs, design, tasks, apply progress, verification
+  report, state, and `openspec/config.yaml`.
+- No application-under-test environment or general acceptance runner exists. This QA therefore uses
+  only observable repository-local harnesses and package/runtime probes; static inspection is never
+  recorded as a QA pass.
+
+### Target, environment, permissions, and limitations
+
+- Host/toolchain: macOS arm64; Rust/Cargo `1.97.1`; Node `24.19.0`; npm `11.17.0`; Python `3.14.7`;
+  Docker `29.7.2`; actionlint `1.7.12`; ShellCheck `0.11.0`.
+- Target version: `0.2.0`; local canonical `v*.*.*` tag list is empty.
+- The real PR `#59` files API was fetched with a read-only unauthenticated GET. The raw response and
+  normalized list are saved in `qa-evidence/2026-08-15-replay/phase-14-qa-pr59-files-api.json` and
+  `.log`; the current validator accepted all 31 entries.
+- Hosted runs `31886141725` and `31888439750` are recorded **only as historical pre-fix failures**:
+  respectively the valid private hunk omitted optional trailing context, and the valid base npm hunk
+  mixed seven version pairs with Release Please's deterministic `files` formatting. No corrected
+  hosted replay success is claimed for either run.
+- No dispatch, merge, push, variable mutation, tag/release creation, publication, upload, attestation,
+  credential-bearing run, or live carrier execution occurred. QA did not modify source or workflows.
+
+### Capability inventory
+
+| Capability | Availability | Selection | Rationale / disposition |
+|---|---|---|---|
+| Read-only real PR `#59` files API | available | selected | Validates the exact 31-entry response, patches, counts, and filename-bound identity locally. |
+| Stage-B hunk/parser/content validator | available | selected | Executes the exact npm/private positive and fail-closed mutation matrix. |
+| Exact Release Please `17.6.0` fake-SCM harness | available | selected | Observes the package chain, update paths, private pins, npm pins, and zero release/tag calls. |
+| Carrier correlation, replay, and mode resolver | available | selected | Exercises push/manual/replay identity and invalid replay boundaries without GitHub writes. |
+| Dry-run plan and no-write guard | available | selected | Runs extracted checked-in plan/guard steps with a fake GET-only `gh`. |
+| Cargo workspace runtime and package preflight | available | selected | Runs locked quality gates and five workflow-equivalent local patched package checks. |
+| npm wrapper and package dry-run | available | selected | Runs typecheck, six wrapper tests, and all seven `npm pack --dry-run` checks. |
+| OCI executable regression layers | available | selected | Runs local OCI positive, static, evidence, and failure-boundary suites without registry writes. |
+| Archive/checksum structural packaging | available | selected | Generates and verifies eight local archive/sidecar pairs and a tamper rejection. |
+| Workflow/actionlint/ShellCheck/Dockerfile diagnostics | available | selected as diagnostics | Commands are useful evidence, but static-only results are reported as `NOT TESTED`. |
+| Read-only Git metadata | available | selected | Records branch, HEAD, dirty boundary, diff check, and empty local canonical tags. |
+| Hosted GitHub Actions/carrier/replay | unavailable | rejected | No authorized hosted target; user prohibited dispatch and live execution. |
+| Cargo/npm/GitHub Release/GHCR publication | available in principle | rejected | Explicit no-publication/no-upload boundary. |
+| Native non-host targets | unavailable | rejected | No native/cross-target runtime matrix was supplied; seven archive executions remain unrun. |
+| Attestation, failure injection, rollback | unavailable | rejected | Requires protected provider state and mutation, both prohibited. |
+| Browser/accessibility/responsive/locale/API/data/persistence | not applicable | rejected | This change has no corresponding product surface. |
+
+### Scenario matrix
+
+`PASS` is reserved for executable local behavior. `BLOCKED` means the target, permission, provider, or
+environment was unavailable or explicitly prohibited. `NOT TESTED` means the scenario is not applicable
+or only static inspection was available.
+
+| ID | Category | Scenario | Result | Evidence or reason |
+|---|---|---|---|---|
+| QA-P14-01 | happy path/boundary | Exact real PR `#59` GitHub files API response has 31 entries and the current Stage-B validator accepts the complete list. | PASS | `phase-14-qa-pr59-files-api.json` and `.log`; `file_count=31`, validation `PASS`. |
+| QA-P14-02 | happy path | Base `npm/codegauge/package.json` has seven approved version pairs and exactly the compact-to-three-line `files` rewrite, with API counts `10/8/18`. | PASS | Raw API patch plus normalized log lines 42–73; exact formatting only. |
+| QA-P14-03 | negative/boundary/security | Arbitrary base formatting, unapproved keys, duplicate keys, wrong versions, truncated npm hunks, and platform formatting are rejected. | PASS | `phase-14-qa-npm-negative-matrix.json`; 8 negative cases rejected with fail-closed errors. |
+| QA-P14-04 | negative/private boundary | Private conformance package/version/publish/path/key/feature mutations remain rejected while the exact four-pin hunk is accepted. | PASS | Focused carrier log and npm-negative matrix; private mutations are explicitly rejected. |
+| QA-P14-05 | state transition | Exact Release Please `17.6.0` harness produces one synchronized fake PR, 32 local generated paths, four private pin edits, six npm rewrites, and zero release/tag calls. | PASS | `phase-14-qa-focused.log`; package `17.6.0`, `synchronizedPullRequests=1`, `releaseCalls=0`, `tagCalls=0`. |
+| QA-P14-06 | state/security boundary | Carrier push/manual modes, valid historical replay identity, malformed/out-of-mode replay rejection, and total replay schema behave as specified. | PASS | `phase-14-qa-focused.log` and checked-in mode suite; no hosted replay is implied. |
+| QA-P14-07 | repeated/no-write | Manual dry-run validates the 31-file fixture, plans `v0.2.0`, and skips every mutation. | PASS | `phase-14-qa-dry-run-plan.json`, `phase-14-qa-dry-run-gh-calls.log`, and summary; two fake GETs, no POST/PUT. |
+| QA-P14-08 | happy/negative | Locked Cargo metadata, 31 workspace tests, check, fmt, Clippy, CLI contracts, and private `0.1.0` identity pass. | PASS | `phase-14-qa-cargo.log`; exit `0`, no failed/skipped workspace tests. |
+| QA-P14-09 | package boundary | Five runtime Cargo packages pass workflow-equivalent local patched packaging/verification without publication. | PASS | `phase-14-qa-cargo-package.log`; all five packages verified. |
+| QA-P14-10 | package/negative | Dependent Cargo package verification against the synchronized public registry graph is observed. | BLOCKED | No synchronized crates are published in the current crates.io index; publication was prohibited. |
+| QA-P14-11 | happy/negative | npm wrapper resolves/rejects targets and preserves passthrough; seven package dry-runs complete. | PASS | `phase-14-qa-npm-wrapper.log` and seven `phase-14-qa-npm-pack-*.log` files; six tests and seven packs pass. |
+| QA-P14-12 | happy/negative | Local OCI positive, evidence, metadata, non-root, and failure suites pass without registry access. | PASS | `phase-14-qa-oci.log`; four executable suites pass. |
+| QA-P14-13 | package/negative | Eight archive/sidecar pairs verify locally and byte tampering is rejected. | PASS | `phase-14-qa-archive-structural.json`; `8/8` verified and tamper rejected. |
+| QA-P14-14 | workflow/security diagnostic | Immutable workflow pins, permissions, ShellCheck, actionlint, Dockerfile, and whitespace checks are clean. | NOT TESTED | `phase-14-qa-workflow-diagnostics.log` exited `0`, but static-only inspection cannot produce QA `PASS`. |
+| QA-P14-15 | hosted state transition | Corrected hosted replay of the actual PR `#59` boundary is observed. | BLOCKED | Runs `31886141725` and `31888439750` remain pre-fix failures only; no dispatch or hosted success evidence exists. |
+| QA-P14-16 | hosted state transition | Downstream canonical tag delivery and tag-triggered release workflow are observed. | BLOCKED | No tag/ref, workflow delivery, or hosted target was authorized. |
+| QA-P14-17 | native target | All eight archive targets have executable native/cross-target runtime evidence. | BLOCKED | Structural archives pass, but seven non-host executions remain `not-run`; no native target matrix exists. |
+| QA-P14-18 | registry/publication | Cargo registry, npm, GitHub Release, and GHCR publication plus dependent verification are observed. | BLOCKED | Publication/upload and registry credentials are explicitly prohibited. |
+| QA-P14-19 | security | Hosted credential isolation and attestation are observed at runtime. | BLOCKED | Requires protected hosted/provider execution and credentials. |
+| QA-P14-20 | interrupted/rollback | Failure injection stops later channels and produces provider-backed rollback/recovery evidence. | BLOCKED | Disposable publication state and mutation are unavailable/prohibited. |
+| QA-P14-21 | browser/accessibility/locale/persistence | Browser, accessibility, responsive, internationalization, API, data, or persistence behavior is exercised. | NOT TESTED | No such surface exists for this distribution/CLI/workflow change. |
+
+### Untested and blocked scope
+
+| Scope | Result | Rerun prerequisite |
+|---|---|---|
+| Corrected hosted Stage-A/version-PR rerun and hosted PR `#59` validation | BLOCKED | Separately authorized protected GitHub run; inspect zero Stage-A release/tag calls and corrected hunk acceptance. |
+| Hosted ordinary-main carrier and dry-run historical replay | BLOCKED | Authorized protected events; replay must be manual on `main` with `dry_run=true` and the approved SHA. |
+| Downstream tag delivery and release workflow | BLOCKED | Authorized canonical carrier/tag event and downstream run at the validated SHA. |
+| Native target execution for seven non-host archives | BLOCKED | Native/cross-target runner matrix with executable evidence per target. |
+| Dependent Cargo registry verification | BLOCKED | Staged/published synchronized runtime crates or an equivalent isolated registry rehearsal. |
+| Cargo/npm/GitHub Release/GHCR publication | BLOCKED | Approved release window, provider-safe namespace, and scoped credentials. |
+| Attestation and hosted secret isolation | BLOCKED | Protected provider-backed execution with observable redacted logs. |
+| Failure injection and rollback | BLOCKED | Disposable provider-backed rehearsal recording stop order and recovery. |
+| Browser/accessibility/responsive/locale/persistence | NOT TESTED | No rerun unless the change gains a corresponding product surface. |
+
+### Findings
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| QA-P14-001 | P1 | Corrected hosted replay/carrier acceptance is not observable; both named hosted runs are historical pre-fix failures only. | Open — acceptance blocker; protected hosted rerun required. |
+| QA-P14-002 | P1 | Downstream tag delivery, registry/publication, release assets, attestation, and dependent Cargo registry verification are unavailable. | Open — acceptance blocker; explicitly prohibited in this QA. |
+| QA-P14-003 | P1 | Seven non-host archive targets lack executable native/cross-target runtime evidence. | Open — target matrix evidence required. |
+| QA-P14-004 | P1 | Hosted security isolation, failure propagation, and rollback are not observed. | Open — disposable protected rehearsal required. |
+| QA-P14-005 | P2 | Workflow/actionlint/ShellCheck/Dockerfile checks are static diagnostics and cannot be promoted to QA acceptance results. | Open warning — no local executable defect observed. |
+
+No local executable scenario failed, and no `CRITICAL`/P0 implementation finding was observed. The P1
+findings are acceptance blockers caused by missing or prohibited external state, not a claim that the
+corrected local validator failed.
+
+### Phase 14 verdict and implementation handoff
+
+**Verdict: `BLOCKED`.** The requested local executable capabilities pass, including the exact live PR
+`#59` 31-file response, seven-pair npm formatting boundary, npm/private negative matrix, Release Please
+`17.6.0`, carrier/replay/mode behavior, dry-run no-write plan, Cargo, npm, OCI, archive, and package
+checks. Production acceptance remains blocked by the explicitly unrun hosted replay, downstream tag
+delivery, native target evidence, registry/publication, attestation, dependent Cargo registry graph,
+failure injection, and rollback scenarios.
+
+QA made no source, workflow, variable, credential, tag, release, registry, or live-carrier changes.
+`sdd-archive` must remain gated until the P1 acceptance blockers are resolved or an explicit policy
+exception is recorded; this is not a documentation/config-only exception and no product acceptance is
+claimed.
+
+## Phase 13 verification handoff — 2026-08-15
+
+This is a handoff update, not an independent QA rerun. The current dirty checkout has a fresh technical
+verification result for the second hosted replay regression, while the acceptance matrix below remains
+blocked until `sdd-qa` independently reruns its scenarios.
+
+- Hosted run `31888439750` remains the pre-fix failure observation for the real PR `#59`
+  `npm/codegauge/package.json` hunk-only entry: seven approved version pairs were mixed with the exact
+  deterministic `files` array formatting rewrite, and the old validator rejected the `10/8` API counts.
+- The exact read-only PR `#59` files API list now passes `validate_stage_a_diff(..., version="0.2.0")`;
+  local focused tests and the platform/arbitrary-formatting negative probes pass.
+- Technical evidence: `qa-evidence/2026-08-15-replay/phase-13-verify-api-file-list.json` and
+  `qa-evidence/2026-08-15-replay/phase-13-verify-summary.md`.
+- The current local result is technical **PASS WITH WARNINGS**, not QA acceptance. No corrected hosted
+  replay, tag, release, publication, upload, attestation, credential-bearing run, or operator acceptance
+  is claimed. The earlier hosted run `31886141725` remains a separate private-hunk pre-fix failure.
 
 ## Historical post-Phase 12 apply handoff — 2026-08-15
 
@@ -35,13 +175,13 @@ workflow, shell, package, compile, CLI, and whitespace checks also pass.
 
 The technical verdict is **PASS WITH WARNINGS**. Hosted run `31886141725` remains failure evidence, not
 hosted replay success. At this handoff point independent `sdd-qa` had not yet re-run acceptance
-scenarios; the current authoritative rerun is recorded below. The protected hosted replay,
+scenarios; the Phase 12 matrix is retained below for history. The protected hosted replay,
 publication, attestation, native-target, failure-injection, and rollback boundaries remain blocked by
 the no-write/no-secret constraint.
 
-## Current authoritative QA rerun — 2026-08-15
+## Prior authoritative QA rerun — Phase 12 — 2026-08-15
 
-This section supersedes the earlier QA matrix below for the focused
+This section is retained as the Phase 12 local QA matrix for the focused
 `fix/release-carrier-private-patch-context` checkout. It records a fresh local capability run after the
 private hunk-context correction. Static checks are retained as diagnostics only; they are not QA
 `PASS` results. Hosted and provider-backed acceptance remains explicitly blocked.
@@ -57,8 +197,8 @@ private hunk-context correction. Static checks are retained as diagnostics only;
 - Fresh evidence: `qa-evidence/2026-08-15-replay/phase-12-qa-rerun-private-hunk.json`,
   `phase-12-qa-rerun-dry-run.json`, and `phase-12-qa-rerun-summary.md`
 
-The latest `sdd-verify` handoff is **PASS WITH WARNINGS**. It identifies hosted run `31886141725` as
-the authoritative pre-fix failure and does not claim the corrected hosted replay, tag delivery,
+The Phase 12 `sdd-verify` handoff was **PASS WITH WARNINGS**. It identifies hosted run `31886141725` as
+the Phase 12 pre-fix failure and does not claim the corrected hosted replay, tag delivery,
 publication, attestation, native-target execution, failure injection, rollback, or operator acceptance.
 
 ### Target, environment, permissions, and limitations
