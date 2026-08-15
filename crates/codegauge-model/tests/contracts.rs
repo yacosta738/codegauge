@@ -118,7 +118,7 @@ fn result_and_error_dtos_round_trip_without_policy_statuses() {
         schema: ResultSchemaId::V1,
         tool: ToolInfo {
             name: "codegauge".into(),
-            version: "0.1.0".into(), // x-release-please-version
+            version: "0.2.0".into(), // x-release-please-version
         },
         profile: ProfileId::JavaJacocoV1,
         analysis: Analysis {
@@ -160,7 +160,7 @@ fn result_and_error_dtos_round_trip_without_policy_statuses() {
         schema: ErrorSchemaId::V1,
         tool: ToolInfo {
             name: "codegauge".into(),
-            version: "0.1.0".into(), // x-release-please-version
+            version: "0.2.0".into(), // x-release-please-version
         },
         code: ErrorCode::InvalidInput,
         message: "invalid report".into(),
