@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "source_revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+  "rust_toolchain": "1.97.1",
+  "target": "x86_64-apple-darwin",
+  "archive": "codegauge-0.2.0-x86_64-apple-darwin.tar.gz",
+  "binary_evidence": {
+    "target": "x86_64-apple-darwin",
+    "mode": "cross-target",
+    "execution": "not-run"
+  },
+  "sha256": "7aac2d17da3ff69a4787d0b1378719cd87fbf4cffea7cef22869f988ab2adb51"
+}

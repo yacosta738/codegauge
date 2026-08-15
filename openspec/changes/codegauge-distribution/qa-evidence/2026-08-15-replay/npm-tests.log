@@ -1,0 +1,23 @@
+
+> @yacosta738/codegauge@0.2.0 test
+> npm run build && node --test test/*.test.mjs
+
+
+> @yacosta738/codegauge@0.2.0 build
+> tsc --outDir dist --rootDir src
+
+✔ wrapper source declares exact target resolution and passthrough contracts (3.134166ms)
+✔ wrapper has no musl optional package (1.4655ms)
+✔ base package does not publish its internal preflight helper (2.4815ms)
+✔ wrapper reports a missing optional dependency without running another binary (40.365792ms)
+✔ wrapper preserves arguments, inherited streams, and child exit status (475.995417ms)
+✔ wrapper rejects a musl Linux runtime before optional dependency lookup (0.183875ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 599.64825
+EXIT_STATUS=0

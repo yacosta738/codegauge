@@ -1,0 +1,4 @@
+x86_64
+platform=linux/amd64
+runtime_mode=native
+evidence=platform-run

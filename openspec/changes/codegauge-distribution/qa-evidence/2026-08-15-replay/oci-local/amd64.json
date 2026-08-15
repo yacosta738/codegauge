@@ -1,0 +1,104 @@
+{
+  "architecture": "amd64",
+  "build_metadata": {
+    "buildx.build.provenance": {
+      "buildType": "https://mobyproject.org/buildkit@v1",
+      "builder": {
+        "id": ""
+      },
+      "invocation": {
+        "configSource": {
+          "entryPoint": "Dockerfile"
+        },
+        "environment": {
+          "platform": "linux/arm64"
+        },
+        "parameters": {
+          "args": {
+            "build-arg:CODEGAUGE_REVISION": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+            "build-arg:CODEGAUGE_VERSION": "0.2.0",
+            "cmdline": "docker/dockerfile:1.26",
+            "label:org.opencontainers.image.created": "2026-08-15T12:46:12Z",
+            "label:org.opencontainers.image.platform": "linux/amd64",
+            "label:org.opencontainers.image.revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+            "label:org.opencontainers.image.source": "https://github.com/yacosta738/codegauge",
+            "label:org.opencontainers.image.version": "0.2.0",
+            "source": "docker/dockerfile:1.26"
+          },
+          "frontend": "gateway.v0",
+          "locals": [
+            {
+              "name": "context"
+            },
+            {
+              "name": "dockerfile"
+            }
+          ]
+        }
+      },
+      "materials": [
+        {
+          "digest": {
+            "sha256": "ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32"
+          },
+          "uri": "pkg:docker/docker/dockerfile@1.26"
+        },
+        {
+          "digest": {
+            "sha256": "28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+          },
+          "uri": "pkg:docker/alpine@3.24?digest=sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b&platform=linux%2Famd64"
+        },
+        {
+          "digest": {
+            "sha256": "3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900"
+          },
+          "uri": "pkg:docker/rust@1.97.1-alpine?digest=sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900&platform=linux%2Famd64"
+        }
+      ]
+    },
+    "buildx.build.ref": "pt-builder/pt-builder0/1k8fysakikxb45f8vjona2g72",
+    "containerimage.config.digest": "sha256:a89818fee4f6d05d3f3d95139f7143dc20e2baa7fe122ae90882bf66e74dc70e",
+    "containerimage.descriptor": {
+      "annotations": {
+        "org.opencontainers.image.created": "2026-08-15T12:47:11Z"
+      },
+      "digest": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "platform": {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      "size": 862
+    },
+    "containerimage.digest": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+    "image.name": "docker.io/library/codegauge-oci-amd64:6b65654977f7b41ee9a964f9089a6629fd521d4e"
+  },
+  "docker_config_digest": "sha256:a89818fee4f6d05d3f3d95139f7143dc20e2baa7fe122ae90882bf66e74dc70e",
+  "docker_image_id": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+  "docker_image_id_domain": "platform_manifest",
+  "docker_platform_digest": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+  "labels": {
+    "org.opencontainers.image.platform": "linux/amd64",
+    "org.opencontainers.image.revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+    "org.opencontainers.image.source": "https://github.com/yacosta738/codegauge",
+    "org.opencontainers.image.version": "0.2.0"
+  },
+  "manifest_media_type": "application/vnd.oci.image.manifest.v1+json",
+  "metadata_digest": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+  "oci_config_digest": "sha256:a89818fee4f6d05d3f3d95139f7143dc20e2baa7fe122ae90882bf66e74dc70e",
+  "oci_index_digest": "sha256:99703ed93393825a078e9091ac23433990dfea1fd6106d83d6a9d27e1fc3f8ee",
+  "platform": "linux/amd64",
+  "platform_digest": "sha256:2078e45307582cc5f895403d0574b496551192b01be3277f780d037e37f632d5",
+  "runtime": {
+    "contract_schema": "codegauge-result/v1",
+    "contract_status": "COMPLETE",
+    "mode": "native",
+    "non_root_uid": 100,
+    "profiles": "java-jacoco-v1",
+    "version": "codegauge 0.2.0"
+  },
+  "source_revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+  "verified": true,
+  "version": "0.2.0"
+}

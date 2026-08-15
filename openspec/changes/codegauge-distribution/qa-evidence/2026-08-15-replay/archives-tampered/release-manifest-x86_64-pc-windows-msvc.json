@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "source_revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+  "rust_toolchain": "1.97.1",
+  "target": "x86_64-pc-windows-msvc",
+  "archive": "codegauge-0.2.0-x86_64-pc-windows-msvc.zip",
+  "binary_evidence": {
+    "target": "x86_64-pc-windows-msvc",
+    "mode": "cross-target",
+    "execution": "not-run"
+  },
+  "sha256": "f2735667a11e4fa7bd86d2cbe829f02c11880ebeb4b348503f2108616e6a3d77"
+}

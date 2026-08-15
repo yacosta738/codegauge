@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "source_revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+  "rust_toolchain": "1.97.1",
+  "target": "aarch64-apple-darwin",
+  "archive": "codegauge-0.2.0-aarch64-apple-darwin.tar.gz",
+  "binary_evidence": {
+    "target": "aarch64-apple-darwin",
+    "mode": "native",
+    "execution": "native",
+    "version": "codegauge 0.2.0\n",
+    "profiles": "java-jacoco-v1\n"
+  },
+  "sha256": "7de8eaaefd16c5adeccbe255a10532a51f06b28590fd34ccea71dd3d2d9c569d"
+}

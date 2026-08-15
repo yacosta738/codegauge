@@ -1,0 +1,9 @@
+   Packaging codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-model)
+warning: ignoring test `contracts` as `tests/contracts.rs` is not included in the published package
+warning: ignoring test `schemas` as `tests/schemas.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 26.8KiB (9.3KiB compressed)
+   Verifying codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-model)
+   Compiling codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-model-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.94s
+EXIT_STATUS=0

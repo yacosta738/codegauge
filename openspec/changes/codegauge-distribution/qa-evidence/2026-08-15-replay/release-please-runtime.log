@@ -1,0 +1,432 @@
+
+===== release-please-runtime =====
+⚠ Expected 13 releases, only found 0
+⚠ Missing 13 paths: .,crates/codegauge-model,crates/codegauge-core,crates/codegauge-application,crates/codegauge-provider-jacoco,crates/codegauge-cli,npm/codegauge,npm/packages/codegauge-linux-x64-gnu,npm/packages/codegauge-linux-arm64-gnu,npm/packages/codegauge-darwin-x64,npm/packages/codegauge-darwin-arm64,npm/packages/codegauge-win32-x64-msvc,npm/packages/codegauge-win32-arm64-msvc
+⚠ Expected 13 releases, only found 0
+⚠ No latest release pull request found.
+⚠ Setting version for . from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for crates/codegauge-model from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for crates/codegauge-core from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for crates/codegauge-application from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for crates/codegauge-provider-jacoco from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for crates/codegauge-cli from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/codegauge from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-linux-x64-gnu from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-linux-arm64-gnu from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-darwin-x64 from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-darwin-arm64 from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-win32-x64-msvc from release-as configuration
+⚠ No latest release pull request found.
+⚠ Setting version for npm/packages/codegauge-win32-arm64-msvc from release-as configuration
+⚠ pullRequestTitlePattern miss the part of '${component}'
+⚠ pullRequestTitlePattern miss the part of '${version}'
+⚠ pullRequestTitlePattern miss the part of '${scope}'
+⚠ pullRequestTitlePattern miss the part of '${component}'
+⚠ pullRequestTitlePattern miss the part of '${version}'
+✔ Building pull requests
+✔ Building strategies by path
+❯ .: java
+❯ crates/codegauge-model: rust
+❯ crates/codegauge-core: rust
+❯ crates/codegauge-application: rust
+❯ crates/codegauge-provider-jacoco: rust
+❯ crates/codegauge-cli: rust
+❯ npm/codegauge: node
+❯ npm/packages/codegauge-linux-x64-gnu: node
+❯ npm/packages/codegauge-linux-arm64-gnu: node
+❯ npm/packages/codegauge-darwin-x64: node
+❯ npm/packages/codegauge-darwin-arm64: node
+❯ npm/packages/codegauge-win32-x64-msvc: node
+❯ npm/packages/codegauge-win32-arm64-msvc: node
+✔ Collecting release commit SHAs
+❯ release search depth: 400
+❯ looking for tagName: codegauge-root-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-model-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-core-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-application-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-provider-jacoco-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-cli-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-linux-x64-gnu-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-linux-arm64-gnu-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-darwin-x64-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-darwin-arm64-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-win32-x64-msvc-v0.2.0
+❯ could not find release, checking root package
+❯ looking for tagName: codegauge-win32-arm64-msvc-v0.2.0
+❯ could not find release, checking root package
+✔ Collecting commits since all latest releases
+❯ commit search depth: 500
+❯ Set(0) {}
+✔ Needed bootstrapping, found configured bootstrapSha bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+✔ Splitting 1 commits by path
+✔ No latest release found for path: ., component: codegauge-root, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: crates/codegauge-model, component: codegauge-model, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: crates/codegauge-core, component: codegauge-core, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: crates/codegauge-application, component: codegauge-application, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: crates/codegauge-provider-jacoco, component: codegauge-provider-jacoco, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: crates/codegauge-cli, component: codegauge-cli, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/codegauge, component: codegauge, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-linux-x64-gnu, component: codegauge-linux-x64-gnu, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-linux-arm64-gnu, component: codegauge-linux-arm64-gnu, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-darwin-x64, component: codegauge-darwin-x64, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-darwin-arm64, component: codegauge-darwin-arm64, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-win32-x64-msvc, component: codegauge-win32-x64-msvc, but a previous version (0.2.0) was specified in the manifest.
+✔ No latest release found for path: npm/packages/codegauge-win32-arm64-msvc, component: codegauge-win32-arm64-msvc, but a previous version (0.2.0) was specified in the manifest.
+✔ Found 13 group components for codegauge runtime graph
+✔ No Java snapshot needed
+✔ Considering: 1 commits
+❯ component: codegauge-root
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-model
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Considering: 1 commits
+❯ component: codegauge-core
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Considering: 1 commits
+❯ component: codegauge-application
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Considering: 1 commits
+❯ component: codegauge-provider-jacoco
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Considering: 1 commits
+❯ component: codegauge-cli
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Considering: 1 commits
+❯ component: codegauge
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-linux-x64-gnu
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-linux-arm64-gnu
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-darwin-x64
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-darwin-arm64
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-win32-x64-msvc
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Considering: 1 commits
+❯ component: codegauge-win32-arm64-msvc
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Replacing strategy for path . with forced version: 0.3.0
+✔ Replacing strategy for path crates/codegauge-model with forced version: 0.3.0
+✔ Replacing strategy for path crates/codegauge-core with forced version: 0.3.0
+✔ Replacing strategy for path crates/codegauge-application with forced version: 0.3.0
+✔ Replacing strategy for path crates/codegauge-provider-jacoco with forced version: 0.3.0
+✔ Replacing strategy for path crates/codegauge-cli with forced version: 0.3.0
+✔ Replacing strategy for path npm/codegauge with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-linux-x64-gnu with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-linux-arm64-gnu with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-darwin-x64 with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-darwin-arm64 with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-win32-x64-msvc with forced version: 0.3.0
+✔ Replacing strategy for path npm/packages/codegauge-win32-arm64-msvc with forced version: 0.3.0
+✔ Building candidate release pull request for path: .
+❯ type: java
+❯ targetBranch: main
+❯ commits: 1
+✔ No Java snapshot needed
+✔ Considering: 1 commits
+❯ component: codegauge-root
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: crates/codegauge-model
+❯ type: rust
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-model
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Building candidate release pull request for path: crates/codegauge-core
+❯ type: rust
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-core
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Building candidate release pull request for path: crates/codegauge-application
+❯ type: rust
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-application
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Building candidate release pull request for path: crates/codegauge-provider-jacoco
+❯ type: rust
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-provider-jacoco
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Building candidate release pull request for path: crates/codegauge-cli
+❯ type: rust
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-cli
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ single crate found, updating Cargo.toml
+✔ Building candidate release pull request for path: npm/codegauge
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-linux-x64-gnu
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-linux-x64-gnu
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-linux-arm64-gnu
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-linux-arm64-gnu
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-darwin-x64
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-darwin-x64
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-darwin-arm64
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-darwin-arm64
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-win32-x64-msvc
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-win32-x64-msvc
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+✔ Building candidate release pull request for path: npm/packages/codegauge-win32-arm64-msvc
+❯ type: node
+❯ targetBranch: main
+❯ commits: 1
+✔ Considering: 1 commits
+❯ component: codegauge-win32-arm64-msvc
+❯ pull request title pattern: undefined
+❯ componentNoSpace: undefined
+❯ running plugin: NodeWorkspace
+✔ Running workspace plugin
+✔ Found 7 in-scope releases
+✔ Building list of all packages
+❯ Found candidate pull request for path: npm/codegauge
+❯ Found candidate pull request for path: npm/packages/codegauge-linux-x64-gnu
+❯ Found candidate pull request for path: npm/packages/codegauge-linux-arm64-gnu
+❯ Found candidate pull request for path: npm/packages/codegauge-darwin-x64
+❯ Found candidate pull request for path: npm/packages/codegauge-darwin-arm64
+❯ Found candidate pull request for path: npm/packages/codegauge-win32-x64-msvc
+❯ Found candidate pull request for path: npm/packages/codegauge-win32-arm64-msvc
+✔ Building dependency graph for 7 packages
+✔ building graph order, existing package names: @yacosta738/codegauge,@yacosta738/codegauge-linux-x64-gnu,@yacosta738/codegauge-linux-arm64-gnu,@yacosta738/codegauge-darwin-x64,@yacosta738/codegauge-darwin-arm64,@yacosta738/codegauge-win32-x64-msvc,@yacosta738/codegauge-win32-arm64-msvc
+❯ visiting @yacosta738/codegauge, path:
+❯ marking @yacosta738/codegauge as visited and adding @yacosta738/codegauge to order
+❯ visiting @yacosta738/codegauge-linux-x64-gnu, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-linux-x64-gnu
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-linux-x64-gnu as visited and adding @yacosta738/codegauge-linux-x64-gnu to order
+❯ visiting @yacosta738/codegauge-linux-arm64-gnu, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-linux-arm64-gnu
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-linux-arm64-gnu as visited and adding @yacosta738/codegauge-linux-arm64-gnu to order
+❯ visiting @yacosta738/codegauge-darwin-x64, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-darwin-x64
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-darwin-x64 as visited and adding @yacosta738/codegauge-darwin-x64 to order
+❯ visiting @yacosta738/codegauge-darwin-arm64, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-darwin-arm64
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-darwin-arm64 as visited and adding @yacosta738/codegauge-darwin-arm64 to order
+❯ visiting @yacosta738/codegauge-win32-x64-msvc, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-win32-x64-msvc
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-win32-x64-msvc as visited and adding @yacosta738/codegauge-win32-x64-msvc to order
+❯ visiting @yacosta738/codegauge-win32-arm64-msvc, path:
+✔ visiting @yacosta738/codegauge next
+❯ visiting @yacosta738/codegauge, path: @yacosta738/codegauge-win32-arm64-msvc
+❯ [object Object] already visited
+❯ marking @yacosta738/codegauge-win32-arm64-msvc as visited and adding @yacosta738/codegauge-win32-arm64-msvc to order
+✔ Updating 7 packages
+❯ package: @yacosta738/codegauge
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-darwin-arm64
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-darwin-x64
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-linux-arm64-gnu
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-linux-x64-gnu
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-win32-arm64-msvc
+❯ version: 0.3.0 from release-please
+❯ package: @yacosta738/codegauge-win32-x64-msvc
+❯ version: 0.3.0 from release-please
+✔ Updating existing candidate pull request for @yacosta738/codegauge, path: npm/codegauge
+❯ @types/node was not bumped, ignoring
+❯ typescript was not bumped, ignoring
+✔ appending dependency notes to changelog
+✔ appending dependency notes to changelog
+✔ Updating existing candidate pull request for @yacosta738/codegauge-darwin-arm64, path: npm/packages/codegauge-darwin-arm64
+✔ Updating existing candidate pull request for @yacosta738/codegauge-darwin-x64, path: npm/packages/codegauge-darwin-x64
+✔ Updating existing candidate pull request for @yacosta738/codegauge-linux-arm64-gnu, path: npm/packages/codegauge-linux-arm64-gnu
+✔ Updating existing candidate pull request for @yacosta738/codegauge-linux-x64-gnu, path: npm/packages/codegauge-linux-x64-gnu
+✔ Updating existing candidate pull request for @yacosta738/codegauge-win32-arm64-msvc, path: npm/packages/codegauge-win32-arm64-msvc
+✔ Updating existing candidate pull request for @yacosta738/codegauge-win32-x64-msvc, path: npm/packages/codegauge-win32-x64-msvc
+✔ Post-processing 7 in-scope candidates
+❯ running plugin: LinkedVersions
+✔ found 13 linked-versions candidates
+✔ Merging 13 pull requests
+❯ running plugin: Merge
+✔ Merging 1 pull requests
+✔ Looking for open release pull requests
+✔ found 0 open release pull requests.
+✔ Looking for snoozed release pull requests
+✔ found 0 snoozed release pull requests.
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+✔ updating from 0.2.0 to 0.3.0
+✔ updating from 0.3.0 to 0.3.0
+{
+  "packageVersion": "17.6.0",
+  "generatedUpdatePaths": [
+    ".release-please-manifest.json",
+    "Cargo.lock",
+    "Cargo.toml",
+    "README.md",
+    "crates/codegauge-application/CHANGELOG.md",
+    "crates/codegauge-application/Cargo.toml",
+    "crates/codegauge-cli/CHANGELOG.md",
+    "crates/codegauge-cli/Cargo.toml",
+    "crates/codegauge-cli/tests/cli.rs",
+    "crates/codegauge-conformance/Cargo.toml",
+    "crates/codegauge-core/CHANGELOG.md",
+    "crates/codegauge-core/Cargo.toml",
+    "crates/codegauge-model/CHANGELOG.md",
+    "crates/codegauge-model/Cargo.toml",
+    "crates/codegauge-model/tests/contracts.rs",
+    "crates/codegauge-provider-jacoco/CHANGELOG.md",
+    "crates/codegauge-provider-jacoco/Cargo.toml",
+    "npm/codegauge/CHANGELOG.md",
+    "npm/codegauge/package.json",
+    "npm/packages/codegauge-darwin-arm64/CHANGELOG.md",
+    "npm/packages/codegauge-darwin-arm64/package.json",
+    "npm/packages/codegauge-darwin-x64/CHANGELOG.md",
+    "npm/packages/codegauge-darwin-x64/package.json",
+    "npm/packages/codegauge-linux-arm64-gnu/CHANGELOG.md",
+    "npm/packages/codegauge-linux-arm64-gnu/package.json",
+    "npm/packages/codegauge-linux-x64-gnu/CHANGELOG.md",
+    "npm/packages/codegauge-linux-x64-gnu/package.json",
+    "npm/packages/codegauge-win32-arm64-msvc/CHANGELOG.md",
+    "npm/packages/codegauge-win32-arm64-msvc/package.json",
+    "npm/packages/codegauge-win32-x64-msvc/CHANGELOG.md",
+    "npm/packages/codegauge-win32-x64-msvc/package.json",
+    "tests/golden/valid-methods.json"
+  ],
+  "releaseVersion": "0.3.0",
+  "optionalDependencyVersions": {
+    "@yacosta738/codegauge-linux-x64-gnu": "0.3.0",
+    "@yacosta738/codegauge-linux-arm64-gnu": "0.3.0",
+    "@yacosta738/codegauge-darwin-x64": "0.3.0",
+    "@yacosta738/codegauge-darwin-arm64": "0.3.0",
+    "@yacosta738/codegauge-win32-x64-msvc": "0.3.0",
+    "@yacosta738/codegauge-win32-arm64-msvc": "0.3.0"
+  },
+  "privateDependencyUpdates": 1,
+  "synchronizedPullRequests": 1,
+  "releaseCalls": 0,
+  "tagCalls": 0
+}
+RELEASE PLEASE V17.6.0 RUNTIME TESTS: PASS
+PRIVATE DEPENDENCY PIN UPDATE: ACCEPTED
+PRIVATE MUTATION package-version: REJECTED
+PRIVATE MUTATION publish-flag: REJECTED
+PRIVATE MUTATION unrelated-private-path: REJECTED
+EXIT_STATUS=0
