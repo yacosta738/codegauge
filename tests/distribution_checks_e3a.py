@@ -23,7 +23,7 @@ RUNTIME_CRATES = (
     "codegauge-cli",
 )
 ALL_CRATES = (*RUNTIME_CRATES, "codegauge-conformance")
-RELEASE_INPUTS = ("release_tag", "release_sha", "main_sha", "release_url", "dry_run")
+RELEASE_INPUTS = ("release_tag", "release_sha", "main_sha", "release_url", "dry_run", "recovery")
 ACTION_REF = re.compile(r"^[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$")
 EXPECTED_GRAPH = {
     "codegauge-model": (),
@@ -168,7 +168,10 @@ def check_cargo(errors: list[str]) -> None:
             errors.append(f"Cargo.lock graph for {name} is missing {', '.join(missing)}")
 
     release_config = load_json(ROOT / "release-please-config.json", errors)
-    extra_files = release_config.get("extra-files", [])
+    if "extra-files" in release_config:
+        errors.append("release-please root extra-files must be package-owned")
+    root_package = release_config.get("packages", {}).get(".", {})
+    extra_files = root_package.get("extra-files", [])
     if not any(
         isinstance(extra_file, dict)
         and extra_file.get("type") == "toml"
@@ -179,6 +182,32 @@ def check_cargo(errors: list[str]) -> None:
         errors.append(
             "release-please must update the canonical workspace Cargo version"
         )
+    if root_package.get("release-type") == "rust":
+        errors.append("the virtual Cargo root must use a non-Cargo release candidate")
+    if root_package.get("skip-github-release") is not True or "package-name" in root_package:
+        errors.append("the root release candidate must be a non-publishable metadata carrier")
+    if release_config.get("skip-github-release") is not True:
+        errors.append("non-canonical release components must skip GitHub releases")
+    if release_config.get("include-component-in-tag") is not True:
+        errors.append("Stage A must enable component-tagged linked version lookup")
+    if any(
+        isinstance(plugin, dict) and plugin.get("type") == "cargo-workspace"
+        for plugin in release_config.get("plugins", [])
+    ):
+        errors.append(
+            "Stage A must not use cargo-workspace discovery because it scans private members"
+        )
+    if not any(
+        isinstance(extra_file, dict)
+        and extra_file.get("type") == "toml"
+        and extra_file.get("path") == "/Cargo.lock"
+        for extra_file in extra_files
+    ):
+        errors.append(
+            "Stage A root carrier must update approved runtime Cargo.lock entries explicitly"
+        )
+    if release_config.get("packages", {}).get("crates/codegauge-cli", {}).get("skip-github-release", True) is not True:
+        errors.append("Stage A must suppress the CLI component release")
 
 
 def workflow_section(text: str, heading: str, next_heading: str | None = None) -> str:
@@ -284,29 +313,18 @@ def check_release_topology(errors: list[str]) -> None:
 
     release_please = require_fragments(
         workflow_dir / "release-please.yml",
-        ("uses: ./.github/workflows/release.yml", "steps.release.outputs"),
+        ("skip-github-release: true", "config-file: release-please-config.json", "manifest-file: .release-please-manifest.json"),
         errors,
     )
-    for input_name in ("release_tag", "release_sha", "release_url"):
-        if f"{input_name}: ${{{{ needs.release-please.outputs." not in release_please:
-            errors.append(f"release-please must propagate {input_name} to the release caller")
-    if "main_sha: ${{ github.sha }}" not in release_please:
-        errors.append("release-please must propagate the merged-main SHA to the release caller")
-    if "dry_run: false" not in release_please:
-        errors.append("release-please must invoke the publication caller with dry_run false")
-
-    release_job = job_block(release_please, "release")
-    required_permissions = (
-        "permissions:\n"
-        "      contents: write\n"
-        "      packages: write\n"
-        "      id-token: write\n"
-        "      attestations: write"
+    if "uses: ./.github/workflows/release.yml" in release_please or "release_created" in release_please:
+        errors.append("Stage A must not couple Release Please to publication outputs")
+    tag_caller = require_fragments(
+        workflow_dir / "release-on-tag.yml",
+        ("tags: [\"v*.*.*\"]", "workflow_dispatch:", "uses: ./.github/workflows/release.yml", "secrets: inherit"),
+        errors,
     )
-    if required_permissions not in release_job:
-        errors.append(
-            "release-please caller must grant the release reusable workflow its required publication permissions"
-        )
+    if "github.ref_name" not in tag_caller or "github.sha" not in tag_caller:
+        errors.append("canonical tag caller must pass the tag and commit event values")
 
 
 def run_checks() -> list[str]:

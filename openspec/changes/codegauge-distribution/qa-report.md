@@ -1,4 +1,217 @@
-# Acceptance QA Report: codegauge-distribution
+# Acceptance QA Report: codegauge-distribution (authoritative 2026-08-15)
+
+## 1. Identity
+
+- Change: `codegauge-distribution`
+- Mode: OpenSpec
+- Phase: `sdd-qa`
+- Date: 2026-08-15
+- QA verdict: `BLOCKED`
+- Scope: authorized R-F6 two-stage Release Please 17.6.0 version-PR pass plus post-merge canonical-tag carrier
+
+This is the authoritative QA section for the current R-F6 implementation. The older 2026-08-13 QA
+record is retained below as historical evidence and is superseded by this section.
+
+## 2. Source artifacts and technical verification handoff
+
+### Source artifacts read
+
+- `openspec/changes/codegauge-distribution/proposal.md`
+- `openspec/changes/codegauge-distribution/specs/ci-quality-gates/spec.md`
+- `openspec/changes/codegauge-distribution/specs/cargo-distribution/spec.md`
+- `openspec/changes/codegauge-distribution/specs/npm-distribution/spec.md`
+- `openspec/changes/codegauge-distribution/specs/release-artifacts/spec.md`
+- `openspec/changes/codegauge-distribution/specs/oci-distribution/spec.md`
+- `openspec/changes/codegauge-distribution/design.md`
+- `openspec/changes/codegauge-distribution/tasks.md`
+- `openspec/changes/codegauge-distribution/verify-report.md`
+- `openspec/changes/codegauge-distribution/state.yaml`
+- `openspec/changes/codegauge-distribution/apply-progress.md`
+- `openspec/config.yaml`
+
+### Current implementation inspected
+
+- `release-please-config.json`, `.release-please-manifest.json`
+- `.github/workflows/release-please.yml`
+- `.github/workflows/release-tag-carrier.yml`
+- `.github/workflows/release-on-tag.yml`
+- `.github/workflows/release.yml`
+- `.github/workflows/release-build.yml`
+- `.github/workflows/release-publish.yml`
+- `scripts/verify_release_provenance.py`
+- `scripts/package_release.py`, `scripts/build_oci_release.sh`
+- `tests/release_please_runtime_harness.mjs`, `tests/release_please_runtime_tests.py`
+- `tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`
+- `tests/release_provenance_tests.py`, `tests/distribution_checks*.py`
+- `tests/oci_distribution*.py`
+
+### Technical handoff
+
+The latest `verify-report.md` is dated 2026-08-15 and hands off a technical verdict of
+`PASS WITH WARNINGS`. It reports that all locally executable R-F6 contracts pass, including the
+private-candidate boundary remediation, and that no CRITICAL implementation defect was found. Tasks
+4.2 (protected hosted rehearsal) and 4.3 (downstream QA) remain incomplete. This QA report does not
+upgrade that handoff into hosted or product acceptance.
+
+The checked-in fake-SCM harness records the upstream raw `Update[]` proposals before the exact
+v17.6.0 `GitHub.buildChangeSet` missing-file filtering boundary; its log therefore contains some
+absent-file proposals. The latest verification handoff separately records the effective 31-path
+changeset probe. QA treats the harness's requested one-PR/six-pin/zero-call/private-boundary result
+as local evidence and does not treat either probe as hosted changed-file or publication evidence.
+
+## 3. Target, environment, permissions, and limitations
+
+- Local target: `/Users/acosta/Dev/agent-swarm/codegauge`.
+- Checkout: branch `fix/release-please-root-files`, `HEAD=1623c7175dcc9dd07427c0a48a89054bb274bce1`.
+- Worktree: intentionally dirty with the pre-existing R-F6 implementation; QA made no source,
+  workflow, credential, release, or registry changes.
+- Host: macOS arm64.
+- Toolchain observed in `/tmp/codegauge-rf6-qa.weKmyI/environment.log`: Rust/Cargo 1.97.1,
+  Node 24.19.0, npm 11.17.0, Python 3.14.6, Docker 29.7.2, actionlint 1.7.12.
+- Exact Release Please package: `npx --yes release-please@17.6.0 --version` returned `17.6.0`.
+- Read-only remote tag inspection: `git ls-remote --refs origin 'refs/tags/v*.*.*'` exited 0 and
+  returned no canonical tags.
+- No hosted run target, release-please PR, merged-main carrier run, canonical tag, GitHub Release,
+  registry namespace rehearsal, or release credentials were supplied or safely available.
+- Explicit safety boundary honored: no commit, push, merge, tag creation, GitHub Release, Cargo
+  publish, npm publish, GHCR push, upload, attestation, credential injection, or hosted write.
+- A local CLI, package test surface, archive generator/validator, and Docker Buildx/QEMU surface are
+  available. There is no deployed application, browser UI, API/data store, locale surface, or general
+  hosted acceptance target for this distribution-only change.
+
+## 4. Capability inventory
+
+| Capability | Availability | Selection | Rationale / disposition |
+|---|---|---|---|
+| Exact Release Please 17.6.0 fake-SCM harness | available | selected | Executes the package-level Manifest/plugin chain against a no-write fake SCM. |
+| Stage-B carrier validators and tag planner | available | selected | Pure local positive, negative, retry, and conflict behavior is executable. |
+| Local Cargo/Rust quality and source runtime | available | selected | Pinned metadata, tests, check, fmt, Clippy, version, profiles, and package verification run locally. |
+| Local Python provenance/distribution checks | available | selected | Version, lockfile, package graph, archive, private-boundary, and mutation checks run locally. |
+| Local npm typecheck/test/package dry-run | available | selected | Wrapper behavior, package identity, target constraints, and seven dry-run packs run locally. |
+| Local OCI Buildx/daemon/QEMU | available | selected | Both local `linux/amd64` and `linux/arm64` build/load/run/evidence paths run without a registry. |
+| Workflow/actionlint/ShellCheck/Dockerfile diagnostics | available | selected as diagnostics | Executed for the requested security gates, but static inspection is not recorded as QA `PASS`. |
+| Read-only Git remote metadata | available | selected | Empty `v*.*.*` remote tag listing recorded without hosted mutation. |
+| Hosted GitHub Actions/PR/tag/release execution | unavailable | rejected | No safe target or authorized hosted rehearsal was supplied; absence cannot become a pass. |
+| Cargo/npm/GHCR/GitHub publication and upload | available in principle | rejected | Explicitly prohibited by the user; no registry state was mutated. |
+| Attestation/provenance publication | unavailable for QA | rejected | Requires a hosted identity-token/attestation run, explicitly prohibited here. |
+| Native non-host archive target runners | unavailable | rejected | macOS arm64 cannot provide native evidence for the seven other archive targets. |
+| Failure injection and rollback rehearsal | unavailable under policy | rejected | Requires disposable hosted/provider state or publication writes. |
+| Browser/API/data/persistence | not applicable | rejected | No browser, HTTP API, database, or persistence contract is in scope. |
+| Accessibility/responsive/internationalization/locale | not applicable | rejected | No UI or locale-dependent behavior exists in the target surface. |
+| Manual/exploratory shell behavior | available | selected | Repeated commands, negative fixtures, checksum tampering, and local OCI smoke were exercised. |
+
+## 5. Scenario matrix
+
+`PASS` below means executable local behavior produced the specified result. Static-only evidence is
+never recorded as `PASS`; those rows are `NOT TESTED` even when the diagnostic command exited 0.
+
+| ID | Capability / acceptance scenario | Result | Evidence or reason |
+|---|---|---|---|
+| CI-1 | Untrusted pull request runs without release credentials or publication ability. | BLOCKED | No hosted PR target or isolated runner was available; local permission text cannot prove runtime secret isolation. |
+| CI-2 | Mutable workflow action reference fails before distribution. | NOT TESTED | `actionlint` and full-SHA diagnostics exited 0 in `workflow/actionlint.log`; no mutable-reference injection was run, and static inspection is not acceptance. |
+| CI-3 | Pinned metadata, locked tests, fmt, Clippy, and Python contract checks pass. | PASS | Successful commands are in `cargo/1.log`–`cargo/5.log` and `focused/4.log`–`focused/7.log`; workspace tests passed with 31 tests and 0 failures. |
+| CI-4 | Known lint failure remains blocking without weakening the gate. | NOT TESTED | Clippy passed; no source/workflow failure injection was permitted. Rerun needs an isolated failing fixture or hosted run. |
+| CI-5 | Incomplete target declaration blocks distribution eligibility. | PASS | Removing one archive manifest caused the validator to exit 1 (`expected 8 archive manifests, found 7`); evidence in `archives.log` and `archives-incomplete.log`. |
+| CI-6 | Failed preflight blocks later publication jobs and retains evidence. | BLOCKED | Local workflow dependencies were only statically diagnosed; no hosted failure-injection run was available. |
+| CARGO-1 | Complete runtime graph packages/publishes in dependency order. | BLOCKED | Five local `cargo package --locked --allow-dirty` checks passed in `cargo-corrected/*.log`; crates.io publication/order observation was prohibited. |
+| CARGO-2 | Source install/build retains the CLI contracts. | PASS | Locked workspace build/tests and `cargo run ... version`/`profiles` passed; evidence in `cargo/2.log`, `cargo/6.log`, and `cargo/7.log`. |
+| CARGO-3 | Immutable recorded Git revision installs with release behavior. | BLOCKED | No `vX.Y.Z` tag or immutable release revision exists; remote tag listing is empty in `hosted-read-only.log`. |
+| CARGO-4 | Distribution-only change preserves RFC-0001 behavior/contracts. | PASS | Locked conformance, integration, and CLI tests all passed in `cargo/2.log`; no engine contract source was changed by QA. |
+| CARGO-5 | Missing required Cargo package file stops before upload. | NOT TESTED | Positive package checks passed; no package-file deletion fixture was run. Rerun needs a temporary copied package fixture. |
+| CARGO-6 | Manifest/lockfile/binary version mismatch blocks release validation. | PASS | `release_carrier_tests.py` and `release_provenance_tests.py` rejected graph/version/tag/source-revision mutations; evidence in `focused/2.log` and `focused/4.log`. |
+| NPM-1 | Only the approved base and six same-scope platform packages are eligible. | PASS | Generator check, npm typecheck/tests, wrapper pack, and six platform `npm pack --dry-run` commands passed; evidence in `npm/*.log` and `focused/13.log`. |
+| NPM-2 | Supported runtime selects exactly its matching platform package. | PASS | Local wrapper test suite passed target-resolution coverage on the available host/test fixture; evidence in `npm/tests.log`. |
+| NPM-3 | Unsupported or missing optional dependency returns actionable nonzero error. | PASS | npm tests passed missing-dependency and musl/unsupported-target cases; evidence in `npm/tests.log`. |
+| NPM-4 | Arguments, stdio, and child exit status pass through unchanged. | PASS | npm wrapper test suite passed the passthrough case; evidence in `npm/tests.log`. |
+| NPM-5 | Checksum mismatch blocks platform and base npm eligibility. | PASS | The local corruption/provenance regressions passed, and the independent archive tamper fixture exited 1 before eligibility; evidence in `focused/4.log` and `archives-tampered.log`. |
+| REL-1 | Release provenance is one immutable version/source identity from merged main. | BLOCKED | Local validators and drift negatives pass, but no immutable release-please tag, merged hosted PR, or GitHub Release exists. |
+| REL-2 | Root updates survive the exact Release Please 17.6.0 plugin pipeline. | PASS | Exact fake-SCM chain produced the root carrier, five runtime Cargo updates, package/changelog updates, and one synchronized PR; latest technical probe also recorded the effective 31-path set. Evidence in `focused/1.log` and the latest `verify-report.md`. |
+| REL-3 | Virtual root remains a non-publishable metadata carrier. | PASS | Current config and runtime harness preserve `release-type: java`, no root package identity, and skipped Stage-A release creation; evidence in `focused/1.log` and `focused/4.log`. |
+| REL-4 | Private conformance member stays outside Stage-A updates. | PASS | Exact harness recorded no `crates/codegauge-conformance/*`, and the mutated private manifest was rejected; evidence in `focused/1.log` and `focused/2.log`. |
+| REL-5 | v17.6.0 empty-component/tag coupling is avoided. | PASS | Component-tagged Stage A produced a full 13-component linked map while the fake SCM observed no release/tag calls; evidence in `focused/1.log`. |
+| REL-6 | All six npm optional pins synchronize to the linked version. | PASS | Harness output recorded six optional dependency versions rewritten to `0.2.0`; evidence in `focused/1.log`. |
+| REL-7 | Complete eight-target archive release has correct formats/checksums/evidence. | BLOCKED | Local synthetic packaging verified 8/8 archive formats, manifests, and checksums, but seven target binaries were explicitly `cross-target/execution=not-run`; evidence in `archives.log` and `archives/`. |
+| REL-8 | Missing target evidence blocks release assets and dependent channels. | PASS | The incomplete archive fixture exited 1 before any publisher command; evidence in `archives-incomplete.log`. |
+| REL-9 | Checksum/package/metadata failure blocks later upload/publishers. | BLOCKED | Local validators fail closed on tampered input, but no hosted graph or publisher failure injection was run; evidence of the local negative is in `archives-tampered.log`. |
+| REL-10 | Credential exposure fails promotion and does not leak tokens. | BLOCKED | No credential-bearing run, login, upload, or attestation was permitted; static no-literal diagnostics are not runtime acceptance. |
+| REL-11 | Partial publication stops later jobs and exposes recovery. | BLOCKED | Publication and rollback rehearsal were explicitly prohibited; no partial external state exists to inspect. |
+| OCI-1 | Only `ghcr.io/yacosta738/codegauge` is eligible for publication. | BLOCKED | Local identity/permission diagnostics passed, but no GHCR login/push or registry observation was authorized. |
+| OCI-2 | Unsupported architecture is rejected. | PASS | Executable OCI negative suite rejected `linux/ppc64le`; evidence in `focused/8.log`–`focused/11.log`. |
+| OCI-3 | Workspace-aware non-root images build/run for amd64 and arm64. | PASS | `build_oci_release.sh` built, loaded, ran, and verified both local architectures with version/profile/contract/non-root evidence; evidence in `oci-local-build-corrected.log` and `oci/{amd64,arm64}.json`. |
+| OCI-4 | OCI label/runtime/root/emulation/digest mismatch fails validation. | PASS | Positive and negative OCI evidence suites passed; real local evidence retained distinct Docker/OCI digest domains in `/tmp/codegauge-rf6-qa.weKmyI/oci/`. |
+| OCI-5 | Failed architecture blocks manifest/tag publication. | BLOCKED | No registry manifest/tag publication or hosted architecture failure injection was run. |
+| R-F6-A | Stage-A exact v17.6.0 fake-SCM creates one PR, rewrites six optional pins, makes no release/tag calls, and does not update private conformance. | PASS | `python3 tests/release_please_runtime_tests.py` exited 0; output records `synchronizedPullRequests: 1`, six `0.2.0` pins, `releaseCalls: 0`, `tagCalls: 0`, and `PRIVATE CANDIDATE MUTATION: REJECTED`. |
+| R-F6-B | Stage-B positive carrier validates one merged-main version PR and canonical tag record. | PASS | `python3 tests/release_carrier_tests.py` exited 0; copied-tree positive carrier record matched `v0.2.0` and the expected merge SHA. |
+| R-F6-C | Stage-B rejects unapproved/private/missing/root/malformed-semver mutations. | PASS | Exact path, root-file deletion, private candidate, graph drift, lock/manifest deletion, and strict SemVer mutations all rejected in `focused/2.log`. |
+| R-F6-D | Tag planning is idempotent and conflict-safe. | PASS | Create, same-SHA no-op, different-SHA conflict, annotated-tag rejection, existing-release conflict, retry, and bootstrap-version cases passed in `focused/2.log`. |
+| R-F6-E | Workflow security gates enforce full SHAs, least privilege, token separation, concurrency, and canonical topology. | NOT TESTED | `release_carrier_static_tests.py`, `distribution_checks.py`, `actionlint`, and ShellCheck exited 0, but this is static-only evidence and no hosted workflow acceptance is claimed. |
+| R-F6-F | Canonical tag state transition delivers the tag-triggered downstream release graph. | BLOCKED | Local pure planning/topology diagnostics pass, but no hosted tag creation, event delivery, build/publish graph, release URL, or downstream run was available. |
+
+## 6. Untested scope and rerun prerequisites
+
+| Scope | Result | Reason / rerun prerequisite |
+|---|---|---|
+| Hosted Stage-A PR and zero-artifact observation | BLOCKED | Requires an isolated protected GitHub target and authorized repository-scoped token; capture one PR, exact diff, zero tags/releases, and secret-safe logs. |
+| Merged-main carrier, compare/create race, canonical tag delivery | BLOCKED | Requires a permitted merged test PR and hosted run; capture one lightweight `vX.Y.Z` ref at the merge SHA, same-SHA retry no-op, and conflicting-SHA fail-closed behavior. |
+| Tag-triggered build/release URL/downstream gating | BLOCKED | Requires the canonical tag event and a hosted dry-run; capture build `needs` completion, release identity, and no-publication behavior. |
+| Cargo/npm/GitHub Release/GHCR publication | BLOCKED | Explicitly prohibited in this QA. Rerun only in an approved release window with scoped credentials and provider-safe test/release policy. |
+| OCI final manifest and attestation | BLOCKED | Local architecture evidence is retained, but registry manifest creation and attestations require hosted `packages`/OIDC writes, which were prohibited. |
+| Native evidence for seven non-host archive targets | BLOCKED | The local eight-target fixture marks seven binaries `execution=not-run`; rerun on the declared native/cross-target runner matrix with executable evidence for every claimed target. |
+| Failure injection and non-atomic rollback | BLOCKED | No publication state may be mutated here. Rerun in a disposable/provider-supported rehearsal and capture stop order, retained evidence, deprecation/retag/corrected-patch recovery. |
+| Missing Cargo package-file failure | NOT TESTED | No repository file was removed. Rerun against a temporary copied package fixture and prove no upload follows the failed preflight. |
+| Browser, accessibility, responsive, locale, API, data, and persistence scenarios | NOT TESTED | Not applicable to this CLI/workflow/archive/OCI surface; no target UI/API/store exists. Do not invent a target. |
+
+## 7. Findings
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| QA-001 | P1 | Hosted Stage-A, merged-main carrier, immutable canonical tag, tag event delivery, and downstream release provenance were not observable. | Open — acceptance blocker; requires authorized hosted rehearsal. |
+| QA-002 | P1 | Cargo/npm/GitHub Release/GHCR publication, final manifest, and attestation were not executed. | Open — explicitly prohibited by safety scope; archive gate remains blocked. |
+| QA-003 | P1 | Seven non-host archive targets lack native/executable evidence, and no immutable release artifact exists. | Open — requires the declared hosted/native target matrix and a canonical tag. |
+| QA-004 | P2 | Hosted preflight failure propagation, missing-package failure, partial publication, and rollback were not injected. | Open — no observed implementation defect; rerun requires disposable failure fixtures/provider state. |
+| QA-005 | P2 | Workflow/action security checks are static diagnostics only; no hosted least-privilege or secret-isolation observation exists. | Open — no observed static defect; acceptance remains untested. |
+
+No `FAIL` scenario was observed in the executable local scope. No CRITICAL or P0 implementation
+finding remains. **Yes: open P1 acceptance blockers remain** (QA-001 through QA-003), all caused by
+missing/prohibited external acceptance evidence rather than a newly observed local code failure.
+
+## 8. Final verdict
+
+`BLOCKED`
+
+### Verdict rationale
+
+The local acceptance boundary is green for the capabilities that can execute safely: exact Release
+Please 17.6.0 fake-SCM behavior, six optional-pin rewrites, no Stage-A release/tag calls, private
+conformance exclusion, Stage-B positive/negative/idempotency/conflict behavior, local Cargo/npm/package
+quality, archive/checksum validators, and real local amd64/arm64 OCI runtime evidence. The expected
+negative fixtures fail closed. However, the requested capability is a two-stage distribution lifecycle,
+and its acceptance-critical hosted transition, immutable release provenance, complete native target
+matrix, publication ordering, attestation, and rollback cannot be observed under the explicit no-write
+and no-credential boundary. Per the QA/archive policy, those `BLOCKED` scenarios cannot be converted to
+`PASS` or `PASS WITH WARNINGS`; archive must remain gated.
+
+## 9. Implementation handoff
+
+- QA did not modify source code, workflows, credentials, release state, registries, or tags.
+- `qa-report.md` is the auditable record for this run; evidence is under
+  `/tmp/codegauge-rf6-qa.weKmyI/`.
+- A subsequent apply slice added a temporary, credential-free hosted carrier rehearsal guard:
+  manual `dry_run: true` and automatic `RELEASE_CARRIER_DRY_RUN=true` now select plan-only mode;
+  unset/`false` remains live by default. This implementation update requires a fresh `sdd-verify`
+  and independent QA rerun; it is not acceptance evidence for the hosted path.
+- The prior QA handoff records verdict `BLOCKED`; after this apply slice, state returns to `sdd-verify`
+  before QA is rerun. Do not archive until QA-001 through QA-003 are resolved or an explicit policy
+  exception is approved; this production distribution change has no documentation-only exception.
+- Hosted Stage-A/merged-main/tag-triggered rehearsal remains pending. No hosted writes, tag/label
+  mutation, release dispatch, upload, publication, credential use, or registry state change was
+  performed by the apply slice.
+- This report does not claim Cargo, npm, GitHub Release, GHCR, attestation, hosted workflow, or product
+  acceptance.
+
+## Superseded prior QA record
+
+The original 2026-08-13 QA record below is retained for audit history and is not the current verdict.
 
 ## Identity
 

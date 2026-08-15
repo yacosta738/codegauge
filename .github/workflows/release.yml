@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       release_tag:
-        description: "Exact release-please tag"
+        description: "Exact canonical vX.Y.Z tag"
         required: true
         type: string
       release_sha:
-        description: "Exact commit SHA returned by release-please"
+        description: "Exact commit SHA resolved by the canonical tag"
         required: true
         type: string
       main_sha:
@@ -16,22 +16,28 @@ on:
         required: true
         type: string
       release_url:
-        description: "URL of the release-please-created GitHub Release"
-        required: true
+        description: "Optional pre-existing release URL for compatibility"
+        required: false
+        default: ""
         type: string
       dry_run:
         description: "Build and verify without publishing"
         required: false
         default: true
         type: boolean
+      recovery:
+        description: "Explicit recovery dispatch for an existing canonical tag"
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Exact release-please tag"
+        description: "Exact canonical vX.Y.Z tag"
         required: true
         type: string
       release_sha:
-        description: "Exact commit SHA returned by release-please"
+        description: "Exact commit SHA resolved by the canonical tag"
         required: true
         type: string
       main_sha:
@@ -39,13 +45,19 @@ on:
         required: true
         type: string
       release_url:
-        description: "URL of the release-please-created GitHub Release"
-        required: true
+        description: "Optional pre-existing release URL for compatibility"
+        required: false
+        default: ""
         type: string
       dry_run:
         description: "Build and verify without publishing"
         required: true
         default: true
+        type: boolean
+      recovery:
+        description: "Explicit recovery dispatch for an existing canonical tag"
+        required: false
+        default: false
         type: boolean
 
 permissions:
@@ -64,6 +76,7 @@ jobs:
       main_sha: ${{ inputs.main_sha }}
       release_url: ${{ inputs.release_url }}
       dry_run: ${{ inputs.dry_run }}
+      recovery: ${{ inputs.recovery }}
     permissions:
       contents: read
 
@@ -76,6 +89,7 @@ jobs:
       main_sha: ${{ inputs.main_sha }}
       release_url: ${{ inputs.release_url }}
       dry_run: ${{ inputs.dry_run }}
+      recovery: ${{ inputs.recovery }}
     permissions:
       contents: write
       packages: write

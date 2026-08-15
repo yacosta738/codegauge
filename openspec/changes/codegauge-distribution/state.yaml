@@ -1,6 +1,6 @@
 change: codegauge-distribution
 title: "CI/CD and distribution through Cargo, npm, Docker, and release artifacts"
-current_phase: qa
+current_phase: verify
 completed:
   - init
   - explore
@@ -10,9 +10,8 @@ completed:
   - tasks
   - apply
   - verify
-  - qa
 next: qa
-updated: "2026-08-13"
+updated: "2026-08-15"
 
 baseline:
   repository: yacosta738/codegauge
@@ -22,17 +21,39 @@ baseline:
 
 summary: |
   Specification and design define production CI/CD and distribution slices for Cargo/source, npm,
-  OCI, and GitHub Release channels while preserving engine and contract semantics. The user approved
-  crates.io runtime-graph publication, `@yacosta738/codegauge`, `ghcr.io/yacosta738/codegauge`, the
-  complete viable target matrix, and A→E chained PRs. Apply may proceed; the existing Clippy failure
-  was resolved without semantic engine changes. R-C npm, R-D release provenance, and R-E OCI
-  remediation layers are complete. Technical verification is PASS WITH WARNINGS, including real
-  Docker amd64/arm64 build/load/inspect/runtime evidence. Acceptance QA is BLOCKED until an immutable
-  release-please tag on merged main exists and authorized hosted evidence covers non-host targets,
-  registry publication, final attestation, and rollback rehearsal.
+  OCI, and GitHub Release channels while preserving engine and contract semantics. R-F6 uses the
+  verified two-stage architecture: Release Please 17.6.0 produces one component-tagged,
+  release-free synchronization PR from five explicit runtime Cargo candidates plus the Java root
+  carrier, then a trusted post-merge carrier owns exactly one immutable unprefixed tag. The exact
+  read-only runtime chain and effective changeset probe pass with six optional pin rewrites, no
+  private/unapproved Stage-A paths, and zero release/tag calls; local quality and security checks
+  are green. The carrier now has a temporary explicit manual/repository-variable dry-run mode that
+  emits a credential-free plan while preserving the live push default. Fresh sdd-verify local checks
+  pass; the technical verdict is PASS WITH WARNINGS and the next phase is independent sdd-qa.
+  Acceptance remains BLOCKED because hosted execution, publication, native non-host target evidence,
+  attestation, and rollback remain unverified and unauthorized.
+
+decision:
+  r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
+  release_please_version: "17.6.0"
+  stage_1_private_boundary: "explicit-five-runtime-cargo-list-plus-non-cargo-root-carrier"
+  stage_1_expected_artifacts: "one synchronized PR; zero tags and GitHub Releases"
+  stage_2_canonical_tag: "exactly one immutable vX.Y.Z at the validated merge SHA"
 
 blocked:
+  - Hosted Release Please/tag carrier/release workflow rehearsal remains unexecuted
+  - Temporary carrier rehearsal guard is implemented locally but requires protected hosted observation
+  - PAT scope/masking/ref authorization, branch protection, tag delivery, and workflow dispatch recovery remain unconfirmed
+  - R-F6 tasks 4.2/7.4 hosted no-publication rehearsal and task 4.3 QA remain downstream gates
   - no v0.1.0 release/tag or GitHub Release exists
-  - hosted release-please and failure-injection rehearsal not executed
   - Cargo/npm/GitHub Release/GHCR publication and attestation not authorized/executed
   - native evidence for seven non-host targets unavailable
+  - QA P1 acceptance blockers remain; archive is gated until hosted/native evidence or an explicit
+    policy exception is approved
+
+qa:
+  verdict: BLOCKED
+  report: openspec/changes/codegauge-distribution/qa-report.md
+  local_acceptance: all selected executable local scenarios passed
+  critical_or_p0_findings: none
+  open_p1_findings: hosted lifecycle/provenance, publication/attestation, and native target evidence

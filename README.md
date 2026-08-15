@@ -132,6 +132,36 @@ metadata gates run before upload; Cargo dependencies precede dependents; npm pla
 precede the wrapper; and OCI publication follows the archive/npm gates. Dry runs are safe only when
 the workflow's `dry_run` input is honored. No registry credential belongs in this repository.
 
+### Temporary hosted carrier rehearsal
+
+The two-stage Release Please flow has a temporary, plan-only rehearsal mode. The automatic
+`release-tag-carrier.yml` push path reads the repository Actions variable
+`RELEASE_CARRIER_DRY_RUN`: set it to the exact value `true` before merging the synchronized Release
+Please version PR to validate the merged-main tree, diff, version, provenance, lockfile, metadata,
+and canonical tag plan without creating a tag, changing PR labels, dispatching `release-on-tag.yml`,
+uploading, or publishing. When the variable is absent or `false`, the normal push carrier is live.
+
+For a manual check, dispatch `release-tag-carrier.yml` on `main` with `dry_run=true`. Inspect the
+workflow summary and the machine-readable `carrier-plan.json` record for the merged PR, canonical
+`vX.Y.Z` plan, and explicit skipped mutations. This manual dry run does not create refs, change
+labels, dispatch the tag workflow, upload, or publish. Remove the temporary variable immediately
+after the rehearsal so the production push default remains live:
+
+```bash
+gh variable set RELEASE_CARRIER_DRY_RUN --repo yacosta738/codegauge --body true
+# Merge the synchronized Release Please PR through the protected main workflow while this is true.
+gh run list --workflow release-tag-carrier.yml --repo yacosta738/codegauge --branch main --limit 1 --json databaseId
+gh workflow run release-tag-carrier.yml --repo yacosta738/codegauge --ref main -f dry_run=true
+run_id="$(gh run list --workflow release-tag-carrier.yml --repo yacosta738/codegauge --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "$run_id" --repo yacosta738/codegauge --exit-status
+gh run view "$run_id" --repo yacosta738/codegauge --log
+gh variable delete RELEASE_CARRIER_DRY_RUN --repo yacosta738/codegauge
+```
+
+The synchronized version PR must be merged only while the variable is `true`; inspect its carrier
+run before removing the variable. These commands are operator instructions for an explicitly
+authorized hosted rehearsal, not local publication commands.
+
 ### Provenance and rollback
 
 Each release records its immutable Git `source_revision`, Rust toolchain, target, archive name, and
