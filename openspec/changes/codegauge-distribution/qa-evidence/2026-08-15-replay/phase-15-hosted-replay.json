@@ -1,0 +1,86 @@
+{
+  "change": "codegauge-distribution",
+  "phase": "sdd-qa",
+  "date": "2026-08-15",
+  "repository": "yacosta738/codegauge",
+  "branch": "chore/release-record-hosted-replay",
+  "corrected_main_sha": "8d1773413bbaa63661588b369d1c12bab2e2856e",
+  "evidence_basis": [
+    "read-only gh run view for hosted run 31891343893",
+    "read-only gh run view for hosted run 31891322236",
+    "operator-supplied credential-free carrier-plan facts"
+  ],
+  "hosted_replay": {
+    "run_id": 31891343893,
+    "url": "https://github.com/yacosta738/codegauge/actions/runs/31891343893",
+    "event": "workflow_dispatch",
+    "ref": "refs/heads/main",
+    "head_sha": "8d1773413bbaa63661588b369d1c12bab2e2856e",
+    "replay_sha": "fcc91b4850480945ae484c3ebdba18f8a4e38270",
+    "dry_run": true,
+    "status": "completed",
+    "conclusion": "success",
+    "validation_steps": "passed",
+    "plan_step": "passed",
+    "passed_steps": [
+      "Resolve carrier mode",
+      "Collect the one merged Release Please PR",
+      "Validate the merged tree and version PR",
+      "Compute read-only canonical tag plan",
+      "Confirm dry-run has no mutation plan"
+    ],
+    "skipped_steps": [
+      "Compare and create one immutable lightweight tag",
+      "Mark the carried version PR as tagged"
+    ],
+    "tag_ref_mutation": "skipped",
+    "version_pr_label_mutation": "skipped",
+    "release_workflow": "not-dispatched",
+    "upload": "not-started",
+    "publication": "not-started",
+    "attestation": "not-started",
+    "carrier_plan": {
+      "replay": true,
+      "source_checkout_sha": "8d1773413bbaa63661588b369d1c12bab2e2856e",
+      "replay_event_sha": "fcc91b4850480945ae484c3ebdba18f8a4e38270",
+      "canonical_tag_ref": "skipped",
+      "version_pr_label": "skipped",
+      "release_workflow": "not-dispatched",
+      "upload": "not-started",
+      "publication": "not-started",
+      "attestation": "not-started"
+    }
+  },
+  "hosted_push_noop": {
+    "run_id": 31891322236,
+    "url": "https://github.com/yacosta738/codegauge/actions/runs/31891322236",
+    "event": "push",
+    "ref": "refs/heads/main",
+    "head_sha": "8d1773413bbaa63661588b369d1c12bab2e2856e",
+    "status": "completed",
+    "conclusion": "success",
+    "result": "no-op"
+  },
+  "observed_repository_state": {
+    "release_carrier_dry_run": true,
+    "v0.2.0_tag": "absent",
+    "github_releases": "none",
+    "hosted_provider_mutations": "none"
+  },
+  "supported_acceptance_scope": [
+    "hosted ordinary-main no-op",
+    "hosted historical replay identity on current corrected main",
+    "corrected private conformance hunk-only parser boundary",
+    "corrected base npm hunk-only formatting boundary",
+    "dry-run validation and no-write mutation plan"
+  ],
+  "not_proven_by_this_evidence": [
+    "canonical live tag delivery",
+    "downstream release workflow",
+    "Cargo/npm/GitHub Release/GHCR publication",
+    "native non-host targets",
+    "attestation and runtime secret isolation",
+    "failure injection and rollback",
+    "dependent Cargo registry verification"
+  ]
+}
