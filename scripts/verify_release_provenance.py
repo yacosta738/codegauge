@@ -251,6 +251,12 @@ HUNK_HEADER_RE = re.compile(
     r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: .*)?$"
 )
 NPM_BASE_PACKAGE_PATH = "npm/codegauge/package.json"
+NPM_BASE_ALLOWED_FORMATTING_ADDED = (
+    '  "files": [',
+    '    "dist/index.js"',
+    "  ],",
+)
+NPM_BASE_ALLOWED_FORMATTING_DELETED = ('  "files": ["dist/index.js"],',)
 NPM_PLATFORM_PACKAGE_PATHS = {
     f"npm/packages/{package.removeprefix('@yacosta738/')}/package.json": package
     for package in NPM_PACKAGES
@@ -1150,11 +1156,36 @@ def _validate_npm_package_patch(
         if path == NPM_BASE_PACKAGE_PATH
         else set()
     )
+    expected_keys = {"version"} | optional_keys
+    version_added: list[str] = []
+    version_deleted: list[str] = []
+    formatting_added: list[str] = []
+    formatting_deleted: list[str] = []
+    package_line = re.compile(r'\s*"([^"]+)": "([^"]+)",?\s*')
+    for line in added:
+        if (match := package_line.fullmatch(line)) and match.group(1) in expected_keys:
+            version_added.append(line)
+        else:
+            formatting_added.append(line)
+    for line in deleted:
+        if (match := package_line.fullmatch(line)) and match.group(1) in expected_keys:
+            version_deleted.append(line)
+        else:
+            formatting_deleted.append(line)
+
+    formatting_is_empty = not formatting_added and not formatting_deleted
+    formatting_is_allowed_base_rewrite = (
+        path == NPM_BASE_PACKAGE_PATH
+        and formatting_added == list(NPM_BASE_ALLOWED_FORMATTING_ADDED)
+        and formatting_deleted == list(NPM_BASE_ALLOWED_FORMATTING_DELETED)
+    )
+    if not formatting_is_empty and not formatting_is_allowed_base_rewrite:
+        raise ProvenanceError(f"{path} contains an unapproved package formatting mutation")
     expected_pairs = 1 + len(optional_keys)
-    if len(added) != expected_pairs or len(deleted) != expected_pairs:
+    if len(version_added) != expected_pairs or len(version_deleted) != expected_pairs:
         raise ProvenanceError(f"{path} contains an unexpected number of package version edits")
     seen_keys: set[str] = set()
-    for old_line, new_line in zip(deleted, added):
+    for old_line, new_line in zip(version_deleted, version_added):
         old_match = re.fullmatch(r'\s*"([^"]+)": "([^"]+)",?\s*', old_line)
         new_match = re.fullmatch(
             rf'\s*"([^"]+)": "{re.escape(runtime_version)}",?\s*',

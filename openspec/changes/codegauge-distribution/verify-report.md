@@ -1,7 +1,7 @@
 # Verification Report
 
-> The Phase 11 **PASS WITH WARNINGS** verdict and the Phase 12 apply handoff below are retained as audit
-> history. The latest authoritative Phase 12 fresh `sdd-verify` section is near the end of this file.
+> The Phase 11 and Phase 12 **PASS WITH WARNINGS** verdicts and apply handoffs below are retained as audit
+> history. The latest authoritative Phase 13 fresh `sdd-verify` section is at the end of this file.
 
 ## Apply handoff — Phase 12 private conformance hunk context — 2026-08-15
 
@@ -2967,3 +2967,170 @@ passes with the one-line correction; private counts, four-key/version/identity b
 and mutation negatives, the exact Release Please `17.6.0` runtime, and all requested local Cargo/npm/
 OCI/workflow/shell/package/whitespace checks pass. Hosted run `31886141725` remains failure evidence;
 no hosted replay success or acceptance is claimed. Hand off explicitly to **`sdd-qa`**.
+
+## Authoritative fresh sdd-verify — Phase 13 second hosted replay regression — 2026-08-15
+
+This section is authoritative for the current dirty checkout. It proves technical conformance only. The
+hosted run named below is preserved as pre-fix failure evidence; no corrected hosted replay, publication,
+operator acceptance, or product acceptance is claimed.
+
+### Identity, scope, and safety
+
+| Field | Value |
+|---|---|
+| Change / mode | `codegauge-distribution` / OpenSpec |
+| Checkout | `/Users/acosta/Dev/agent-swarm/codegauge` |
+| Branch / HEAD | `fix/release-carrier-private-patch-context` / `aa27efe0f6ce10707abd1c19f5b020a4db8dfa46` plus the intentional dirty diff |
+| Implementation diff | `scripts/verify_release_provenance.py`, `tests/release_carrier_tests.py` |
+| Release Please | Exact installed `17.6.0` |
+| Synchronized version | `0.2.0` |
+| Toolchain | Rust/Cargo `1.97.1`, Python `3.14.7`, Node `24.19.0`, npm `11.17.0` |
+| Hosted evidence | Run `31888439750` is a pre-fix failure observation; the exact PR `#59` files API was read-only fetched |
+| Safety boundary | No commit, push, merge, variable, tag, label, release, upload, publication, attestation, credential-bearing run, dispatch, or hosted write |
+
+### Completeness
+
+| Scope | Result |
+|---|---|
+| Phase 13 local tasks `13.1`–`13.4` | Complete and verified |
+| Phase 13 protected hosted task `13.5` | Pending; intentionally not run |
+| Existing protected hosted/acceptance tasks | Still pending under the no-write/no-secret boundary |
+| Local CRITICAL findings | 0 |
+| Coverage | Unavailable; `openspec/config.yaml` declares no coverage tool or threshold |
+| Technical verdict | **PASS WITH WARNINGS** |
+
+### Hosted regression and exact API evidence
+
+The exact read-only `GET /repos/yacosta738/codegauge/pulls/59/files` response contains 31 file entries
+and passes `validate_stage_a_diff(..., version="0.2.0")`. The saved safe metadata snapshot is
+`openspec/changes/codegauge-distribution/qa-evidence/2026-08-15-replay/phase-13-verify-api-file-list.json`.
+The `npm/codegauge/package.json` entry declares ten additions, eight deletions, and eighteen changes.
+Its seven approved version pairs are the wrapper `version` plus six approved optional dependencies;
+the remaining changes are exactly:
+
+```text
+-  "files": ["dist/index.js"],
++  "files": [
++    "dist/index.js"
++  ],
+```
+
+Read-only execution of the pre-fix validator from `HEAD` against that exact API list reproduced the
+RED failure:
+
+```text
+npm/codegauge/package.json contains an unexpected number of package version edits
+```
+
+The current validator partitions approved version-key lines from formatting lines, accepts only that
+exact base-package rewrite, and keeps platform-package formatting, altered base `files` content,
+arbitrary base formatting, and unapproved base keys rejected. The focused fixture and command evidence
+are summarized in `qa-evidence/2026-08-15-replay/phase-13-verify-summary.md`.
+
+### Specification compliance matrix
+
+`LOCAL` means a covering runtime test or executable validator passed. `PARTIAL` means local evidence is
+green but hosted execution, publication, native-target, failure-injection, rollback, or acceptance
+evidence was not run or was prohibited. No local scenario failed.
+
+| Specification requirement/scenario | Covering executable evidence | Result |
+|---|---|---|
+| Real PR `#59` base npm hunk-only rewrite is accepted | Read-only 31-entry API list; base entry `10/8/18`; current `validate_stage_a_diff` | ✅ LOCAL |
+| Pre-fix second regression remains recorded honestly | `HEAD` validator rejects the same API list on the base npm edit count | ✅ Failure preserved |
+| Seven approved npm version pairs remain strict | `test_release_please_npm_base_api_hunk_only_patch` plus exact API validation | ✅ LOCAL |
+| Exact base `files` compact-to-three-line rewrite is the only formatting allowance | Current validator source and positive fixture | ✅ LOCAL |
+| Platform formatting and arbitrary base edits fail closed | Executable mutation probes for platform formatting, altered `files`, arbitrary formatting, and unapproved keys | ✅ LOCAL |
+| Private conformance hunk-only omission of optional trailing context remains accepted | Existing PR `#59` private fixture and focused carrier suite | ✅ LOCAL |
+| Carrier/parser count, truncation, path, private, replay, no-match, and mutation negatives remain strict | `release_carrier_tests.py`, static, mode, provenance suites | ✅ LOCAL |
+| Exact Release Please `17.6.0` no-write runtime remains intact | Fake-SCM harness: 32 generated paths, four private pins, six npm rewrites, one PR, zero release/tag calls | ✅ LOCAL |
+| Locked Cargo graph and workspace behavior remain valid | Metadata, 31 workspace tests, check, fmt, Clippy, five package checks | ✅ LOCAL |
+| npm wrapper and seven package boundaries remain valid | Typecheck, six npm tests, seven `npm pack --dry-run` checks | ✅ LOCAL |
+| OCI/workflow/shell/package/whitespace gates pass | Four OCI suites, actionlint, ShellCheck, Dockerfile check, diff check | ✅ LOCAL |
+| Corrected hosted replay and downstream acceptance | Not executed under the explicit no-write/no-secret boundary | ⚠️ PENDING; no hosted success claimed |
+
+### Build, test, package, and static evidence
+
+| Command/check | Result |
+|---|---|
+| `python3 tests/release_carrier_tests.py` | **PASS**; new npm hunk fixture plus existing carrier/private/parser negatives |
+| `python3 tests/release_carrier_static_tests.py` | **PASS** |
+| `python3 tests/release_carrier_mode_tests.py` | **PASS** |
+| `python3 tests/release_provenance_tests.py` | **PASS** |
+| `python3 tests/release_please_runtime_tests.py` | **PASS**; exact `17.6.0`, 32 generated paths, four private edits, six npm pins, one PR, zero release/tag calls |
+| `python3 tests/distribution_checks.py`, `tests/bootstrap_checks.py`, `tests/readme_checks.py` | **PASS** |
+| Four `tests/oci_distribution_*.py` regression layers | **PASS** |
+| `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` | **PASS** |
+| `cargo +1.97.1 metadata --locked --format-version 1` | **PASS** |
+| `cargo +1.97.1 test --workspace --locked` | **PASS**; 31 passed, 0 failed, 0 skipped |
+| `cargo +1.97.1 check --workspace --locked` | **PASS** |
+| `cargo +1.97.1 fmt --all -- --check` | **PASS** |
+| `cargo +1.97.1 clippy --workspace --all-targets --locked -- -D warnings` | **PASS** |
+| Five workflow-equivalent locked runtime `cargo package` checks with local dependency patches | **PASS**; no publication |
+| npm typecheck/tests | **PASS**; six tests passed |
+| Wrapper plus six platform `npm pack --dry-run` checks | **PASS**; seven packages |
+| `actionlint .github/workflows/*.yml` | **PASS** |
+| `shellcheck scripts/build_oci_release.sh` | **PASS** |
+| `docker buildx build --check --progress=plain .` | **PASS**; no warnings |
+| `git diff --check` | **PASS** |
+
+### Correctness
+
+| Contract | Status | Evidence |
+|---|---|---|
+| Exact real PR `#59` API list passes the current Stage-B validator | ✅ | 31-entry read-only API validation at version `0.2.0` |
+| Hosted run `31888439750` remains pre-fix failure evidence | ✅ | Old validator rejection is reproduced locally; no success rewrite |
+| Version edits are partitioned from formatting edits | ✅ | Current `_validate_npm_package_patch` implementation and positive hunk fixture |
+| Base formatting allowance is exact and platform-scoped out | ✅ | Exact constants plus executable platform/arbitrary negative probes |
+| Existing private/parser/carrier/replay/no-match boundaries remain intact | ✅ | Focused runtime/static/mode/provenance suites |
+| Exact Release Please graph and zero Stage-A release/tag calls remain intact | ✅ local | Fake-SCM output and counters |
+| Hosted replay, tag delivery, publication, and acceptance | ⚠️ | Not executed or authorized; downstream `sdd-qa` remains pending |
+
+### Design coherence
+
+| Design decision | Result | Evidence |
+|---|---|---|
+| Validate content rather than filenames | ✅ | Exact API list plus hunk/parser and mutation tests |
+| Permit only the deterministic base npm `files` rewrite | ✅ | Three exact added lines and one exact deleted line |
+| Keep platform package formatting fail-closed | ✅ | Platform mutation rejection |
+| Preserve private four-pin and hunk-only boundaries | ✅ | Existing private fixture and negative matrix remain green |
+| Keep hosted replay separate from local verification | ✅ | Run `31888439750` remains pre-fix failure evidence; no dispatch/replay occurred |
+
+### Issues
+
+#### CRITICAL
+
+None.
+
+#### WARNING
+
+1. The separately authorized corrected hosted replay/validation for run `31888439750`'s boundary was not
+   run. No hosted tag, release, publication, upload, attestation, or downstream acceptance is claimed.
+2. Independent `sdd-qa` remains required for hosted/provider/native-target, publication, attestation,
+   failure-injection, rollback, and operator-acceptance scenarios. This report is technical only.
+3. Strict TDD is configured and the RED/GREEN/REFACTOR history is recorded, but the worktree is dirty
+   and `strict-tdd-verify.md` is unavailable, so commit-order proof is not possible.
+
+#### SUGGESTION
+
+1. Retain the exact API metadata snapshot and focused negative probes when the protected replay is
+   eventually authorized; remove temporary replay plumbing afterward if it is no longer needed.
+
+### Verdict table
+
+| Finding | Judge A | Judge B | Severity | Status |
+|---|---|---|---|---|
+| Pre-fix validator rejects the exact PR `#59` npm hunk-only entry | ✅ old-source execution | ✅ exact `10/8` API counts and seven version pairs | SUGGESTION | Confirmed historical RED |
+| Current validator accepts the exact real PR `#59` API file list | ✅ read-only API execution | ✅ positive fixture and full carrier suite | SUGGESTION | Confirmed locally |
+| Only exact base `files` formatting rewrite is allowed | ✅ source/constants | ✅ platform/arbitrary negative probes | SUGGESTION | Confirmed locally |
+| Private/parser/carrier/replay negative boundaries remain strict | ✅ focused runtime suites | ✅ static/mode/provenance checks | SUGGESTION | Confirmed locally |
+| Release Please `17.6.0`, Cargo, npm, OCI, workflow, shell, package, and whitespace checks | ✅ command execution | ✅ evidence summary and no-write boundary | SUGGESTION | Confirmed locally |
+| Corrected hosted replay and independent acceptance | ✅ safety policy boundary | ❌ not executed or authorized | WARNING | Remaining external gate |
+
+### Final verdict
+
+**PASS WITH WARNINGS** — the exact real PR `#59` API file list now passes, the pre-fix rejection is
+reproduced honestly, the new npm hunk-only fixture and existing carrier/private/parser negatives pass,
+the formatting allowance is exact and not broadened to platform or arbitrary base edits, and all
+requested local Release Please `17.6.0`, Cargo, npm, OCI, workflow, shell, package, compile, and
+whitespace checks pass. Hosted run `31888439750` remains pre-fix failure evidence; no hosted replay
+success, publication, tag, release, or operator acceptance is claimed. Hand off explicitly to **`sdd-qa`**.

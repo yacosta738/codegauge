@@ -166,6 +166,30 @@ Release Please changelog additions.
 - AND it continues to reject dependency-key/path/version drift, package metadata changes, formatting
   or comment mutations, missing/truncated hunks, and every other unapproved private mutation
 
+### Requirement: npm version lines and deterministic formatting remain narrowly bounded
+
+For an approved npm `package.json` patch, Stage-B MUST validate the `version` and approved optional
+dependency replacements independently from non-version lines. It MAY accept the exact Release Please
+formatting rewrite of the base package's `files` array from `  "files": ["dist/index.js"],` to the
+three-line form containing only the opening array, `dist/index.js`, and the closing bracket. No npm
+platform package MAY receive a formatting allowance, and arbitrary base-package formatting or
+unapproved-key edits MUST fail closed.
+
+#### Scenario: Real PR #59 base npm hunk-only rewrite
+
+- GIVEN `GET /pulls/59/files` returns the real `npm/codegauge/package.json` hunk with seven approved
+  version pairs and ten additions/eight deletions because of the exact `files` array rewrite
+- WHEN Stage-B validates the filename-bound hunk with synchronized version `0.2.0`
+- THEN it accepts the seven version replacements plus only that exact three-line base formatting
+  rewrite
+
+#### Scenario: npm formatting allowance does not broaden
+
+- GIVEN a platform package contains any formatting line, or the base package contains an altered
+  `files` array, arbitrary formatting, or an unapproved key
+- WHEN Stage-B validates the patch
+- THEN it fails closed before tag, label, release, upload, or publication mutation
+
 ### Requirement: Linked versions must not depend on tag naming
 
 The release architecture MUST prove that every intended runtime Cargo crate, the npm wrapper, and all

@@ -1782,3 +1782,51 @@ upload, attestation, variable change, merge, push, or commit occurred.
 
 The next phase is independent `sdd-qa`; this apply-progress handoff does not make an operator or
 product acceptance claim.
+
+## Phase 13 local verification handoff — second hosted replay regression — 2026-08-15
+
+### Scope and safety boundary
+
+- Checkout: `fix/release-carrier-private-patch-context`, intentionally dirty; the implementation diff is
+  limited to `scripts/verify_release_provenance.py` and `tests/release_carrier_tests.py`.
+- Hosted run `31888439750` is preserved as the pre-fix failure observation for the real PR `#59`
+  `npm/codegauge/package.json` files API entry. No corrected hosted replay or publication success is
+  claimed.
+- No commit, push, merge, workflow dispatch, repository-variable change, tag, release, upload,
+  publication, attestation, credential injection, or other hosted write was performed.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** the exact real PR `#59` files API list was run through the pre-fix validator from `HEAD`.
+   It rejected `npm/codegauge/package.json` with `contains an unexpected number of package version
+   edits` because the seven approved version pairs were mixed with the deterministic `files` array
+   formatting rewrite (`10` additions, `8` deletions).
+2. **GREEN:** the current validator partitions approved version-key lines from non-version lines and
+   accepts only the exact base-package compact-to-three-line `files` rewrite. The same read-only API
+   list contains 31 entries and passes `validate_stage_a_diff(..., version="0.2.0")`.
+3. **REFACTOR:** focused negative probes confirm platform-package formatting, altered base `files`
+   content, arbitrary base formatting, and unapproved-key edits remain rejected; private conformance,
+   parser, carrier, replay, no-match, and existing mutation boundaries remain green.
+
+### Local verification evidence
+
+- Exact PR `#59` files API list: **PASS**; 31 entries, base npm `10/8/18`, private conformance `4/4/8`.
+- Pre-fix exact-list replay: **RED reproduced**; old validator rejected the base npm entry for counting
+  formatting lines as package version edits.
+- `tests/release_carrier_tests.py`, static/mode/provenance/distribution/bootstrap/README checks, exact
+  Release Please runtime, Python compilation, and npm package generation: **PASS**.
+- Exact Release Please `17.6.0` fake-SCM: **PASS**; 32 generated paths, four private pins, six npm
+  optional rewrites, one synchronized PR, zero release calls, zero tag calls.
+- Locked Cargo metadata/tests/check/fmt/Clippy and five workflow-equivalent locked package checks:
+  **PASS**; 31 workspace tests passed, zero failed/skipped.
+- npm typecheck/tests and wrapper plus six platform `npm pack --dry-run` checks: **PASS**; six tests,
+  seven package dry-runs.
+- Four OCI regression layers, `actionlint`, `shellcheck scripts/build_oci_release.sh`, Dockerfile
+  `buildx --check`, and `git diff --check`: **PASS**.
+
+### Handoff and remaining gates
+
+- Technical verification is **PASS WITH WARNINGS**. The separately authorized protected replay for
+  `31888439750`'s corrected boundary, downstream tag/release delivery, publication, attestation,
+  native targets, failure injection, rollback, and independent `sdd-qa` remain pending.
+- `sdd-qa` is the next phase and must not convert the pre-fix hosted failure into a hosted success claim.
