@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       release_tag:
-        description: "Exact release-please tag"
+        description: "Exact canonical vX.Y.Z tag"
         required: true
         type: string
       release_sha:
-        description: "Exact commit SHA returned by release-please"
+        description: "Exact commit SHA resolved by the canonical tag"
         required: true
         type: string
       main_sha:
@@ -16,13 +16,19 @@ on:
         required: true
         type: string
       release_url:
-        description: "URL of the release-please-created GitHub Release"
-        required: true
+        description: "Optional pre-existing release URL for compatibility"
+        required: false
+        default: ""
         type: string
       dry_run:
         description: "Build and verify without publishing"
         required: false
         default: true
+        type: boolean
+      recovery:
+        description: "Explicit recovery dispatch for an existing canonical tag"
+        required: false
+        default: false
         type: boolean
 
 permissions:
@@ -34,6 +40,7 @@ env:
   MAIN_SHA: ${{ inputs.main_sha }}
   RELEASE_URL: ${{ inputs.release_url }}
   DRY_RUN: ${{ inputs.dry_run }}
+  RECOVERY: ${{ inputs.recovery }}
   RUST_TOOLCHAIN: 1.97.1
   CARGO_TERM_COLOR: always
 
@@ -48,17 +55,21 @@ jobs:
           fetch-depth: 0
       - name: Install Rust 1.97.1
         run: rustup toolchain install 1.97.1 --profile minimal
-      - name: Verify release-please provenance and synchronized metadata
+      - name: Verify canonical tag provenance and synchronized metadata
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$DRY_RUN" != "true" ]]; then
-            echo "manual release dispatch is rehearsal-only; publication must be initiated by release-please"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$DRY_RUN" != "true" && "$RECOVERY" != "true" ]]; then
+            echo "manual release dispatch is rehearsal-only; publication must be initiated by the canonical tag"
             exit 1
           fi
           git fetch --force origin main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git describe --tags --exact-match HEAD)" = "$RELEASE_REF"
+          test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$MAIN_SHA" refs/remotes/origin/main
           args=(
             inputs
             --release-tag "$RELEASE_REF"

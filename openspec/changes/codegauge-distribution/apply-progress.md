@@ -3,11 +3,12 @@
 ## Scope
 
 - Change: `codegauge-distribution`
-- Remediation units: `R-C`, `R-D`, `R-E`
+- Remediation units: `R-C`, `R-D`, `R-E`, `R-F1–R-F6` (Release Please ownership and tag carrier)
 - Delivery strategy: `feature-branch-chain`
 - Layer boundary: `distribution-e-oci-remediation`, based on the existing dirty worktree baseline;
   no branch or commit was created.
-- Out of scope: registry credentials, publication, branch/PR creation, and state.yaml mutation.
+- Out of scope: registry credentials, publication, and branch/PR creation; `state.yaml` was updated
+  only to record this apply handoff and the unresolved R-F6 blocker.
 
 ## Completed Tasks
 
@@ -158,6 +159,142 @@
   amd64/arm64 build/load/inspect/runtime evidence for this remediation is complete.
 - No branch, commit, push, publish, or state.yaml mutation was performed.
 
+## R-F6 apply execution — 2026-08-14
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; approved R-F6 two-stage Release Please/tag-carrier architecture.
+- Work unit: F6.1 → F6.4 implementation and local verification on the existing
+  `fix/release-please-root-files` branch; no commit, branch, merge, tag, publication, credential, or
+  parent-repository mutation was performed.
+- Stage A: Release Please `17.6.0` component-tagged synchronized version PR with the supported action
+  `skip-github-release: true`; the action has no release outputs or publication caller.
+- Stage B: trusted `main` push carrier derives the merged-tree version, validates one merged Release
+  Please PR and the complete runtime graph, compare-and-creates one lightweight `vX.Y.Z`, closes the
+  pending PR label, and relies on the non-`GITHUB_TOKEN` tag push to start the tag caller. Manual
+  dispatch is explicit recovery plumbing and defaults to dry-run.
+
+### Completed R-F6 tasks
+
+- [x] 1.1 — Source-faithful v17.6.0 regression now covers the virtual Cargo root candidate, exact
+  13-entry linked map, Node optional dependency rewriting, root extra-file ownership, npm-relative
+  path, private conformance exclusion, suppressed component-prefixed tags, and one Stage-A PR.
+- [x] 1.2 — Carrier fixtures cover positive validation, wrong ref, unexpected merge SHA, duplicate
+  merged PRs, graph drift, missing `Cargo.lock`/release manifest, invalid/bootstrap versions,
+  conflicting/annotated tags, same-SHA idempotency, and existing-release conflicts.
+- [x] 1.3 — Static checks cover Stage-A/Stage-B separation, action SHA pins, carrier permissions and
+  secret selection, main/tag trigger invariants, concurrency, no tag deletion/force update, and
+  post-gate release ownership.
+- [x] 2.1 — Config and manifest now use component tags for linking, a Java root metadata carrier,
+  root-anchored typed extra-files, package-relative npm metadata, a non-merging Node workspace,
+  thirteen linked runtime paths, and release skips for every Stage-A candidate.
+- [x] 2.2 — `.github/workflows/release-please.yml` is a pinned Release Please 17.6.0 version-PR-only
+  job using the supported action skip input and `RELEASE_PLEASE_TOKEN`; it no longer consumes release
+  outputs or invokes the release/publish workflow.
+- [x] 3.1 — `verify_release_provenance.py` now provides pure carrier records, semver/tree/manifest/
+  lockfile/private-boundary validation, merged-PR label/body/diff validation, clean-checkout support,
+  ancestry validation for tag releases, and compare-and-create tag planning.
+- [x] 3.2 — `release-tag-carrier.yml` is restricted to trusted `main` pushes, uses non-canceling
+  concurrency and read-only workflow permissions, authenticates Git ref/label writes only with
+  `RELEASE_PLEASE_TOKEN`, rejects conflicts, and never deletes or force-updates tags.
+- [x] 3.3 — `release-on-tag.yml` is the canonical `v*.*.*` caller with guarded recovery dispatch;
+  reusable release workflows now accept tag/SHA/recovery inputs, validate current-main ancestry, and
+  create or verify the GitHub Release only after build/package gates.
+- [x] 4.1 — Focused, static, locked Cargo, npm, package dry-run, OCI, and workflow checks pass.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** `python3 tests/release_provenance_tests.py` failed on the exact v17.6.0
+   `LinkedVersions.preconfigure()` empty-component gate with the existing
+   `include-component-in-tag: false` configuration; `python3 tests/release_carrier_tests.py` failed
+   because the carrier boundary did not yet exist; and `python3 tests/distribution_checks.py` failed
+   because the carrier workflow was absent.
+2. **GREEN:** after enabling component tags, adding the supported Stage-A skip input, implementing the
+   carrier validators/workflows, and wiring the tag caller, `tests/release_provenance_tests.py`,
+   `tests/release_carrier_tests.py`, `tests/distribution_checks.py`, and `actionlint` all passed.
+   The source-faithful test observed all 13 linked versions at `0.2.0`, six rewritten optional pins,
+   root update ownership, and zero Stage-A tag/release operations.
+3. **REFACTOR:** extracted carrier metadata, PR, semver, clean-tree, ancestry, release-slot, and tag
+   plan helpers; added compare-and-create retry handling, PR label completion, recovery inputs, and
+   exact full-SHA/static security checks; focused tests remained green.
+
+### Local verification commands
+
+- `python3 tests/release_carrier_tests.py` — PASS.
+- `python3 tests/release_provenance_tests.py` — PASS.
+- `python3 tests/distribution_checks.py` — PASS.
+- `python3 tests/bootstrap_checks.py` — PASS.
+- `python3 tests/readme_checks.py` — PASS.
+- `python3 tests/oci_distribution_tests.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, and `tests/oci_distribution_failure_tests.py` — PASS.
+- `python3 -m compileall -q scripts tests` — PASS.
+- `python3 scripts/generate_npm_packages.py --check` — PASS.
+- `cargo metadata --locked --format-version 1` — PASS.
+- `cargo test --workspace --locked` — PASS; 31 tests passed, 0 failed, 0 skipped.
+- `cargo fmt --all -- --check` — PASS.
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` — PASS.
+- `npm --prefix npm/codegauge run typecheck` and `npm --prefix npm/codegauge test` — PASS; 6 tests
+  passed.
+- `npm pack --dry-run` from the wrapper and all six platform package directories — PASS.
+- `actionlint .github/workflows/*.yml` — PASS.
+- `git diff --check` — PASS.
+
+### External verification not performed
+
+- Hosted Release Please 17.6.0 execution, the synchronized PR merge, PAT scope/masking/ref
+  authorization, branch-protection behavior, carrier API race rehearsal, canonical tag delivery, and
+  tag-triggered workflow execution were not run.
+- No GitHub Release, Cargo/npm/GHCR publication, upload, attestation, tag, credential, or hosted
+  dry-run write evidence is claimed.
+- Native evidence for the seven non-host targets remains unavailable; existing local OCI/package
+  checks were read-only/static or dry-run checks.
+
+## Release Please root/config remediation
+
+- [x] R-F1 — Added deterministic provenance regressions for the explicit `packages["."]` root
+  candidate, root-anchored repository extra-files, package-relative npm extra-files, unprefixed
+  linked tags, private conformance exclusion, and synchronized npm optional dependency versions.
+- [x] R-F2 — Moved repository extra-files under the root package, anchored them with leading `/`
+  paths, changed the npm wrapper extra-file to `package.json`, added the minimal non-merging
+  `node-workspace` plugin, and linked the root candidate as `codegauge-root` to avoid a second
+  root release candidate.
+- [x] R-F3 — Imported `read_workspace_version` in the provenance regression and changed the CLI
+  release-version assertion to derive its expected output from `env!("CARGO_PKG_VERSION")`.
+- [x] R-F4 — Updated the distribution gate to inspect root-owned release extra-files rather than
+  the removed inheritable top-level list.
+
+### R-F TDD Evidence
+
+1. RED: the baseline `python3 tests/release_provenance_tests.py` failed with
+   `NameError: name 'read_workspace_version' is not defined`.
+2. RED: after adding the regression assertions, the focused test failed because top-level
+   `extra-files` were still present.
+3. GREEN: after the configuration fix, the focused test failed on the hard-coded CLI
+   `codegauge 0.1.0` assertion, proving the release-version regression was covered.
+4. GREEN/REFACTOR: after deriving the CLI expected version from `CARGO_PKG_VERSION`, the focused
+   provenance and CLI suites passed; the distribution gate was updated to the new root ownership
+   boundary and passed.
+
+### R-F Verification
+
+- `python3 tests/release_provenance_tests.py` — exit 0; pass.
+- `python3 tests/distribution_checks.py` — exit 0; pass.
+- `python3 tests/bootstrap_checks.py` — exit 0; pass.
+- `python3 tests/readme_checks.py` — exit 0; pass.
+- `python3 -m compileall -q scripts tests` — exit 0; pass.
+- `cargo metadata --locked --format-version 1` — exit 0; pass.
+- `cargo test --workspace --locked` — exit 0; 31 tests passed, 0 failed, 0 skipped.
+- `cargo fmt --all -- --check` — exit 0; pass.
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0; pass.
+- `actionlint .github/workflows/*.yml` — exit 0; pass.
+- `git diff --check` — exit 0; pass.
+- Additional focused checks: `cargo test -p codegauge-cli --test cli --locked`,
+  `npm --prefix npm/codegauge test`, and `python3 scripts/generate_npm_packages.py --check` —
+  exit 0; pass.
+
+No commit, push, merge, tag, publication, package/release creation, credential use, or
+`state.yaml` mutation was performed.
+
 ## E3a Test Layer
 
 - [x] Replaced the executable `tests/distribution_checks.py` entrypoint with a 27-line runner
@@ -197,3 +334,650 @@
 - [x] A local `release-please manifest-pr --dry-run` invocation was inspected but could not run:
   the repository has no installed/local release-please CLI, and `npx --no-install` refused to
   fetch the missing package. No credentials or hosted release operation were used.
+
+## Verification recheck — 2026-08-14
+
+- Fresh local quality evidence remains green: the focused Python checks, locked Cargo metadata/
+  tests/check/fmt/Clippy, CLI integration tests, npm typecheck/tests, package generator check,
+  actionlint, and `git diff --check` all exited 0; the workspace reported 31 passed tests.
+- **CRITICAL verification finding:** the exact Release Please 17.6.0 `cargo-workspace` source skips
+  a virtual root `Cargo.toml` without `[package].name` and returns candidates only from its package
+  graph. Because the configured root candidate is `release-type: "rust"`, the new `packages["."]`
+  candidate is consumed and dropped before its root extra-file updates can survive the plugin chain.
+- R-F2 is therefore not behaviorally verified despite its apply checkbox. Removing the old inherited
+  top-level `extra-files` list leaves no surviving Release Please owner for the repository-level
+  README, fixture, contract test, CLI test, and root Cargo TOML update.
+- The current regressions validate JSON shape and current npm version equality, but no passing test
+  executes Release Please 17.6.0 to prove root-candidate survival, optional-pin rewriting, or one
+  unprefixed release operation. The report records this as `FAIL`, not acceptance.
+- No code, branch, commit, push, merge, tag, publication, credential, or registry state was changed
+  during verification.
+
+## Release Please virtual-root remediation — 2026-08-14
+
+- [x] R-F1 — Replaced the static-only Release Please assertions with a deterministic model of the
+  exact v17.6.0 `cargo-workspace`, `node-workspace`, `linked-versions`, and unprefixed-tag boundary.
+  The regression uses the repository's real Cargo/package manifests, a new `0.2.0` version map, and
+  effective candidate/update results rather than checking only JSON keys.
+- [x] R-F2 — Changed `packages["."]` from the discarded virtual-root Rust candidate to a Java
+  strategy used only as a typed root extra-file carrier. `initial-version: 0.1.0`,
+  `skip-changelog`, `skip-snapshot`, and `skip-github-release` are explicit; no root `package-name`
+  exists. A global release skip is overridden only for `codegauge-cli`, preserving the existing
+  release workflow output and one unprefixed tag.
+- [x] R-F3 — Preserved the earlier `read_workspace_version` import, dynamic `CARGO_PKG_VERSION` CLI
+  assertion, package-relative npm path, and node-workspace optional-dependency synchronization.
+- [x] R-F4 — Updated the release-artifacts spec, design decision, and task record to document the
+  virtual-root boundary and the non-Cargo metadata-candidate rationale.
+
+### Root-boundary TDD Evidence
+
+1. RED: after adding `assert_release_please_17_6_0_root_pipeline`,
+   `python3 tests/release_provenance_tests.py` failed at the modeled v17.6.0 Cargo workspace
+   boundary because the existing `release-type: "rust"` root candidate was dropped.
+2. GREEN: after changing the root candidate to the non-Cargo metadata strategy, adding the explicit
+   skip/release ownership boundary, and updating the expected typed extra-files, the focused test
+   passed. It observed root candidate retention, root update paths after linked merge, six optional
+   pins rewritten to `0.2.0`, and exactly one `v0.2.0` operation for `codegauge-cli`.
+3. REFACTOR: extracted candidate, Cargo workspace, Node optional-dependency, linked merge, and tag
+   helpers while keeping the focused test green.
+
+### Architecture Evidence
+
+- Release Please 17.6.0's Cargo workspace source skips a virtual root without `[package].name` and
+  reconstructs returned candidates from package-backed graph nodes. The root is therefore outside
+  both Cargo and Node workspace scopes by using `release-type: "java"`.
+- The Java strategy is not a published root package: it carries only typed root extra-file updates,
+  starts from the existing `0.1.0` manifest baseline, has no `package-name`, and explicitly skips
+  its GitHub release/changelog/snapshot. The CLI is the sole release-capable component, so
+  `include-component-in-tag: false` yields one unprefixed tag.
+- This local regression models the exact v17.6.0 source boundary but does not execute the installed
+  Release Please package or hosted action. Executable Release Please 17.6.0 behavior remains
+  externally unverified pending a safe local package/hosted dry-run.
+
+### Commands Run
+
+- `python3 tests/release_provenance_tests.py` — RED exit 1 on the discarded Rust root candidate;
+  GREEN/REFACTOR exit 0 after the configuration and model fix.
+- `python3 tests/distribution_checks.py` — exit 0; pass.
+- `python3 tests/bootstrap_checks.py` — exit 0; pass.
+- `python3 tests/readme_checks.py` — exit 0; pass.
+- `python3 -m compileall -q scripts tests` — exit 0; pass.
+- `cargo metadata --locked --format-version 1` — exit 0; pass.
+- `cargo test --workspace --locked` — exit 0; 31 passed, 0 failed, 0 skipped.
+- `cargo fmt --all -- --check` — exit 0; pass.
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0; pass.
+- `actionlint .github/workflows/*.yml` — exit 0; pass.
+- `npm --prefix npm/codegauge run typecheck` — exit 0; pass.
+- `npm --prefix npm/codegauge test` — exit 0; 6 passed, 0 failed, 0 skipped.
+- `python3 scripts/generate_npm_packages.py --check` — exit 0; pass.
+- `git diff --check` — exit 0; pass.
+
+## Verification recheck — 2026-08-14 (second apply)
+
+- Fresh local verification passed for `tests/release_provenance_tests.py`, `tests/distribution_checks.py`,
+  bootstrap/README checks, all four OCI regression layers, Python compilation, locked Cargo metadata,
+  31 workspace tests, the 3-test CLI integration suite, Cargo check/fmt/Clippy, npm typecheck/tests,
+  seven npm pack dry-runs, package generation, actionlint, and `git diff --check`.
+- Exact `release-please@17.6.0` was available locally for a read-only `--version` check and its
+  packaged source was inspected. The source confirms that the corrected Java root candidate survives
+  Cargo/Node workspace filtering, typed `/...` root extra-files resolve at repository root, and the
+  Node updater includes optional dependencies.
+- A source-faithful local model passed root retention, exact five-file ownership, package-relative
+  npm path, new-version optional-pin rewriting, private conformance exclusion, and exactly one
+  `v0.2.0` CLI release operation. Four negative mutations were rejected.
+- **CRITICAL verification finding:** the exact v17.6.0 `BaseStrategy.getComponent()` returns an empty
+  component whenever `include-component-in-tag` is false. The exact `LinkedVersions.preconfigure()`
+  skips empty components. The current global unprefixed-tag setting therefore leaves the configured
+  13-component linked group empty; the regression helper uses JSON candidate components and manually
+  unions updates instead of executing this gate. Optional dependency synchronization from the linked
+  versions map is not behaviorally proven and is ineffective for a Cargo/root-only release path.
+- No product code, workflow, branch, commit, tag, release, publication, credential, or registry state
+  was changed during verification. The exact hosted Release Please dry-run and external publication
+  gates remain unexecuted.
+
+## Release Please v17.6.0 linked-version/tag blocker remediation — 2026-08-14
+
+- [x] R-F5 — Reworked `tests/release_provenance_tests.py` into a source-faithful regression for the
+  exact v17.6.0 strategy path: effective per-package config, Cargo virtual-root candidate retention,
+  `BaseStrategy.getComponent()`, `LinkedVersions.preconfigure()`, the full Cargo/npm runtime versions
+  map, `NodeWorkspace.combineDeps()`, `PackageJson.updateContent()` optional-dependency rewriting,
+  linked candidate merging, and `TagName` unprefixed output. The assertion requires all 13 intended
+  runtime paths (root metadata carrier, five runtime Cargo crates, npm wrapper, and six platform
+  packages) to resolve to `0.2.0`; it does not merely check JSON keys or current literal pins.
+- [x] R-F5 — Preserved the existing Java root candidate, five root-anchored extra-files, relative npm
+  `package.json` extra-file, provenance import, dynamic `env!("CARGO_PKG_VERSION")` assertion, virtual
+  Cargo root, and private `codegauge-conformance` boundaries. `release-please-config.json` was not
+  changed because the exact source proves the apparent per-package workaround would violate the
+  required tag contract.
+- [x] R-F5 — Confirmed the exact source semantics from the installed `release-please@17.6.0` tarball:
+  `BaseStrategy.getComponent()` returns `''` when `includeComponentInTag` is false;
+  `LinkedVersions.preconfigure()` skips the falsy component before checking membership;
+  `NodeWorkspace.combineDeps()` includes `optionalDependencies`; `PackageJson.updateContent()`
+  rewrites them from its versions map; and `TagName` emits an unprefixed tag only for a falsy
+  component.
+- [x] R-F5 — A direct isolated runtime probe against the exact package showed named linked components
+  force all fixture strategies to `0.2.0` but produce `codegauge-cli-v0.2.0`; the current global false
+  configuration finds zero linked components. An empty string added to the linked component list was
+  also rejected by the exact source because the plugin skips empty components before membership.
+
+### Linked/tag TDD evidence
+
+1. **RED:** after the source-faithful gate and full versions-map assertions were added,
+   `python3 tests/release_provenance_tests.py` failed with
+   `AssertionError: Release Please 17.6.0 LinkedVersions.preconfigure produced no full runtime map;
+   include-component-in-tag=false makes every strategy component empty`.
+   This is the expected failure against the current global `include-component-in-tag: false` config.
+2. **GREEN:** not reached for the checked-in single-manifest architecture. The exact source probe
+   proves that setting linked packages to `include-component-in-tag: true` would make preconfigure
+   work but would emit a component-prefixed tag, violating the existing one-tag contract.
+3. **REFACTOR:** the regression now derives the optional dependency rewrite from the simulated linked
+   versions map and derives tag text from the simulated `getComponent()` result; no JSON-shape-only
+   assertion was retained.
+
+### Architecture decision required
+
+Release Please 17.6.0 has no valid single built-in manifest configuration that both enables linked
+version synchronization and makes the same strategy emit one unprefixed tag: the former requires a
+truthy strategy component and the latter requires a falsy one. The smallest safe resolution is a
+two-stage architecture: use component tags only while Release Please generates the synchronized
+version PR (with release creation skipped), then use a trusted post-merge carrier to validate the
+graph and create exactly one `vX.Y.Z` tag for the existing build/publish workflows. A supported
+Release Please upgrade/plugin with independent linked-component lookup is the alternative. R-F6
+remains unchecked until one of those architectures is implemented and independently verified.
+
+### Commands Run
+
+- `python3 tests/release_provenance_tests.py` — exit 1 (expected RED against the unresolved current
+  single-manifest config; no false GREEN claim).
+- Exact package source inspection: `npm pack release-please@17.6.0`, isolated package install, and
+  read-only source/runtime probes — source gate confirmed; no GitHub API, credentials, tag, release,
+  or publication operation.
+- Exact `PackageJson` runtime probe against the installed v17.6.0 source — exit 0; all six optional
+  dependency pins rewrote to `0.2.0` while `^`/`~` range prefixes were preserved.
+- `python3 tests/distribution_checks.py` — exit 0.
+- `python3 tests/bootstrap_checks.py` — exit 0.
+- `python3 tests/readme_checks.py` — exit 0.
+- `python3 tests/oci_distribution_tests.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, and `tests/oci_distribution_failure_tests.py` — exit 0.
+- `python3 -m compileall -q scripts tests` — exit 0.
+- `python3 scripts/generate_npm_packages.py --check` — exit 0.
+- `cargo metadata --locked --format-version 1 --no-deps` — exit 0; six workspace packages and no
+  virtual-root package.
+- `cargo test --workspace --locked` — exit 0; 31 passed, 0 failed, 0 skipped.
+- `cargo test -p codegauge-cli --test cli --locked` — exit 0; 3 passed.
+- `cargo check --workspace --locked`, `cargo fmt --all -- --check`, and
+  `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0.
+- `npm --prefix npm/codegauge run typecheck` and `npm --prefix npm/codegauge test` — exit 0; 6 npm
+  tests passed.
+- `npm pack --dry-run` from the base package and each of the six platform package directories — exit 0;
+  seven packages inspected.
+- `actionlint .github/workflows/*.yml` — exit 0.
+- `git diff --check` — exit 0.
+
+The first attempted `npm --prefix npm/codegauge pack --dry-run` invocation was rejected by the local
+npm CLI because it resolved the repository root; rerunning the same dry-run from each package
+directory passed for all seven packages. This is a command-line invocation quirk, not a package
+content failure.
+
+### Remaining
+
+- [ ] R-F6 — Implement the approved option-1 two-stage tag carrier that decouples linked-component
+  lookup from canonical tag naming.
+- [ ] Re-run the focused regression GREEN/REFACTOR and the complete conformance matrix.
+- [ ] Run a safe hosted Release Please dry-run/tag rehearsal only after the architecture is executable;
+  no hosted release, publication, credential, or registry evidence is claimed here.
+
+## R-F6 architecture authorization — 2026-08-14
+
+- [x] Option 1 is authorized: component-tagged Release Please 17.6.0 version PR with release
+  creation skipped, followed by a trusted post-merge carrier for exactly one immutable `vX.Y.Z` tag.
+- [ ] Implementation, hosted execution, tag/release creation, publication, and verification remain
+  pending. This entry records the design decision only; no workflow or application code was changed.
+
+## R-F6 task breakdown handoff — 2026-08-14
+
+- [x] Replaced the stale whole-change checklist with the authorized R-F6 implementation breakdown;
+  earlier A–E and R-C–R-F5 work remains documented above.
+- [x] Ordered source-faithful RED tests before Stage 1 configuration, then carrier, tag workflow,
+  verification, and hosted rehearsal; recorded feature-branch-chain dependencies.
+- [ ] At this handoff, implementation, tag/release creation, publication, and SDD verification/QA
+  remained pending; the verification entry below supersedes the verification portion.
+- [x] No code, branch, commit, push, merge, tag, credential, registry write, or public release was
+  performed while creating this task artifact.
+
+## R-F6 verification — 2026-08-14
+
+### Verification result
+
+- [x] Re-ran the focused carrier, provenance, static workflow, Python, locked Cargo, npm, package,
+  OCI, compileall, actionlint, ShellCheck, Dockerfile check, and diff suites locally.
+- [x] Confirmed the immutable Release Please action boundary from the v5.0.0 source/lockfile:
+  the action resolves `release-please` 17.6.0 and skips `Manifest.createReleases()` when
+  `skip-github-release: true`.
+- [x] Confirmed no local or remote `v*.*.*` tag was created and the worktree remained free of
+  publication, credential, registry, and hosted workflow writes.
+- [ ] R-F6 is not technically accepted: the carrier validation boundary has confirmed defects.
+
+### Confirmed verification findings
+
+1. `validate_stage_a_diff()` rejects a runtime `CHANGELOG.md` path. Exact Release Please 17.6.0
+   Rust and Node strategies add `CHANGELOG.md` updates with `createIfMissing: true` unless
+   `skip-changelog` is set; the current config sets that flag only on the root Java carrier.
+   A legitimate Stage-A PR therefore fails in Stage B before tag creation.
+2. The carrier diff pattern `npm/packages/codegauge-[^/]+/package.json` accepts an unapproved
+   platform package path, and the carrier tree validator accepts a missing root-owned README.
+3. `VERSION_RE` accepts malformed semver such as `1.01.0`, so the carrier can plan a malformed
+   canonical tag before later Cargo validation.
+4. The linked-version/no-publication regression is a source-faithful Python model plus static
+   checks; no executable Release Please SCM/PR run was performed. Hosted Stage-A and tag-triggered
+   behavior remains unproven under the explicit no-write boundary.
+
+### Local evidence
+
+- Focused carrier/provenance/distribution/OCI/Python suites passed before the semantic probes.
+- The semantic probe intentionally failed with all four findings above, proving the missing
+  negative coverage rather than treating static shape as sufficient.
+- Rust 1.97.1 metadata/tests/check/fmt/Clippy, npm typecheck/tests and seven pack dry-runs,
+  five Cargo package verifications, archive positive/missing-target checks, Dockerfile
+  `buildx --check`, actionlint, ShellCheck, compileall, and `git diff --check` passed.
+
+### Remaining gates
+
+- [ ] Fix the carrier validation boundary, then rerun `sdd-verify`.
+- [ ] Run the protected hosted Stage-A zero-artifact and tag-triggered dry-run rehearsal.
+- [ ] Run `sdd-qa` for independent acceptance; no publication or registry write is authorized here.
+
+## Stage-B carrier defect remediation — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the four verified Stage-B carrier defects plus
+  the requested exact Release Please runtime coverage.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Layer boundary: `trunk=main`, `parent_branch=fix/release-please-root-files`,
+  `base=existing dirty remediation baseline`, `branch=fix/release-please-root-files`,
+  `position=R-F6 carrier-defect repair after the existing F6.1–F6.4 work unit`; no Stack metadata,
+  branch creation, commit, push, merge, tag, release, publication, credential, or parent-repository
+  mutation was performed.
+- Hosted Stage-A/tag rehearsal and QA remain out of scope and unchecked in `tasks.md`.
+
+### Completed tasks
+
+- [x] 5.1 — Replaced the broad npm diff regex with an exact allowlist derived from the base wrapper and
+  six approved platform package names. Added the exact twelve runtime `CHANGELOG.md` paths generated
+  by the v17.6.0 Rust/Node strategies; arbitrary, unknown, near-match, root, nested, and evil paths
+  remain rejected.
+- [x] 5.2 — Added an exact root-carrier presence check for `Cargo.toml`, `README.md`, the golden
+  fixture, the model contract test, and the CLI test. Generated release-only files are not treated as
+  baseline carrier files.
+- [x] 5.3 — Replaced permissive version matching with strict SemVer 2.0 core, prerelease, and build
+  metadata identifiers. Canonical tag planning now rejects leading-zero and malformed versions.
+- [x] 5.4 — Added `tests/release_please_runtime_tests.py` and
+  `tests/release_please_runtime_harness.mjs`. The exact installed `release-please@17.6.0` package
+  executed its Manifest, Cargo workspace, Node workspace, linked-versions, and merge chain against a
+  read-only fake SCM; it recorded one synchronized fake PR, runtime update paths, six rewritten npm
+  optional pins, and zero release/tag calls. Missing exact package installations report `UNTESTED`
+  rather than substituting JSON-shape assertions.
+- [x] 5.5 — Focused and requested local checks are green; no hosted or publication state was touched.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding exact changelog, npm allowlist, root-file mutation, and SemVer regressions,
+   `python3 tests/release_carrier_tests.py` failed on the legitimate
+   `crates/codegauge-model/CHANGELOG.md` path, reproducing the Stage-B defect before the production
+   validator was changed.
+2. **GREEN:** after replacing the regex with exact sets, adding root-file presence validation, and
+   implementing strict SemVer 2.0 matching, `python3 tests/release_carrier_tests.py` passed all
+   positive/negative mutations and canonical tag cases.
+3. **REFACTOR:** the allowlist is derived from the approved runtime constants, the root ownership
+   check is isolated as `validate_root_carrier_files`, and the SemVer fragments are shared by tag and
+   version validation; focused tests remained green.
+4. **Runtime coverage:** the exact v17.6.0 package-level chain passed with a no-write fake SCM and
+   observed `generatedUpdatePaths`, `releaseVersion: 0.2.0`, all six optional dependency rewrites,
+   `synchronizedPullRequests: 1`, `releaseCalls: 0`, and `tagCalls: 0`. This is local source/runtime
+   evidence only, not hosted PR, tag, release, or publication evidence.
+
+### Local verification commands
+
+- `python3 tests/release_carrier_tests.py` — PASS.
+- `python3 tests/release_carrier_static_tests.py` — PASS.
+- `python3 tests/release_provenance_tests.py`, `tests/distribution_checks.py`,
+  `tests/bootstrap_checks.py`, and `tests/readme_checks.py` — PASS.
+- `python3 tests/release_please_runtime_tests.py` — PASS against exact installed `release-please`
+  `17.6.0`; fake SCM recorded zero release/tag calls.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` —
+  PASS.
+- `cargo +1.97.1 metadata --locked --format-version 1`, `test --workspace --locked`,
+  `check --workspace --locked`, `fmt --all -- --check`, and locked Clippy with `-D warnings` — PASS
+  (31 workspace tests, 0 failed).
+- npm wrapper typecheck/tests — PASS (6 tests); wrapper plus six platform `npm pack --dry-run` checks —
+  PASS (7 packages).
+- All four OCI regression layers, `actionlint`, `shellcheck scripts/build_oci_release.sh`,
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+
+### Remaining gates and risks
+
+- [ ] 4.2 hosted Stage-A zero-artifact and tag-triggered no-publication rehearsal.
+- [ ] 4.3 downstream `sdd-verify` and independent `sdd-qa`; no acceptance claim is made here.
+- The exact runtime harness records the complete raw v17.6.0 update list. That raw list includes
+  release-only absent lock/sample/changelog entries and a private conformance Cargo candidate created
+  by the upstream Cargo workspace dependency graph; the harness does not apply those updates and does
+  not claim hosted changed-file behavior. The carrier allowlist remains limited to the approved
+  baseline/runtime set and this observation should be dispositioned by the next verification phase.
+- No credentials, GitHub API writes, tags, releases, registry publication, upload, attestation, merge,
+  push, or commit was performed.
+
+## Verification recheck — 2026-08-15
+
+- [x] Re-ran the focused carrier/static/provenance/distribution/Python/OCI suites, exact
+  `release-please@17.6.0` runtime harness, locked Cargo metadata/tests/check/fmt/Clippy, five Cargo
+  package checks, npm typecheck/tests and seven pack dry-runs, actionlint, ShellCheck, Dockerfile
+  check, compileall, package generation, and `git diff --check`; all requested local commands passed.
+- [x] Confirmed the requested exact-path behavior: all 12 approved runtime changelogs and the base
+  wrapper plus six approved npm manifests pass; arbitrary/evil/near-match paths fail; every one of
+  the five Java root-carrier file deletions fails closed; strict SemVer cases pass.
+- [x] Confirmed the no-write runtime harness executes the exact Manifest/plugin chain and records one
+  fake PR, six optional dependency rewrites, `releaseCalls=0`, and `tagCalls=0`.
+- [ ] **Verification remains FAIL:** the exact runtime update list includes the existing private
+  `crates/codegauge-conformance/Cargo.toml`, whose v17.6.0 CargoToml updater changes `0.1.0` to
+  `0.1.1`; `validate_stage_a_diff()` rejects that unapproved path. The harness records proposed
+  updates instead of applying `GitHub.buildChangeSet()`, so absent non-created files are additional
+  raw proposals, but the existing conformance manifest is a real local defect.
+- [ ] Hosted Stage-A/tag-triggered no-publication rehearsal and downstream QA remain prohibited or
+  unavailable; no credentials, releases, tags, publication, or registry state were touched.
+
+## Private Stage-A candidate boundary remediation — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the remaining critical private-candidate
+  boundary after the latest R-F6 verification failure.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Layer boundary: `trunk=main`, `parent_branch=fix/release-please-root-files`,
+  `base=existing dirty remediation baseline`, `branch=fix/release-please-root-files`,
+  `position=R-F6 private-candidate boundary repair`; no Stack metadata, branch creation, commit,
+  push, merge, tag, release, publication, credential, or parent-repository mutation was performed.
+- Cargo workspace membership, `publish = false`, Stage-B exact allowlists/root-file checks/SemVer
+  hardening, full-SHA actions, permissions, concurrency, idempotency, and fail-closed behavior were
+  left intact.
+
+### Completed tasks
+
+- [x] 6.1 — Added an exact-harness assertion that fails on any
+  `crates/codegauge-conformance/*` Stage-A update and added a runtime regression that passes a
+  mutated private manifest through `validate_stage_a_diff()` and requires `ProvenanceError`.
+- [x] 6.2 — Removed the unsupported v17.6.0 `cargo-workspace` plugin from Stage A. The explicit
+  five runtime Cargo candidates remain configured. The Java root metadata carrier now owns typed
+  TOML updates for the five approved runtime `Cargo.lock` package entries and only the internal
+  dependency version fields in the four dependent runtime manifests; the selectors do not address
+  `codegauge-conformance`.
+- [x] 6.3 — Extended the exact harness to verify all five runtime Cargo package versions, synchronized
+  internal pins, private lock-version preservation, six npm optional pins, one synchronized PR, and
+  zero release/tag calls. Updated the design/spec/task records with the exact v17.6.0 source
+  boundary and the explicit-list architecture.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding the private-path assertion to the existing exact v17.6.0 Manifest/plugin
+   harness, `python3 tests/release_please_runtime_tests.py` exited 1 with
+   `Stage-A update set contains private conformance candidates:
+   crates/codegauge-conformance/Cargo.toml, crates/codegauge-conformance/CHANGELOG.md`. This was
+   the real upstream `CargoWorkspace` graph defect, not a JSON-only test.
+2. **GREEN:** after removing `cargo-workspace` and adding the explicit runtime/root-carrier
+   boundary, the same exact harness passed and recorded `synchronizedPullRequests=1`, six optional
+   dependency rewrites to `0.2.0`, `releaseCalls=0`, `tagCalls=0`, no private conformance path, and
+   `PRIVATE CANDIDATE MUTATION: REJECTED`.
+3. **REFACTOR:** kept Stage B unchanged, centralized the explicit root-carrier contract in the
+   provenance validator/tests, added the Cargo.lock/private-preservation and internal-pin runtime
+   assertions, and reran the focused carrier/provenance/static suites green.
+
+### Local verification
+
+- `python3 tests/release_please_runtime_tests.py` — PASS against exact installed Release Please
+  `17.6.0`; one fake PR, six optional rewrites, zero release/tag calls, private path absent, private
+  mutation rejected.
+- `python3 tests/release_provenance_tests.py`, `tests/release_carrier_tests.py`,
+  `tests/release_carrier_static_tests.py`, `tests/distribution_checks.py`,
+  `tests/bootstrap_checks.py`, and `tests/readme_checks.py` — PASS.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` —
+  PASS; all four OCI regression layers — PASS.
+- `cargo +1.97.1 metadata --locked --format-version 1`, workspace test/check/fmt/Clippy gates, and
+  all five locked Cargo package verification commands — PASS (Cargo only warned that package tests
+  are not included).
+- npm wrapper typecheck/tests — PASS (6 tests); wrapper plus six platform `npm pack --dry-run`
+  checks — PASS (7 packages).
+- `actionlint .github/workflows/*.yml`, `shellcheck scripts/build_oci_release.sh`,
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+
+### Remaining gates and risks
+
+- [ ] Task `4.2` protected hosted Stage-A/tag-triggered no-publication rehearsal.
+- [ ] Task `4.3` downstream `sdd-verify` and independent `sdd-qa`; no user/operator acceptance is
+  claimed by apply.
+- Exact hosted SCM changed-file filtering, PAT scope/ref authorization, branch protection, tag
+  delivery, tag-triggered workflows, registry publication, attestation, rollback/failure injection,
+  and native non-host target evidence remain externally unverified and unauthorized.
+
+## R-F6 verification rerun — 2026-08-15
+
+### Verification result
+
+- [x] Re-ran `sdd-verify` against the current dirty checkout and updated OpenSpec artifacts.
+- [x] The exact installed `release-please@17.6.0` Manifest/plugin chain ran against the read-only
+  fake SCM: one synchronized PR, six optional-dependency rewrites to `0.2.0`, zero release calls,
+  zero tag calls, and no private conformance candidate.
+- [x] A read-only probe of the exact v17.6.0 `GitHub.prototype.buildChangeSet` filtered the raw
+  `Update[]` proposals using the same missing-file/create-if-missing behavior as the real SCM. The
+  effective set was exactly the approved 31 paths: seven root metadata/carrier files, five runtime
+  Cargo manifests, twelve runtime changelogs, and seven npm manifests. It contained no
+  `crates/codegauge-conformance/Cargo.toml`, virtual-root package, or unapproved path.
+- [x] Stage-B positive, negative, mutation, strict-SemVer, idempotency, conflict, and canonical-tag
+  tests passed; generated runtime changelogs were accepted and private/unapproved/missing/malformed
+  states were rejected.
+- [x] Full local Rust, Python, npm, OCI, workflow, shell, Dockerfile, package, and whitespace
+  checks passed without credentials or hosted writes.
+
+### Exact effective Stage-A path set
+
+```text
+Cargo.toml
+Cargo.lock
+.release-please-manifest.json
+README.md
+tests/golden/valid-methods.json
+crates/codegauge-model/tests/contracts.rs
+crates/codegauge-cli/tests/cli.rs
+crates/codegauge-model/Cargo.toml
+crates/codegauge-core/Cargo.toml
+crates/codegauge-application/Cargo.toml
+crates/codegauge-provider-jacoco/Cargo.toml
+crates/codegauge-cli/Cargo.toml
+crates/codegauge-model/CHANGELOG.md
+crates/codegauge-core/CHANGELOG.md
+crates/codegauge-application/CHANGELOG.md
+crates/codegauge-provider-jacoco/CHANGELOG.md
+crates/codegauge-cli/CHANGELOG.md
+npm/codegauge/package.json
+npm/codegauge/CHANGELOG.md
+npm/packages/codegauge-linux-x64-gnu/package.json
+npm/packages/codegauge-linux-x64-gnu/CHANGELOG.md
+npm/packages/codegauge-linux-arm64-gnu/package.json
+npm/packages/codegauge-linux-arm64-gnu/CHANGELOG.md
+npm/packages/codegauge-darwin-x64/package.json
+npm/packages/codegauge-darwin-x64/CHANGELOG.md
+npm/packages/codegauge-darwin-arm64/package.json
+npm/packages/codegauge-darwin-arm64/CHANGELOG.md
+npm/packages/codegauge-win32-x64-msvc/package.json
+npm/packages/codegauge-win32-x64-msvc/CHANGELOG.md
+npm/packages/codegauge-win32-arm64-msvc/package.json
+npm/packages/codegauge-win32-arm64-msvc/CHANGELOG.md
+```
+
+The checked-in fake SCM records the upstream raw proposals before `buildChangeSet`; those raw
+proposals include absent files that v17.6.0 drops when `createIfMissing` is false. The effective-set
+probe above exercised the exact v17.6.0 filtering boundary and is the evidence used by verification.
+
+### Local verification commands
+
+- `python3 tests/release_please_runtime_tests.py`, `tests/release_carrier_tests.py`,
+  `tests/release_carrier_static_tests.py`, `tests/release_provenance_tests.py`,
+  `tests/distribution_checks.py`, `tests/bootstrap_checks.py`, and `tests/readme_checks.py` — PASS.
+- `python3 tests/oci_distribution_tests.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, and `tests/oci_distribution_failure_tests.py` — PASS.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` — PASS.
+- `cargo +1.97.1 metadata --locked --format-version 1`, workspace tests (31 passed), check, fmt,
+  locked Clippy, and five runtime `cargo package` checks — PASS.
+- npm wrapper typecheck/tests (6 passed) and wrapper plus six platform `npm pack --dry-run` checks — PASS.
+- `actionlint .github/workflows/*.yml`, `shellcheck scripts/build_oci_release.sh`,
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+
+### Remaining warnings
+
+- [ ] Task `4.2`: protected hosted Stage-A zero-artifact and tag-triggered no-publication rehearsal.
+- [ ] Task `4.3`: downstream `sdd-qa` acceptance evidence.
+- PAT scope/masking/ref authorization, branch protection, tag delivery, hosted workflow execution,
+  publication, attestation, rollback/failure injection, and native non-host evidence remain outside
+  the no-write boundary.
+- The checked-in harness currently records raw proposals; the exact effective-set filtering probe was
+  run read-only and was not committed as a harness change.
+
+### Technical verdict
+
+**PASS WITH WARNINGS** — every requested local contract passes, and the remaining risks are hosted or
+acceptance evidence only. No commit, push, merge, tag, release, publication, upload, attestation,
+credential injection, or hosted write was performed.
+
+## R-F6 acceptance QA — 2026-08-15
+
+### QA execution
+
+- [x] Read the proposal, all five delta specs, design, tasks, latest verification report, state,
+  apply progress, config, and current R-F6 implementation before testing.
+- [x] Ran the exact installed Release Please `17.6.0` Manifest/plugin chain with a read-only fake SCM;
+  observed one synchronized PR, six optional dependency rewrites, zero release/tag calls, and no
+  private conformance candidate. The unchanged Stage-B private mutation was rejected.
+- [x] Ran Stage-B positive/negative/root-presence/private-boundary/strict-SemVer/idempotency/conflict
+  fixtures, provenance/version/lockfile checks, Cargo quality/package checks, npm checks, archive
+  checksum/missing-target checks, OCI regression suites, and real local amd64/arm64 OCI build/load/run
+  evidence without registry writes.
+- [x] Ran actionlint, ShellCheck, Dockerfile `buildx --check`, and diff diagnostics. These remain
+  static diagnostics, not acceptance passes.
+- [x] Persisted the independent acceptance record at
+  `openspec/changes/codegauge-distribution/qa-report.md`.
+
+### QA boundary and verdict
+
+- [ ] Hosted Stage-A/merged-main/tag-triggered rehearsal, publication, attestation, native non-host
+  archive execution, failure injection, and rollback remain unrun because they require prohibited
+  hosted writes, credentials, or unavailable native targets.
+- [ ] No CRITICAL/P0 local implementation defect was observed; P1 acceptance blockers remain for
+  hosted lifecycle/provenance, publication/attestation, and complete native target evidence.
+- QA verdict: **BLOCKED**. This is an acceptance gate, not a product-acceptance claim.
+- Recommended next phase: `sdd-archive` only after the blocked acceptance scope is resolved or an
+  explicit policy exception is approved. No publication or registry mutation is authorized by this
+  QA run.
+
+## Temporary hosted carrier rehearsal guard — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the temporary, auditable Stage-B carrier
+  rehearsal guard requested for the authorized option-1 flow.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Layer boundary: `trunk=main`, `parent_branch=fix/release-please-root-files`,
+  `base=existing dirty remediation baseline`, `branch=fix/release-please-root-files`,
+  `position=F6.5 temporary hosted-rehearsal guard after F6.4`; no Stack metadata, branch creation,
+  commit, push, merge, tag, release, publication, credential use, or parent-repository mutation was
+  performed.
+- Hosted rehearsal remains out of scope for apply and remains unchecked in `tasks.md` (`4.2` and
+  `7.4`).
+
+### Completed tasks
+
+- [x] 7.1 — Added static carrier assertions and runtime carrier regressions for trusted
+  `workflow_dispatch` on `main`, manual dry-run input handling, repository-variable push mode, live
+  default behavior, conditional tag/label writes, and plan evidence.
+- [x] 7.2 — Refactored `.github/workflows/release-tag-carrier.yml` to normalize manual `dry_run` or
+  `vars.RELEASE_CARRIER_DRY_RUN`, share collection/validation, compute a read-only canonical tag plan,
+  emit `carrier-record.json`/`carrier-plan.json` plus a workflow summary, and guard all tag/label
+  mutations behind live mode. The workflow never directly dispatches `release-on-tag.yml`.
+- [x] 7.3 — Documented the exact `RELEASE_CARRIER_DRY_RUN` variable, manual command, plan evidence,
+  and variable cleanup in the README and updated the design/spec/QA handoff without claiming hosted
+  execution.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding the manual event and dry-run/mutation-plan assertions first,
+   `python3 tests/release_carrier_tests.py`, `python3 tests/release_carrier_static_tests.py`, and
+   `python3 tests/distribution_checks.py` failed. The runtime validator rejected
+   `workflow_dispatch`, and the static suite reported the missing input, variable normalization, plan
+   record, and conditional mutation contracts.
+2. **GREEN:** after accepting trusted `workflow_dispatch` in
+   `validate_carrier_event()` and adding the mode/plan/mutation guards to the carrier workflow, all
+   three focused commands passed.
+3. **REFACTOR:** separated the read-only GitHub ref/release observation and `carrier-plan.json` summary
+   from the live tag/label steps, tightened shell quoting and invalid-value failure behavior, and
+   reran `actionlint` with the focused suites green.
+
+### Verification and remaining gates
+
+- Final local verification passed: `python3 tests/release_carrier_tests.py`,
+  `tests/release_carrier_static_tests.py`, `tests/release_provenance_tests.py`,
+  `tests/distribution_checks.py`, `tests/bootstrap_checks.py`, `tests/readme_checks.py`, and
+  `tests/release_please_runtime_tests.py` (one synchronized PR, six optional rewrites, zero release/
+  tag calls, private mutation rejected).
+- Final local verification passed: `tests/oci_distribution_tests.py`,
+  `tests/oci_distribution_static_tests.py`, `tests/oci_distribution_evidence_tests.py`,
+  `tests/oci_distribution_failure_tests.py`, `python3 -m compileall -q scripts tests`, and
+  `python3 scripts/generate_npm_packages.py --check`.
+- Final locked Rust gates passed: `cargo +1.97.1 metadata --locked --format-version 1`,
+  `cargo +1.97.1 test --workspace --locked` (31 passed, 0 failed, 0 skipped), `cargo +1.97.1 check
+  --workspace --locked`, `cargo +1.97.1 fmt --all -- --check`, and locked Clippy with `-D warnings`.
+- Final package gates passed for all five runtime crates with locked `cargo package --allow-dirty`
+  verification; the first clean-worktree invocation correctly stopped on the intentionally dirty
+  README, then the configured dirty-worktree package command passed.
+- Final npm gates passed: wrapper typecheck/tests (6 tests) and `npm pack --dry-run` for the wrapper
+  plus all six platform packages (7 packages).
+- Final workflow/OCI/whitespace gates passed: `actionlint .github/workflows/*.yml`,
+  `shellcheck scripts/build_oci_release.sh`, `docker buildx build --check --progress=plain .`, and
+  `git diff --check`.
+- [ ] Task `4.2` / `7.4`: protected hosted Stage-A/merged-main/manual dry-run rehearsal and no-write
+  observation remain pending.
+- [ ] Task `4.3`: downstream `sdd-verify` and independent `sdd-qa` remain required; apply claims no
+  operator or product acceptance.
+- No hosted writes, GitHub API mutations, tag/label changes, release dispatch, upload, publication,
+  attestation, credential injection, merge, push, or commit was performed.
+
+## SDD verification executor rerun — 2026-08-15
+
+### Scope and safety boundary
+
+- Re-read the proposal, all five delta specs, design, tasks, current diff, workflows, carrier
+  implementation/tests, apply history, state, and QA report before judging the implementation.
+- No commit, push, merge, repository-variable change, tag, release, upload, registry publication,
+  attestation, credential injection, or hosted write was performed.
+- The checkout remains intentionally dirty; strict-TDD commit ordering is therefore not independently
+  provable. `strict_tdd: true` is configured, but the referenced `strict-tdd-verify.md` module is not
+  present in the installed skill directory.
+
+### Fresh local evidence
+
+- Carrier/provenance/distribution/bootstrap/README/runtime Python checks passed. The exact
+  `release-please@17.6.0` fake-SCM run recorded one synchronized PR, six optional pin rewrites,
+  zero release calls, zero tag calls, and rejected the private-candidate mutation.
+- All four OCI regression layers, Python compileall, npm package generation, locked Cargo metadata,
+  31 workspace tests, Cargo check/fmt/Clippy, five locked Cargo package checks, npm typecheck/tests,
+  seven npm pack dry-runs, actionlint, ShellCheck, Dockerfile `buildx --check`, and `git diff --check`
+  passed.
+- The exact carrier mode step passed manual true/false, push variable true/false/unset, and invalid
+  value cases. The exact dry-run plan/summary/guard steps passed with a read-only fake `gh`; the plan
+  contained no credential field and recorded skipped tag/label, not-dispatched tag workflow, and
+  not-started publication mutations. This supplemental probe was not added as a repository test.
+
+### Remaining gates
+
+- [ ] Task `4.2` protected hosted Stage-A/tag-triggered no-publication rehearsal.
+- [ ] Task `4.3` downstream `sdd-qa` acceptance evidence.
+- [ ] Task `7.4` hosted variable-controlled and manual carrier rehearsal.
+- Hosted PAT scope/masking/ref authorization, branch protection, tag delivery, publication,
+  attestation, rollback/failure injection, and native non-host target evidence remain unverified.

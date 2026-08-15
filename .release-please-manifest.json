@@ -1,4 +1,5 @@
 {
+  ".": "0.1.0",
   "crates/codegauge-model": "0.1.0",
   "crates/codegauge-core": "0.1.0",
   "crates/codegauge-application": "0.1.0",

@@ -1,14 +1,14 @@
-# Tasks: Distribution
+# Tasks: Authorized R-F6 — two-stage release carrier
 
 ## Review Workload Forecast
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | 900–1,400 initial; remediation is split by layer |
+| Estimated changed lines | 650–1,000 |
 | 400-line budget risk | High |
 | Chained PRs recommended | Yes |
-| Suggested split | A → B → C → D → E |
-| Delivery strategy | feature-branch-chain |
+| Suggested split | F6.1 → F6.2 → F6.3 → F6.4 → F6.5 |
+| Delivery strategy | auto-chain |
 | Chain strategy | feature-branch-chain |
 
 Decision needed before apply: No
@@ -18,74 +18,66 @@ Chain strategy: feature-branch-chain
 
 ### Suggested Work Units
 
-| Unit | Goal | PR | Notes |
-|------|------|-----------|-------|
-| A | Cargo/source and version provenance | PR 1 | Cargo decision. |
-| B | Quality CI and static gates | PR 2 | Depends A. |
-| C | npm wrapper and six GNU packages | PR 3 | Depends A + npm decisions. |
-| D | Target archives and GitHub Release | PR 4 | Depends A–C. |
-| E | OCI image | PR 5 | Depends D + owner/architecture decisions. |
+| Unit | Goal | Base / dependency | Acceptance boundary |
+|------|------|-------------------|---------------------|
+| F6.1 | Source-faithful RED tests | existing remediation baseline | Tests fail on the blocked single-manifest path. |
+| F6.2 | Stage 1 version-PR pass | F6.1 | One synchronized PR; zero tags/releases. |
+| F6.3 | Stage 2 carrier | F6.2 | One validated immutable tag or fail closed. |
+| F6.4 | Tag release wiring and gates | F6.3 | Tag-triggered build is safe; no publication in rehearsal. |
+| F6.5 | Temporary carrier rehearsal guard | F6.4 | Manual/variable plan-only validation; live push default preserved. |
 
-### Canonical Delivery Strategy
+Use the feature-branch chain; later units target the preceding branch. No Stack metadata.
 
-Use **feature-branch-chain**. Each work-unit branch targets the immediately preceding branch; no
-GitHub Stack metadata or `gh stack` state is used. The existing dirty worktree is the baseline for
-the first implementation branch and must not be discarded. Keep the initial implementation slices
-and verification remediations reviewable by assigning one layer per apply invocation:
+## Phase 1: RED and source boundary
 
-```text
-main
- └── distribution-a-cargo-ci
-      └── distribution-c-npm-remediation
-           └── distribution-d-release-remediation
-                └── distribution-e-oci-remediation
-```
+- [x] 1.1 **RED** — Extend `tests/release_provenance_tests.py` with the exact v17.6.0 component gate, 13-entry map, six pin rewrites, root/virtual/private boundaries, and tag assertions; prove the current false flag fails.
+- [x] 1.2 **RED** — Add carrier fixtures for exactly one merged PR, graph/semver/metadata drift, missing/prefixed/release-conflict cases, retries, and token/dispatch contracts.
+- [x] 1.3 **RED** — Extend `tests/distribution_checks.py` to require Stage 1/Stage 2 separation, full-SHA actions, least privilege, concurrency, and absence of a direct Release Please publication job.
 
-The remediation branches are ordered because release provenance is an input to npm and OCI
-publication. Each branch must have its own focused RED → GREEN evidence, verification command set,
-and rollback boundary. Do not create commits or push branches during SDD apply unless the user
-explicitly requests publication.
+## Phase 2: Stage 1 synchronized version PR
 
-### Verification Remediation Units
+- [x] 2.1 **GREEN** — Update `release-please-config.json`/`.release-please-manifest.json`: enable component tags, skip Stage 1 releases, remove the blocked single-manifest path and CLI override; preserve Java root ownership, five root files, npm-relative file, 13 linked paths, virtual root, and private conformance.
+- [x] 2.2 **GREEN** — Reduce `.github/workflows/release-please.yml` to a pinned 17.6.0 version-PR job; remove release outputs/coupling and prove one PR, synchronized Cargo/npm versions, and zero tags/releases.
 
-- [x] R-C: Add a pure local negative checksum gate test proving a corrupted archive/sidecar prevents
-  both npm platform and base publication; make every manual npm checkout use the exact verified
-  release tag and reject version/source drift.
-- [x] R-D: Restrict release publication to a verified release-please tag from merged `main`; upload
-  assets to the release-please-created release instead of creating a duplicate; assert binary
-  version/profiles, Cargo/npm/manifest version, and source revision before upload; synchronize all
-  six platform package versions with the base package.
-- [x] R-E: Build OCI architecture outputs without public pushes, assert labels/digests/runtime
-  version/profiles/contract/non-root evidence, then publish the final multi-arch manifest only after
-  every architecture passes.
-- [x] R-E follow-up: Derive Docker config/platform-manifest digests from the Docker archive, compare
-  inspect identity against the Docker domain, preserve separate OCI/config/metadata evidence, and
-  pass the Docker archive into the verifier.
+## Phase 3: Stage 2 carrier and canonical tag
 
-## Phase 1: Decisions and TDD
+- [x] 3.1 Implement carrier validators in `scripts/verify_release_provenance.py` (or a focused helper): validate `main` push/event SHA, exactly one merged PR (base/label/body/diff), clean graph, metadata, provenance, and one `vX.Y.Z`.
+- [x] 3.2 Create `.github/workflows/release-tag-carrier.yml`: `main` only, `release-carrier-main` with no cancel, read permissions and `RELEASE_PLEASE_TOKEN` only (never `GITHUB_TOKEN` fallback), compare/create one lightweight ref; same SHA no-ops, conflicts fail closed.
+- [x] 3.3 Create `.github/workflows/release-on-tag.yml`; migrate release workflows to tag/SHA inputs. Tag push is canonical, dispatch is guarded recovery only, and post-gate release creation rejects conflicts/duplicates.
 
-- [x] 1.1 Decision gate: approved crates.io runtime-graph publication, `@yacosta738/codegauge` plus same-scope platform packages, `ghcr.io/yacosta738/codegauge`, the complete viable target matrix (8 archives, 6 npm, 2 OCI), and chained PRs A→E.
-- [x] 1.2 RED: create `tests/distribution_checks.py` and provider regression coverage in `crates/codegauge-provider-jacoco/tests/jacoco.rs`; assert version/package/target/workflow/checksum/security/RFC-0001 boundaries; capture Clippy red.
-- [x] 1.3 GREEN prerequisite: replace only deprecated `quick_xml` in `crates/codegauge-provider-jacoco/src/lib.rs`; run `cargo test --workspace --locked`, `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, and Python checks; preserve contracts.
+## Phase 4: Verification and safe rollout
 
-## Phase 2: Cargo, Versioning, CI
+- [x] 4.1 Run unit/static suites, actionlint, SHA audit, locked Cargo/Python/npm checks, and mutation negatives; retain RED → GREEN → REFACTOR evidence.
+- [ ] 4.2 In an isolated/protected host, rehearse one Stage 1 PR with zero artifacts, then an authorized test tag/SHA and tag-triggered `dry_run`; prove no Cargo/npm/GHCR/upload writes.
+- [ ] 4.3 Run `sdd-verify` and `sdd-qa`; require PASS/PASS WITH WARNINGS, no critical issues, and a no-publication boundary until separately authorized.
 
-- [x] 2.1 Update `Cargo.toml`, `crates/*/Cargo.toml`, `Cargo.lock`, `crates/codegauge-application/src/lib.rs`, version assertions, and `README.md`; publish the approved Cargo runtime graph; validate `cargo metadata --locked`, package contents, and ordered dry-runs.
-- [x] 2.2 Create `.github/workflows/ci.yml` with Rust/Cargo 1.97.1, immutable action SHAs, locked Rust/Python/static gates, and read-only PR permissions; retain evidence that failures block release.
+## Phase 5: Stage-B carrier defect remediation
 
-## Phase 3: npm Distribution
+- [x] 5.1 **RED/GREEN/REFACTOR** — Replace the broad Stage-A diff regex with exact approved runtime package and generated changelog sets; cover every positive path plus evil, unknown, near-match, and unapproved changelog mutations.
+- [x] 5.2 **RED/GREEN/REFACTOR** — Require every original baseline Java root carrier file to exist in the merged tree; mutate each of the five baseline root-owned files and verify fail-closed validation.
+- [x] 5.3 **RED/GREEN/REFACTOR** — Enforce SemVer 2.0 numeric leading-zero rules and prerelease/build identifier rules before canonical tag planning.
+- [x] 5.4 **RED/GREEN/REFACTOR** — Add an isolated exact `release-please@17.6.0` Manifest/plugin-chain harness using a read-only fake SCM; record update paths, linked optional-pin rewrites, one fake PR, and zero release/tag calls.
+- [x] 5.5 Re-run focused carrier/provenance/static regressions and the complete local Cargo, npm, OCI, workflow, shell, compile, and diff checks without hosted writes.
 
-- [x] 3.1 RED: add `npm/` TypeScript tests for exact `os`/`cpu`, missing dependency, argv/stdio/exit passthrough, and musl rejection; run them before implementation. (Initial npm runner was absent; Node test checks were added and executed after the wrapper slice; final focused suite passes.)
-- [x] 3.2 Implement `npm/package.json.tmpl`, `npm/codegauge/`, and six approved `@yacosta738` outputs with exact pins; verify `tsc --noEmit`, `npm pack --dry-run`, executable bits, and sidecar checksums.
+## Phase 6: Private Stage-A candidate boundary remediation
 
-## Phase 4: Archives and GitHub Release
+- [x] 6.1 **RED** — Extend the exact v17.6.0 fake-SCM harness to fail when the Stage-A update set contains `crates/codegauge-conformance/Cargo.toml`, and add the private-candidate Stage-B mutation rejection.
+- [x] 6.2 **GREEN** — Remove the unsupported `cargo-workspace` discovery plugin from Stage A; exact v17.6.0 source evidence is `build/src/plugins/cargo-workspace.js:45-84,138-193` and `build/src/plugins/workspace.d.ts:11-16`, which provide no member exclusion. Retain the five explicit runtime Cargo candidates and use the non-Cargo Java root carrier for the approved runtime lock/dependency TOML selectors without changing Cargo workspace membership.
+- [x] 6.3 **REFACTOR** — Assert the five runtime Cargo versions, private lock preservation, six npm optional rewrites, one synchronized PR, and zero release/tag calls in the exact harness; document the v17.6.0 source boundary in the design/spec.
+- [x] 6.4 Re-run `sdd-verify`; hosted Stage-A/tagged no-publication rehearsal and downstream QA remain governed by tasks `4.2` and `4.3` and are not performed in this apply slice.
 
-- [x] 4.1 Extend tests for archive format/name, lowercase SHA-256 sidecars, provenance, and permissions; create `release-please-config.json` and `.release-please-manifest.json` for workspace packages/npm pins.
-- [x] 4.2 Create `.github/workflows/release.yml`: immutable tag checkout, approved targets, `codegauge` builds, approved archive/sidecar outputs, pre-upload verification, attestations/OIDC, scoped credentials, ordered publishers, and fail-stop recovery.
-- [x] 4.3 Rehearse release-please/tag dry-run without writes; retain target/build/checksum/version evidence and verify `codegauge version`, `profiles`, and contract fixtures.
+## Phase 7: Temporary hosted carrier rehearsal guard
 
-## Phase 5: OCI, Docs, Final Gates
+- [x] 7.1 **RED/GREEN/REFACTOR** — Add static and runtime regressions for trusted manual `workflow_dispatch` on `main`, explicit `dry_run` normalization, repository-variable push rehearsal, live default behavior, and fail-closed invalid mode values.
+- [x] 7.2 **GREEN** — Refactor `release-tag-carrier.yml` to share collection/validation, emit `carrier-record.json` and `carrier-plan.json`, and conditionally skip tag-ref/label mutations and all downstream release/publish paths in dry-run mode while retaining live push behavior.
+- [x] 7.3 **REFACTOR** — Document `RELEASE_CARRIER_DRY_RUN`, the manual `dry_run=true` command, plan evidence, and variable cleanup; update the OpenSpec design/spec and QA handoff without claiming hosted execution.
+- [ ] 7.4 Run the protected hosted rehearsal for both the variable-controlled merge and manual `dry_run: true`; inspect the plan record and prove no hosted write. This remains pending and is not executed by apply.
 
-- [x] 5.1 Create workspace-aware `Dockerfile`/`.dockerignore`; build pinned Rust 1.97.1 musl images for approved `linux/amd64`/`arm64`, run non-root with init, inspect labels/digest, and smoke-test before manifest publication.
-- [x] 5.2 Update `README.md`, `.gitignore`, and conditional metadata/license files with source/Cargo, npm, archive, OCI, permission, provenance, checksum, target, and rollback guidance; never add names/credentials as facts.
-- [x] 5.3 Run `python3 tests/bootstrap_checks.py`, `python3 tests/readme_checks.py`, locked Cargo checks, package/archive/image inspections, and a no-semantic diff audit; retain recovery evidence.
+## Verification handoff — 2026-08-15
+
+The `sdd-verify` executor reran the local carrier, provenance, distribution, bootstrap, README,
+Release Please runtime, compile, Cargo, npm, OCI, package, workflow-lint, ShellCheck, Dockerfile,
+and diff checks successfully. The exact carrier mode and plan steps were also exercised with a
+read-only fake GitHub CLI; this is local evidence only. Tasks `4.2`, `4.3`, and `7.4` remain
+intentionally unchecked because the protected hosted rehearsal and independent acceptance QA were
+not performed under the no-write boundary.

@@ -1,0 +1,54 @@
+name: Release on Canonical Tag
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      recovery:
+        description: "Explicitly authorize recovery of an existing canonical tag"
+        required: true
+        default: false
+        type: boolean
+      release_tag:
+        description: "Existing canonical vX.Y.Z tag"
+        required: true
+        type: string
+      release_sha:
+        description: "Commit resolved by the canonical tag"
+        required: true
+        type: string
+      main_sha:
+        description: "Validated merged-main commit"
+        required: true
+        type: string
+      dry_run:
+        description: "Run recovery without publication"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-on-tag-${{ github.ref_name || inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'push' || inputs.recovery == true
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      release_tag: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+      release_sha: ${{ github.event_name == 'push' && github.sha || inputs.release_sha }}
+      main_sha: ${{ github.event_name == 'push' && github.sha || inputs.main_sha }}
+      release_url: ""
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      recovery: ${{ github.event_name == 'workflow_dispatch' && inputs.recovery || false }}
+    secrets: inherit

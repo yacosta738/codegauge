@@ -1,19 +1,73 @@
 {
   "release-type": "rust",
-  "include-component-in-tag": false,
+  "include-component-in-tag": true,
   "separate-pull-requests": false,
-  "extra-files": [
-    {
-      "type": "toml",
-      "path": "/Cargo.toml",
-      "jsonpath": "$.workspace.package.version"
-    },
-    "README.md",
-    "tests/golden/valid-methods.json",
-    "crates/codegauge-model/tests/contracts.rs",
-    "crates/codegauge-cli/tests/cli.rs"
-  ],
+  "skip-github-release": true,
   "packages": {
+    ".": {
+      "component": "codegauge-root",
+      "release-type": "java",
+      "initial-version": "0.1.0",
+      "skip-github-release": true,
+      "skip-changelog": true,
+      "skip-snapshot": true,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "/Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "/Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value == \"codegauge-model\" || @.name.value == \"codegauge-core\" || @.name.value == \"codegauge-application\" || @.name.value == \"codegauge-provider-jacoco\" || @.name.value == \"codegauge-cli\")].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-core/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-application/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-application/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-provider-jacoco/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-application\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-provider-jacoco/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-cli/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-application\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-cli/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-cli/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-provider-jacoco\"].version"
+        },
+        { "type": "generic", "path": "/README.md" },
+        { "type": "generic", "path": "/tests/golden/valid-methods.json" },
+        { "type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs" },
+        { "type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs" }
+      ]
+    },
     "crates/codegauge-model": { "component": "codegauge-model", "release-type": "rust" },
     "crates/codegauge-core": { "component": "codegauge-core", "release-type": "rust" },
     "crates/codegauge-application": { "component": "codegauge-application", "release-type": "rust" },
@@ -24,13 +78,7 @@
       "release-type": "node",
       "package-name": "@yacosta738/codegauge",
       "extra-files": [
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-linux-x64-gnu']" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-linux-arm64-gnu']" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-darwin-x64']" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-darwin-arm64']" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-win32-x64-msvc']" },
-        { "type": "json", "path": "npm/codegauge/package.json", "jsonpath": "$.optionalDependencies['@yacosta738/codegauge-win32-arm64-msvc']" }
+        { "type": "json", "path": "package.json", "jsonpath": "$.version" }
       ]
     },
     "npm/packages/codegauge-linux-x64-gnu": { "component": "codegauge-linux-x64-gnu", "release-type": "node" },
@@ -41,11 +89,12 @@
     "npm/packages/codegauge-win32-arm64-msvc": { "component": "codegauge-win32-arm64-msvc", "release-type": "node" }
   },
   "plugins": [
-    { "type": "cargo-workspace", "merge": false },
+    { "type": "node-workspace", "merge": false },
     {
       "type": "linked-versions",
       "groupName": "codegauge runtime graph",
       "components": [
+        "codegauge-root",
         "codegauge-model",
         "codegauge-core",
         "codegauge-application",

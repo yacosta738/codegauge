@@ -1,0 +1,311 @@
+name: Release Tag Carrier
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Validate the merged-main carrier without tag, label, release, or publication writes"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-carrier-main
+  cancel-in-progress: false
+
+jobs:
+  carry-release-tag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve carrier mode
+        id: mode
+        env:
+          DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
+          REPOSITORY_DRY_RUN: ${{ vars.RELEASE_CARRIER_DRY_RUN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            case "${DISPATCH_DRY_RUN:-}" in
+              true) dry_run=true ;;
+              false) dry_run=false ;;
+              *)
+                printf 'workflow_dispatch dry_run must be true or false, got %q\n' "${DISPATCH_DRY_RUN:-}" >&2
+                exit 1
+                ;;
+            esac
+          else
+            case "${REPOSITORY_DRY_RUN:-}" in
+              ""|false) dry_run=false ;;
+              true) dry_run=true ;;
+              *)
+                printf 'RELEASE_CARRIER_DRY_RUN must be true, false, or unset, got %q\n' "${REPOSITORY_DRY_RUN:-}" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          if [[ "$dry_run" == "true" ]]; then
+            mode="dry-run"
+          else
+            mode="live"
+          fi
+          printf 'dry_run=%s\n' "$dry_run" >> "$GITHUB_OUTPUT"
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          {
+            printf '%s\n' '## Release carrier mode'
+            printf -- '- event: %s\n' "$GITHUB_EVENT_NAME"
+            printf -- '- ref: %s\n' "$GITHUB_REF"
+            printf -- '- normalized mode: %s\n' "$mode"
+            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+              printf '%s\n' '- automatic push mode uses vars.RELEASE_CARRIER_DRY_RUN; unset/false is live'
+            else
+              printf '%s\n' '- manual dispatch mode uses the required dry_run input'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect the one merged Release Please PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          test "$GITHUB_EVENT_NAME" = "push" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          carrier_input_dir="$RUNNER_TEMP/codegauge-carrier"
+          mkdir -p "$carrier_input_dir"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+            -H 'Accept: application/vnd.github+json' \
+            | jq 'add' > carrier-pull-requests.json
+          release_pr_count="$(jq --arg sha "$GITHUB_SHA" '
+            [ .[]
+              | select(
+                  .base.ref == "main"
+                  and .merged_at != null
+                  and .merge_commit_sha == $sha
+                  and (([.labels[]?.name] | index("autorelease: pending")) != null)
+                  and (((.title // "") | ascii_downcase | contains("release")))
+                  and (((.body // "") | contains("Release Please")))
+                )
+            ] | length
+          ' carrier-pull-requests.json)"
+          test "$release_pr_count" -eq 1
+          release_pr_number="$(jq -er --arg sha "$GITHUB_SHA" '
+            [ .[]
+              | select(
+                  .base.ref == "main"
+                  and .merged_at != null
+                  and .merge_commit_sha == $sha
+                  and (([.labels[]?.name] | index("autorelease: pending")) != null)
+                  and (((.title // "") | ascii_downcase | contains("release")))
+                  and (((.body // "") | contains("Release Please")))
+                )
+            ][0].number
+          ' carrier-pull-requests.json)"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/pulls/${release_pr_number}/files" \
+            -H 'Accept: application/vnd.github+json' \
+            | jq 'add | map(.filename)' > "$carrier_input_dir/files.json"
+          mv carrier-pull-requests.json "$carrier_input_dir/pull-requests.json"
+
+      - name: Validate the merged tree and version PR
+        id: carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          record="$(python3 scripts/verify_release_provenance.py carrier \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --ref "$GITHUB_REF" \
+            --event-sha "$GITHUB_SHA" \
+            --pull-requests "$RUNNER_TEMP/codegauge-carrier/pull-requests.json" \
+            --pull-request-files "$RUNNER_TEMP/codegauge-carrier/files.json" \
+            --root "$GITHUB_WORKSPACE" \
+            --require-clean)"
+          printf '%s\n' "$record" > carrier-record.json
+          jq -er '.tag, .merge_sha, .version_pr_number' carrier-record.json
+          printf 'tag=%s\n' "$(jq -er '.tag' carrier-record.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute read-only canonical tag plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          NORMALIZED_MODE: ${{ steps.mode.outputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$(jq -er '.tag' carrier-record.json)"
+          version="$(jq -er '.version' carrier-record.json)"
+          ref_path="repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag#v}"
+          existing_type=""
+          existing_sha=""
+          existing_release_flag=""
+          ref_error="$(mktemp)"
+          release_error="$(mktemp)"
+          trap 'rm -f "$ref_error" "$release_error"' EXIT
+
+          set +e
+          existing_ref="$(gh api "$ref_path" 2>"$ref_error")"
+          ref_status=$?
+          set -e
+          if [[ "$ref_status" -eq 0 ]]; then
+            existing_type="$(jq -er '.object.type' <<<"$existing_ref")"
+            existing_sha="$(jq -er '.object.sha' <<<"$existing_ref")"
+          elif [[ "$(<"$ref_error")" != *"HTTP 404"* ]]; then
+            printf '%s\n' "$(<"$ref_error")" >&2
+            exit "$ref_status"
+          else
+            set +e
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" >/dev/null 2>"$release_error"
+            release_status=$?
+            set -e
+            if [[ "$release_status" -eq 0 ]]; then
+              existing_release_flag="--existing-release"
+            elif [[ "$(<"$release_error")" == *"HTTP 404"* ]]; then
+              existing_release_flag=""
+            else
+              printf '%s\n' "$(<"$release_error")" >&2
+              exit "$release_status"
+            fi
+          fi
+
+          plan_args=(
+            carrier-tag-plan
+            --version "$version"
+            --expected-sha "$GITHUB_SHA"
+          )
+          if [[ -n "$existing_type" ]]; then
+            plan_args+=(--existing-type "$existing_type" --existing-sha "$existing_sha")
+          elif [[ -n "$existing_release_flag" ]]; then
+            plan_args+=("$existing_release_flag")
+          fi
+          tag_plan="$(python3 scripts/verify_release_provenance.py "${plan_args[@]}")"
+          carrier_record="$(<carrier-record.json)"
+          changed_file_count="$(jq -er 'length' "$RUNNER_TEMP/codegauge-carrier/files.json")"
+          jq -n \
+            --arg event_name "$GITHUB_EVENT_NAME" \
+            --arg event_ref "$GITHUB_REF" \
+            --arg event_sha "$GITHUB_SHA" \
+            --arg normalized_mode "$NORMALIZED_MODE" \
+            --arg existing_type "$existing_type" \
+            --arg existing_sha "$existing_sha" \
+            --arg existing_release "$existing_release_flag" \
+            --argjson changed_file_count "$changed_file_count" \
+            --argjson carrier "$carrier_record" \
+            --argjson tag_plan "$tag_plan" \
+            '{
+              event: {
+                name: $event_name,
+                ref: $event_ref,
+                sha: $event_sha
+              },
+              mode: {
+                dry_run: ($normalized_mode == "dry-run"),
+                normalized: $normalized_mode
+              },
+              carrier: $carrier,
+              validation: {
+                merged_release_please_pr: "passed",
+                merged_tree: "passed",
+                stage_a_diff: "passed",
+                version: "passed",
+                provenance: "passed",
+                lockfile: "passed",
+                metadata: "passed",
+                changed_file_count: $changed_file_count
+              },
+              tag_plan: $tag_plan,
+              existing_ref: (if $existing_type == "" then null else {
+                type: $existing_type,
+                sha: $existing_sha
+              } end),
+              existing_release: ($existing_release == "--existing-release"),
+              mutations: {
+                canonical_tag_ref: (if $normalized_mode == "dry-run" then "skipped" else "pending" end),
+                version_pr_label: (if $normalized_mode == "dry-run" then "skipped" else "pending" end),
+                release_on_tag_workflow: "not-dispatched",
+                publication: "not-started"
+              }
+            }' > carrier-plan.json
+          jq -er '.tag_plan.action' carrier-plan.json > /dev/null
+          printf 'action=%s\n' "$(jq -er '.tag_plan.action' carrier-plan.json)" >> "$GITHUB_OUTPUT"
+          {
+            printf '%s\n' '## Canonical release carrier plan'
+            printf -- '- record: carrier-plan.json\n'
+            printf -- '- mode: %s\n' "$NORMALIZED_MODE"
+            printf '%s\n' '' '```json'
+            jq . carrier-plan.json
+            printf '%s\n' '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat carrier-plan.json
+
+      - name: Confirm dry-run has no mutation plan
+        if: steps.mode.outputs.dry_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(jq -er '.mode.dry_run' carrier-plan.json)" = "true"
+          test "$(jq -er '.mutations.canonical_tag_ref' carrier-plan.json)" = "skipped"
+          test "$(jq -er '.mutations.version_pr_label' carrier-plan.json)" = "skipped"
+          test "$(jq -er '.mutations.release_on_tag_workflow' carrier-plan.json)" = "not-dispatched"
+          test "$(jq -er '.mutations.publication' carrier-plan.json)" = "not-started"
+
+      - name: Compare and create one immutable lightweight tag
+        if: steps.mode.outputs.dry_run == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$(jq -er '.tag' carrier-record.json)"
+          version="$(jq -er '.version' carrier-record.json)"
+          action="$(jq -er '.tag_plan.action' carrier-plan.json)"
+          ref_path="repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag#v}"
+          if [[ "$action" == "noop" ]]; then
+            echo "canonical tag already points to the validated merge SHA; no-op"
+            exit 0
+          fi
+          test "$action" = "create"
+          if gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            --raw-field "ref=refs/tags/$tag" \
+            --raw-field "sha=$GITHUB_SHA" >/dev/null; then
+            echo "created canonical tag $tag at $GITHUB_SHA"
+            exit 0
+          fi
+
+          # A concurrent carrier may have won the compare-and-create race.  Re-read
+          # the ref and accept only the exact same lightweight commit target.
+          retry_ref="$(gh api "$ref_path")"
+          retry_plan="$(python3 scripts/verify_release_provenance.py carrier-tag-plan \
+            --version "$version" \
+            --expected-sha "$GITHUB_SHA" \
+            --existing-type "$(jq -er '.object.type' <<<"$retry_ref")" \
+            --existing-sha "$(jq -er '.object.sha' <<<"$retry_ref")")"
+          test "$(jq -er '.action' <<<"$retry_plan")" = "noop"
+
+      - name: Mark the carried version PR as tagged
+        if: steps.mode.outputs.dry_run == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_pr_number="$(jq -er '.version_pr_number' carrier-record.json)"
+          printf '%s\n' '{"labels":["autorelease: tagged"]}' \
+            | gh api --method PUT \
+              "repos/${GITHUB_REPOSITORY}/issues/${release_pr_number}/labels" \
+              --input - >/dev/null

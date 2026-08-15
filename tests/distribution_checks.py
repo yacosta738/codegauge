@@ -10,10 +10,11 @@ from __future__ import annotations
 import sys
 
 from distribution_checks_e3a import run_checks
+from release_carrier_static_tests import run_checks as run_carrier_checks
 
 
 def main() -> int:
-    errors = run_checks()
+    errors = [*run_checks(), *run_carrier_checks()]
     if errors:
         print("DISTRIBUTION CHECKS: FAIL")
         for error in errors:

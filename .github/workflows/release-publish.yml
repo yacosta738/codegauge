@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       release_tag:
-        description: "Exact release-please tag"
+        description: "Exact canonical vX.Y.Z tag"
         required: true
         type: string
       release_sha:
-        description: "Exact commit SHA returned by release-please"
+        description: "Exact commit SHA resolved by the canonical tag"
         required: true
         type: string
       main_sha:
@@ -16,13 +16,19 @@ on:
         required: true
         type: string
       release_url:
-        description: "URL of the release-please-created GitHub Release"
-        required: true
+        description: "Optional pre-existing release URL for compatibility"
+        required: false
+        default: ""
         type: string
       dry_run:
         description: "Build and verify without publishing"
         required: false
         default: true
+        type: boolean
+      recovery:
+        description: "Explicit recovery dispatch for an existing canonical tag"
+        required: false
+        default: false
         type: boolean
 
 permissions:
@@ -159,14 +165,38 @@ jobs:
         run: |
           set -euo pipefail
           find release-out -name '*.sha256' -print0 | xargs -0 -n1 sh -c "cd \"\$(dirname \"\$0\")\" && sha256sum --check \"\$(basename \"\$0\")\""
-      - name: Verify release-please-created GitHub Release
+      - name: Create or verify canonical GitHub Release after all gates
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
+          release_error="$(mktemp)"
+          trap 'rm -f "$release_error"' EXIT
+          if release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url 2>"$release_error")"; then
+            :
+          elif [[ "$(<"$release_error")" == *"HTTP 404"* ]]; then
+            if ! gh release create "${RELEASE_REF}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_SHA" \
+              --title "${RELEASE_REF}" \
+              --generate-notes; then
+              # A concurrent publisher may have created it.  Re-read and validate;
+              # any other error remains fail-closed.
+              release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
+            else
+              release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
+            fi
+          else
+            printf '%s\n' "$(<"$release_error")" >&2
+            exit 1
+          fi
           test "$(printf '%s' "$release_json" | jq -r .tagName)" = "$RELEASE_REF"
-          test "$(printf '%s' "$release_json" | jq -r .url)" = "$RELEASE_URL"
+          tag_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_REF#v}")"
+          test "$(printf '%s' "$tag_json" | jq -r .object.type)" = "commit"
+          test "$(printf '%s' "$tag_json" | jq -r .object.sha)" = "$RELEASE_SHA"
+          if [[ -n "$RELEASE_URL" ]]; then
+            test "$(printf '%s' "$release_json" | jq -r .url)" = "$RELEASE_URL"
+          fi
       - name: Upload verified assets to the existing release
         env:
           GH_TOKEN: ${{ github.token }}
