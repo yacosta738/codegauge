@@ -43,10 +43,11 @@ not claim full operator, registry, publication, or product acceptance.
   `canonical_tag_ref=skipped`, `version_pr_label=skipped`, release workflow `not-dispatched`, and
   upload/publication/attestation `not-started`. It contains no credential values.
 - Read-only GitHub inspection found no GitHub releases and no `v0.2.0` tag; local canonical tags are
-  also absent. `RELEASE_CARRIER_DRY_RUN=true` remains active.
-- QA did not dispatch a workflow, change variables or permissions, create tags/releases, publish,
-  upload, attest, inject credentials, or run the live carrier. The hosted runs are observed evidence,
-  not QA-created mutations.
+  also absent. The temporary `RELEASE_CARRIER_DRY_RUN=true` variable was removed after the successful
+  rehearsal; no live carrier run was performed.
+- The orchestrator performed only the authorized dry-run dispatch and removed the temporary variable
+  afterward. No tag/release creation, publication, upload, attestation, credential injection, or live
+  carrier execution occurred.
 
 ### Capability inventory
 
@@ -73,7 +74,7 @@ not claim full operator, registry, publication, or product acceptance.
 | QA-P15-02 | hosted replay/state identity | Manual replay selects historical event `fcc91b4850480945ae484c3ebdba18f8a4e38270` while checking out current corrected main `8d1773413...`. | PASS | Run `31891343893`, `workflow_dispatch`, `refs/heads/main`, `headSha=8d1773413...`; carrier plan records `replay=true`, both SHAs, and `dry_run=true`. |
 | QA-P15-03 | hosted parser boundary | The corrected private conformance hunk-only and base npm hunk-only formatting boundaries accept the real PR `#59` replay input. | PASS | Run `31891343893` passed merged-tree/version-PR validation on the corrected parser/npm commits; no pre-fix rejection occurred. |
 | QA-P15-04 | hosted dry-run/no-write | Replay validates and computes the canonical `v0.2.0` plan without creating a tag, changing the carried PR label, dispatching downstream release, uploading, publishing, or attesting. | PASS | Replay validation and plan steps passed; `canonical_tag_ref` and `version_pr_label` are `skipped`, release workflow is `not-dispatched`, and upload/publication/attestation are `not-started`. |
-| QA-P15-05 | hosted state boundary | Canonical live tag delivery and the downstream tag-triggered release workflow are observed. | BLOCKED | `RELEASE_CARRIER_DRY_RUN=true` remains active; no `v0.2.0` tag or GitHub Release exists, by design. |
+| QA-P15-05 | hosted state boundary | Canonical live tag delivery and the downstream tag-triggered release workflow are observed. | BLOCKED | The temporary dry-run variable was removed after rehearsal, but no live carrier was authorized; no `v0.2.0` tag or GitHub Release exists. |
 | QA-P15-06 | registry/publication | Cargo registry, npm, GitHub Release, GHCR, and dependent Cargo registry verification complete. | BLOCKED | Publication/uploads and registry credentials remain prohibited; synchronized runtime crates are not available in the public index. |
 | QA-P15-07 | native target | All eight archive targets have executable native/cross-target runtime evidence. | BLOCKED | Only prior structural archive evidence exists; seven non-host target executions remain unrun. |
 | QA-P15-08 | security | Hosted secret isolation, attestation, and credential-bearing promotion behavior are observed at runtime. | BLOCKED | The replay plan is credential-free, but protected secret isolation and attestation require a separate hosted/provider rehearsal. |
@@ -122,8 +123,9 @@ blocked by the deliberately unobserved live tag/downstream flow, Stage-A rerun, 
 dependent registry graph, native targets, attestation/secret isolation, failure injection, and
 rollback.
 
-QA did not change source or workflows, variables, credentials, tags, releases, registries, or the
-live carrier. `sdd-archive` must remain gated; this is a production distribution change, not a
+QA did not change source or workflows. The orchestrator performed only the authorized dry-run dispatch
+and temporary-variable cleanup; no tags, releases, registries, credentials, or live carrier execution
+were used. `sdd-archive` must remain gated; this is a production distribution change, not a
 documentation/config-only exception, and no product or release acceptance is claimed.
 
 ## Historical Phase 14 independent acceptance QA — 2026-08-15

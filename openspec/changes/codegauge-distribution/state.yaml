@@ -47,8 +47,8 @@ blocked:
   - Seven non-host archive targets have no executable native evidence
   - Dependent Cargo package verification cannot resolve synchronized crates from the pre-publication crates.io index
   - Hosted security isolation, failure injection, and rollback remain untested
-  - "No tag, release, registry publication, upload, variable mutation, credential use, or live carrier
-    run was authorized in this QA; RELEASE_CARRIER_DRY_RUN=true remains active"
+  - "No tag, release, registry publication, upload, credential use, or live carrier run was authorized;
+    the temporary RELEASE_CARRIER_DRY_RUN=true variable was removed after the successful dry-run replay"
 
 qa:
   verdict: BLOCKED
