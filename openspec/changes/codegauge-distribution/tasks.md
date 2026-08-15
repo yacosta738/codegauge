@@ -237,3 +237,87 @@ with no content mutation); malformed, missing, truncated, inconsistent-count, an
 patches fail closed. The synchronized workspace, Stage-B content validators, ordinary-main no-match
 classifier, and dry-run/live gates remain green. Only independent QA and the separately authorized
 hosted rerun remain outside this local verification boundary.
+
+## Phase 11: Dry-run-only historical carrier replay
+
+### Layer boundary
+
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Trunk/base: `origin/main`; parent branch: `origin/main`; branch:
+  `fix/release-carrier-replay`; position: manual historical replay guard after the corrected
+  hunk-only parser on current `main`. No Stack metadata.
+- Scope is limited to one safe `workflow_dispatch` replay of hosted merge
+  `fcc91b4850480945ae484c3ebdba18f8a4e38270` with `dry_run=true`. The source checkout remains the
+  current selected `main` tree. No tag, label, release, upload, registry publication, attestation,
+  credential, repository-variable, merge, push, commit, or parent-repository mutation is allowed.
+
+- [x] 11.1 **RED** — Add runtime/static regressions for replay event SHA selection, exact PR
+  correlation/validation, source-tree immutability, replay on push/live/malformed SHA rejection,
+  absent replay current-main behavior, explicit normalized `EVENT_SHA`, and replay mutation guards.
+- [x] 11.2 **GREEN** — Add the validated `carrier-event-sha` boundary and optional `replay_sha` input;
+  keep checkout/current-tree validation on main, route all historical lookup/validation/tag-plan
+  identities through `EVENT_SHA`, and stop replay before every mutation.
+- [x] 11.3 **REFACTOR** — Emit credential-free source/replay/dry-run/mutation records and summaries;
+  preserve ordinary push no-match, exact-one PR, strict content/private/version, live default,
+  idempotency/conflict, permissions, concurrency, full-SHA, and canonical ownership contracts. Update
+  design/spec/verification/QA handoffs with the dry-run-only limitation.
+- [x] 11.3a **RED/GREEN/REFACTOR** — Repair the carrier mode boolean boundary so absent replay
+  safely defaults to `replay=false` for normal push/manual dry-run/manual live paths, while replay
+  records and summaries remain total and replay stays manual dry-run-only.
+- [x] 11.3b **RED/GREEN/REFACTOR** — Replace the stale positive wrapper fixture with an explicit
+  historical `0.1.0` to `0.2.0` Stage-A patch builder; verify the checked-out manifest/npm files are
+  already at the target shape and reject no-op or wrong-version manifest replacements.
+- [ ] 11.4 Run the separately authorized protected hosted replay and inspect its no-publication
+  record. This apply slice does not run hosted workflows and does not claim hosted success.
+
+## Phase 11 verification handoff — 2026-08-15
+
+- [x] Re-ran the local Phase 11 resolver, carrier, exact Release Please, Cargo, npm, OCI, workflow,
+  package, compile, and diff checks without hosted writes.
+- [x] Behaviorally accept task 11.3: the exact `Resolve carrier mode` shell step now defaults an
+  absent replay field to a validated boolean `false`, and the checked-in normal push/manual dry-run/
+  manual live matrix proceeds with the existing mode/no-op behavior. Replay remains valid only for
+  `workflow_dispatch` + `dry_run=true` + a lowercase 40-hex SHA.
+- [ ] Task 11.4 remains pending: separately authorized hosted replay and no-publication record
+  inspection are not performed under the no-write boundary.
+
+## Phase 11 fresh verification after mode repair — 2026-08-15
+
+- [x] Re-ran the checked-in normal push/manual dry-run/manual live mode matrix. Absent replay now
+  resolves to `replay=false` and preserves the current event SHA and existing live/dry-run mode.
+- [x] Re-ran valid replay and replay-negative cases. Replay remains limited to manual
+  `workflow_dispatch` on `refs/heads/main` with `dry_run=true` and a lowercase 40-hex SHA; the
+  current checkout SHA stays separate and the pure validator/tag-plan fixture preserves source bytes.
+- [x] Re-ran Stage-B content/private/hunk-only/full-patch, synchronized-tree, Cargo, npm, OCI, workflow,
+  package, compile, and whitespace checks; those local suites passed.
+- [x] The earlier wrapper failure was superseded by task `11.3b`: the deterministic fixture now models
+  `0.1.0 -> 0.2.0`, guards the checked-out target shape, and rejects no-op/wrong-version replacements.
+  The exact Node `release-please@17.6.0` harness and the full wrapper/conformance gate now pass.
+- [ ] Task 11.4 remains pending: separately authorized hosted replay and no-publication record
+  inspection are not performed under the no-write boundary.
+
+### Historical verification handoff (superseded)
+
+The earlier technical verification was **FAIL** because the exact Release Please runtime wrapper had a
+local no-op fixture defect. Task `11.3b` repaired that fixture; the final local verification handoff
+below is authoritative. Independent `sdd-qa` and the hosted replay remain downstream and no hosted or
+publication write was performed.
+
+## Phase 11 final local verification handoff — 2026-08-15
+
+- [x] Fresh verification passed the exact Node `release-please@17.6.0` fake-SCM harness with 32 effective
+  paths, one root-carrier private manifest update containing exactly four dependency pins, six npm
+  optional rewrites, one synchronized PR, and zero release/tag calls.
+- [x] Fresh verification passed the deterministic Python wrapper fixture: historical `0.1.0 -> 0.2.0`
+  patches, current-target manifest/npm shape guards, and fail-closed no-op/wrong-version mutations.
+- [x] Fresh verification passed synchronized copied-tree `cargo test --workspace --locked`, current
+  Cargo metadata/check/fmt/Clippy gates, all carrier/replay/patch/content/private/generated/version/
+  no-match/dry-run/live suites, npm/OCI/package checks, workflow lint/security checks, and diff checks.
+- [ ] Task `11.4` remains pending: the separately authorized protected hosted replay and its
+  no-publication record inspection are not run under the no-write boundary.
+
+### Final handoff
+
+Technical verification is **PASS WITH WARNINGS**. No local implementation defect remains; the hosted
+replay is the only remaining blocker for this Phase 11 slice. Hand off to `sdd-qa` for independent
+acceptance. No hosted success, publication, or operator acceptance is claimed.

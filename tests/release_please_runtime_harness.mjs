@@ -36,6 +36,7 @@ const manifestVersions = JSON.parse(
     "utf8",
   ),
 );
+const currentReleaseVersion = manifestVersions["."];
 
 const runtimePaths = Object.keys(manifestVersions);
 const bootstrapSha = "b".repeat(40);
@@ -345,7 +346,7 @@ function assertAnnotatedVersionUpdater(updatePath, expectedLines) {
     if (
       !oldLine.includes("x-release-please-version") ||
       !newLine.includes("x-release-please-version") ||
-      oldLine.replace(/0\.1\.0/g, releaseVersion) !== newLine
+       oldLine.replaceAll(currentReleaseVersion, releaseVersion) !== newLine
     ) {
       throw new Error(
         `annotated updater changed an unexpected line in ${updatePath}: ${JSON.stringify([oldLine, newLine])}`,
@@ -437,7 +438,7 @@ const expectedPrivatePairs = new Set(
     "codegauge-provider-jacoco",
   ].map((dependency) =>
     JSON.stringify([
-      `${dependency} = { version = "0.1.0", path = "../${dependency}" }`,
+      `${dependency} = { version = "${currentReleaseVersion}", path = "../${dependency}" }`,
       `${dependency} = { version = "${releaseVersion}", path = "../${dependency}" }`,
     ]),
   ),

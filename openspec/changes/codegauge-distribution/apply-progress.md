@@ -1385,3 +1385,311 @@ credential injection, or hosted write was performed.
   non-host target evidence, and failure-injection/rollback evidence remain outside this no-write phase.
 - No commit, push, merge, repository-variable change, tag, label, release, upload, publication,
   attestation, credential injection, or hosted write was performed.
+
+## Phase 11 apply — dry-run-only historical carrier replay — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; branch: `fix/release-carrier-replay` based on `origin/main` at
+  `98fd3c60c68d3ec2373429bb07ffa7e32e69f053`.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`; trunk/base:
+  `origin/main`; parent branch: `origin/main`; position: manual historical replay guard after the
+  corrected GitHub PR-files hunk-only parser. The assigned slice is self-contained and no Stack
+  metadata is used.
+- Authorized scope: one no-publication manual `workflow_dispatch` rehearsal for historical merge
+  `fcc91b4850480945ae484c3ebdba18f8a4e38270` with `dry_run=true`. The checkout stays on the current
+  selected `main` source tree; the historical SHA is read-only event identity only.
+- Prohibited state changes honored: no commit, push, merge, tag, label, release, upload, registry
+  publication, attestation, credential exposure/use, repository-variable change, or parent-repository
+  mutation occurred.
+
+### Completed tasks
+
+- [x] 11.1 — Added runtime/static RED coverage for exact replay SHA selection, exact Release Please
+  PR correlation and full validation, source-tree byte preservation, push/live/malformed replay
+  rejection, absent-replay current-main behavior, normalized `EVENT_SHA`, mutation guards, and
+  credential-free record fields.
+- [x] 11.2 — Added `resolve_carrier_event_sha()` and the `carrier-event-sha` CLI boundary. The
+  workflow accepts optional `replay_sha`, rejects it unless the event is manual `dry_run=true`,
+  keeps checkout/current-tree validation on main, and routes commit/PR lookup, carrier validation,
+  tag planning, and any live tag target through `EVENT_SHA`.
+- [x] 11.3 — Added source/replay/dry-run fields and complete mutation statuses to
+  `carrier-record.json`, `carrier-plan.json`, and `GITHUB_STEP_SUMMARY`; explicit replay-false live
+  guards preserve canonical tag ownership and ordinary push variable/live defaults. Updated README,
+  design/spec/tasks, and verify/QA handoff boundaries. Current-main test fixtures were made baseline
+  aware of public `0.2.0` and private conformance `0.1.0` state without changing product contracts.
+- [ ] 11.4 — Protected hosted replay remains pending and is not performed by apply. No hosted pass or
+  production replay claim is made.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** before implementation, `python3 tests/release_carrier_tests.py` failed because the
+   replay resolver did not exist, and `python3 tests/release_carrier_static_tests.py` reported the
+   missing `replay_sha`, normalized event identity, source/replay record, and mutation guard
+   contracts.
+2. **GREEN:** after adding the resolver/CLI and workflow wiring, replay tests passed the exact
+   `fcc91b...` selection, exactly-one PR correlation/full validation, source-tree immutability, absent
+   replay current-main behavior, push/live/malformed negatives, and plan SHA equality. Static checks
+   passed the current-main checkout, explicit `EVENT_SHA` uses, replay-false mutation conditions,
+   full mutation record, and no-publication topology.
+3. **REFACTOR:** grouped GitHub output writes to satisfy ShellCheck/actionlint, moved PR correlation
+   ahead of tree validation, centralized event identity selection, made the plan/summary audit fields
+   explicit, and retained all existing strict content/private/version/idempotency/conflict gates.
+
+### Local verification evidence
+
+- `python3 tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`,
+  `tests/release_provenance_tests.py`, `tests/release_please_runtime_tests.py`,
+  `tests/distribution_checks.py`, `tests/bootstrap_checks.py`, `tests/readme_checks.py`,
+  `python3 -m compileall -q scripts tests`, and `python3 scripts/generate_npm_packages.py --check` —
+  PASS. The exact Release Please runtime emitted expected no-release/no-tag fake-SCM warnings and
+  ended with `RELEASE PLEASE V17.6.0 RUNTIME TESTS: PASS`.
+- `cargo metadata --locked --format-version 1`, `cargo test --workspace --locked`,
+  `cargo check --workspace --locked`, `cargo fmt --all -- --check`, and locked Clippy with
+  `-D warnings` — PASS.
+- npm wrapper typecheck/tests plus `npm pack --dry-run` for the wrapper and all six platform package
+  directories — PASS (six npm tests, seven packs).
+- `tests/oci_distribution_tests.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, and `tests/oci_distribution_failure_tests.py` — PASS.
+- `actionlint .github/workflows/*.yml`, `shellcheck scripts/build_oci_release.sh`,
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+
+### Handoff
+
+- Technical verification must rerun the updated replay/spec matrix; independent `sdd-qa` remains the
+  acceptance owner. This apply record does not claim operator acceptance or hosted success.
+- The replay path is explicitly dry-run-only and must remain blocked from tag, label, release, upload,
+  publication, and attestation mutation. Hosted replay, PAT scope/masking/ref authorization, branch
+  protection, and downstream event delivery remain unverified.
+- No hosted writes occurred.
+
+## Phase 11 verification — dry-run-only historical carrier replay — 2026-08-15
+
+### Verification result
+
+- [x] Re-read the proposal, all five delta specs, design, tasks, current diff, implementation,
+  state, QA handoff, and configuration before judging the replay slice.
+- [x] Executed the focused carrier/provenance/static/runtime suites, exact Release Please `17.6.0`
+  fake-SCM, synchronized copied-tree Cargo tests, locked Cargo gates, five package checks, npm gates,
+  OCI layers, workflow diagnostics, Dockerfile check, compile/package checks, and whitespace check.
+- [x] The exact checked-in carrier mode shell body accepted a valid manual replay and rejected push,
+  live, malformed, and wrong-ref replay inputs before collection.
+- [ ] Ordinary no-replay behavior is technically verified. The extracted mode step exits before
+  outputs for manual no-replay and every push variable mode because `jq -er '.replay'` returns status
+  1 for the valid JSON boolean `false` under `set -euo pipefail`.
+
+### Confirmed local evidence
+
+- Pure replay resolution selects the authorized historical SHA only for manual `dry_run=true`, keeps
+  the current source SHA separate, and routes the replay fixture through the normal carrier validator
+  and expected tag plan without changing copied-tree bytes.
+- Exact Release Please `17.6.0` runtime still records 32 generated paths, the private four-pin
+  root-carrier update, six npm optional pin rewrites, one synchronized PR, and zero release/tag calls.
+- Missing/ambiguous/malformed PRs, hunk-only/full patches, content/version/private mutations, no-match
+  behavior, canonical Stage-B tag ownership, and all listed local quality/package checks pass.
+
+### CRITICAL local finding
+
+`release-tag-carrier.yml` uses `jq -er '.replay'` when reading the resolver's boolean output. `jq -e`
+intentionally exits nonzero for `false`; with `set -e`, the mode step aborts before `GITHUB_OUTPUT` is
+written. This breaks absent replay on manual dispatch and push dry-run/live/unset modes. The defect is
+reported only; no implementation fix was made in verification.
+
+### Handoff
+
+- Technical verdict: **FAIL**; task 11.3 is not behaviorally accepted until the mode-step defect is
+  repaired and the exact shell matrix is green.
+- Task 11.4 protected hosted replay remains pending and prohibited here. No hosted pass, production
+  replay, tag, label, release, upload, publication, attestation, credential, or operator acceptance
+  claim is made.
+- Next phase: `sdd-apply` for a test-first minimal repair, followed by a fresh `sdd-verify` and then
+  independent `sdd-qa` if verification passes.
+
+## Phase 11 apply remediation — total replay schema and normal mode repair — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; branch: `fix/release-carrier-replay`; chain strategy:
+  `feature-branch-chain`; trunk/integration base and parent branch: `origin/main`; position: local
+  repair after the Phase 11 replay verification finding.
+- Scope: repair the carrier's optional replay boolean extraction and make record/summary replay fields
+  explicit and total. The source checkout, normalized `EVENT_SHA`, replay rejection, no-match, exact
+  Stage-B, private-pin, version, idempotency/conflict, and mutation boundaries remain unchanged.
+- No commit, push, merge, tag, release, upload, publication, attestation, credential, repository
+  variable, hosted workflow dispatch, or parent-repository mutation occurred.
+
+### Completed work
+
+- [x] Added `tests/release_carrier_mode_tests.py` covering normal push, manual dry-run, and manual live
+  mode without `replay_sha`; each requires successful mode resolution and `replay=false`. The same
+  executable test keeps valid replay limited to manual `workflow_dispatch` + `dry_run=true` + a valid
+  lowercase 40-hex SHA and retains push/live/malformed rejection cases.
+- [x] Replaced the failing `jq -er '.replay'` extraction with a `jq -r` default/type-check boundary:
+  absent/null replay becomes boolean `false`, false serializes safely, and non-boolean values fail
+  closed.
+- [x] Made carrier records and summaries emit a top-level boolean `replay`, source checkout SHA, and
+  replay event SHA/null-or-none representation on every path; replay paths identify the historical
+  event SHA explicitly. The dry-run plan guard uses the same safe boolean default/type check.
+- [x] Updated the release-artifacts design/spec and task handoff to document the total schema and the
+  normal-mode regression repair. Hosted replay task 11.4 remains unchecked.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding the executable workflow-step tests, `python3
+   tests/release_carrier_mode_tests.py` exited 1 at `test_normal_push_defaults_to_live_without_replay`;
+   the pre-fix mode step aborted before outputs because `jq -er '.replay'` treated valid `false` as a
+   failed result.
+2. **GREEN:** after the minimal workflow repair, `python3 tests/release_carrier_mode_tests.py` exited
+   0. Normal push, manual dry-run, manual live, valid replay, and replay-negative cases passed.
+3. **REFACTOR:** the records/summaries were normalized to the explicit total replay schema and the
+   dry-run plan guard was changed to the same default/type-checked boolean extraction. The focused
+   mode, carrier, static, and provenance suites remained green.
+
+### Commands run
+
+- `python3 tests/release_carrier_mode_tests.py` — RED exit 1 before the fix; GREEN exit 0 after the
+  fix.
+- `python3 tests/release_carrier_static_tests.py`, `python3 tests/release_carrier_tests.py`, and
+  `python3 tests/release_provenance_tests.py` — exit 0.
+- `python3 tests/release_please_runtime_tests.py` — exit 0; exact Release Please 17.6.0 fake-SCM
+  result retained 32 generated paths, four private pins, six npm pins, one PR, and zero release/tag
+  calls.
+- `python3 tests/distribution_checks.py`, `python3 tests/bootstrap_checks.py`, `python3
+  tests/readme_checks.py`, `python3 -m compileall -q scripts tests`, and `python3
+  scripts/generate_npm_packages.py --check` — exit 0.
+- `cargo metadata --locked --format-version 1`, `cargo test --workspace --locked`, `cargo check
+  --workspace --locked`, `cargo fmt --all -- --check`, and `cargo clippy --workspace --all-targets
+  --locked -- -D warnings` — exit 0; workspace tests reported 31 passed, 0 failed, 0 skipped.
+- The initial unpatched local `cargo package` loop stopped at the expected unpublished local
+  dependency lookup. The exact workflow-equivalent five-crate package commands with local
+  `patch.crates-io` paths and `--allow-dirty` then passed packaging and verification for all five
+  runtime crates; no publication occurred.
+- `npm --prefix npm/codegauge run typecheck`, `npm --prefix npm/codegauge test`, and wrapper plus
+  six platform `npm pack --dry-run` checks — exit 0; six npm tests and seven package dry-runs passed.
+- `python3 tests/oci_distribution_tests.py`, `python3 tests/oci_distribution_static_tests.py`,
+  `python3 tests/oci_distribution_evidence_tests.py`, `python3 tests/oci_distribution_failure_tests.py`,
+  `shellcheck scripts/build_oci_release.sh`, and ShellCheck on the extracted carrier mode step — exit 0.
+- `actionlint .github/workflows/*.yml`, `docker buildx build --check --progress=plain .`, and
+  `git diff --check` — exit 0.
+
+### Handoff
+
+- Fresh `sdd-verify` must rerun the Phase 11 mode/record/summary matrix; this apply artifact does not
+  claim technical verification, hosted success, or operator acceptance.
+- QA remains blocked pending fresh verification, independent acceptance, and the separately authorized
+  hosted replay/no-publication observation.
+
+## Phase 11 fresh verification after mode repair — 2026-08-15
+
+### Executed evidence
+
+- The extracted `Resolve carrier mode` step passed normal push with no replay, manual dry-run/live with
+  no replay, valid manual replay, and push/live/malformed/wrong-ref replay rejection. Absent replay emits
+  a boolean `false`; valid replay separates the current source checkout SHA from `EVENT_SHA`.
+- `release_carrier_tests.py` passed exact replay PR correlation, current-tree/private four-pin/full
+  Stage-B validation, source-byte immutability, tag-plan identity, no-match, hunk-only/full-patch, and
+  mutation-negative coverage. Static carrier checks also passed normalized `EVENT_SHA` and replay-false
+  mutation guards.
+- Current local quality/distribution evidence passed: provenance/distribution/bootstrap/README, all OCI
+  regression layers, compile/package checks, locked Cargo metadata/tests/check/fmt/Clippy, five patched
+  Cargo package checks, npm typecheck/tests/seven dry-run packs, actionlint, ShellCheck, Dockerfile
+  `buildx --check`, and `git diff --check`.
+
+### Local blocker found
+
+- `python3 tests/release_please_runtime_tests.py` exits 1 after the exact installed
+  `release-please@17.6.0` Node harness passes. Its positive `stage_a_prefix()` fixture reads the current
+  `.release-please-manifest.json` values (`0.2.0`) as the old side of a required `0.2.0` replacement,
+  so `validate_stage_a_diff()` correctly rejects the no-op with `release metadata contains an unexpected
+  version replacement`. This stale fixture prevents claiming the full prior Release Please/conformance
+  check is green.
+
+### Handoff
+
+- Technical verdict: **FAIL**; no code or workflow fix was made during verification.
+- Next action: `sdd-apply` repairs the failing test fixture, then rerun `sdd-verify` before `sdd-qa`.
+- No commit, push, merge, tag, label, release, upload, publication, attestation, credential,
+  repository-variable change, hosted dispatch, or other hosted write occurred.
+
+## Phase 11 apply remediation — deterministic Release Please wrapper fixture — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; branch: `fix/release-carrier-replay`; delivery strategy:
+  `auto-chain`; chain strategy: `feature-branch-chain`.
+- Trunk/integration base: `origin/main`; parent branch: `origin/main`; position: test-fixture repair
+  after the Phase 11 replay-default verification blocker. No Stack metadata is used.
+- Scope is limited to `tests/release_please_runtime_tests.py` and the related OpenSpec handoff records.
+  The exact Node `release-please@17.6.0` harness, 32-path/private-four-pin/npm-six-pin/no-write
+  boundaries, carrier workflows, source tree, and product code are unchanged.
+- No commit, push, merge, tag, label, release, upload, registry publication, attestation, credential,
+  repository-variable change, hosted dispatch, or parent-repository mutation occurred.
+
+### Completed work
+
+- [x] Added explicit `BASELINE_VERSION = "0.1.0"`, `TARGET_VERSION = "0.2.0"`, exact 13-entry
+  manifest-path, five-runtime-crate, and six-optional-dependency fixture constants.
+- [x] Made `stage_a_prefix()` verify the checked-out manifest and wrapper are exactly at the target
+  shape, then build every patch line from the historical baseline to the target without reading current
+  values as the old side.
+- [x] Added executable positive and negative fixture tests: the historical fixture passes the existing
+  Stage-B validator, while one no-op manifest replacement and one wrong-version replacement fail closed.
+- [x] Kept the private four-pin fixture and all exact Release Please/Stage-B carrier boundaries intact.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding `test_stage_a_prefix_builds_historical_fixture()` and the no-op/wrong-version
+   mutation assertions, `python3 tests/release_please_runtime_tests.py` exited 1 at the historical
+   manifest assertion because the old `stage_a_prefix()` emitted current `0.2.0` values as both sides.
+2. **GREEN:** after the deterministic fixture builder was implemented, the focused wrapper passed the
+   exact Node harness and Stage-B positive/negative checks: one PR, 32 generated paths, four private
+   pins, six npm optional rewrites, zero release/tag calls, and all private mutations rejected.
+3. **REFACTOR:** reused named baseline/target/path constants across the private fixture and wrapper
+   validation, added current-target shape guards, and retained `git diff --check` plus Python compile
+   validation.
+
+### Local verification evidence
+
+- Focused Python suites passed: `release_please_runtime_tests.py`, `release_carrier_tests.py`,
+  `release_carrier_static_tests.py`, `release_carrier_mode_tests.py`, `release_provenance_tests.py`,
+  `distribution_checks.py`, `bootstrap_checks.py`, `readme_checks.py`, and all four OCI regression
+  layers.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` —
+  PASS.
+- Locked Cargo metadata, 31 workspace tests, check, fmt, locked Clippy, and five workflow-equivalent
+  runtime package verifications with local dependency patches — PASS.
+- npm wrapper typecheck/tests (6 tests) and wrapper plus six platform `npm pack --dry-run` checks —
+  PASS.
+- `actionlint`, `shellcheck scripts/build_oci_release.sh`, Dockerfile `buildx --check`, and
+  `git diff --check` — PASS.
+
+### Handoff
+
+- Fresh `sdd-verify` must rerun the Phase 11 replay and exact Release Please matrix; this apply record
+  does not claim technical verification or operator acceptance.
+- Task 11.4 protected hosted replay and no-publication record inspection remain unchecked and are not
+  performed under the no-write boundary. QA remains blocked pending fresh verification and independent
+  acceptance.
+
+## Phase 11 final local verification — 2026-08-15
+
+### Verification result
+
+- [x] The exact installed `release-please@17.6.0` Node harness passed with 32 effective paths, one
+  private conformance manifest update containing exactly four dependency-version edits, six npm optional
+  rewrites, one synchronized PR, and zero release/tag calls.
+- [x] The Python wrapper fixture passed its explicit historical `0.1.0 -> 0.2.0` positive path, current
+  manifest/npm target-shape guards, and no-op/wrong-version rejection tests.
+- [x] Synchronized copied-tree workspace tests and all prior carrier, replay, hunk/full-patch, content,
+  private, generated, version, no-match, dry-run/live, Cargo, npm, OCI, workflow, package, compile, and
+  whitespace checks passed locally.
+- [x] Workflow inspection and runtime probes confirmed immutable external action SHAs, least privilege,
+  current-main checkout versus replay `EVENT_SHA` separation, replay mutation guards, and Stage-B-only
+  canonical tag ownership.
+- [ ] Task `11.4` remains pending: protected hosted replay/no-publication observation is not performed.
+
+### Handoff
+
+Technical verification is **PASS WITH WARNINGS**. No local defect remains; hosted replay and independent
+acceptance are the remaining downstream boundary. No hosted write, credential, tag, release, publication,
+upload, attestation, variable change, merge, push, or commit occurred.

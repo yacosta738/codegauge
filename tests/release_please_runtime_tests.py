@@ -13,6 +13,38 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "tests" / "release_please_runtime_harness.mjs"
 PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
+BASELINE_VERSION = "0.1.0"
+TARGET_VERSION = "0.2.0"
+STAGE_A_MANIFEST_PATHS = (
+    ".",
+    "crates/codegauge-model",
+    "crates/codegauge-core",
+    "crates/codegauge-application",
+    "crates/codegauge-provider-jacoco",
+    "crates/codegauge-cli",
+    "npm/codegauge",
+    "npm/packages/codegauge-linux-x64-gnu",
+    "npm/packages/codegauge-linux-arm64-gnu",
+    "npm/packages/codegauge-darwin-x64",
+    "npm/packages/codegauge-darwin-arm64",
+    "npm/packages/codegauge-win32-x64-msvc",
+    "npm/packages/codegauge-win32-arm64-msvc",
+)
+STAGE_A_RUNTIME_CRATES = (
+    "codegauge-model",
+    "codegauge-core",
+    "codegauge-application",
+    "codegauge-provider-jacoco",
+    "codegauge-cli",
+)
+STAGE_A_OPTIONAL_DEPENDENCIES = (
+    "@yacosta738/codegauge-linux-x64-gnu",
+    "@yacosta738/codegauge-linux-arm64-gnu",
+    "@yacosta738/codegauge-darwin-x64",
+    "@yacosta738/codegauge-darwin-arm64",
+    "@yacosta738/codegauge-win32-x64-msvc",
+    "@yacosta738/codegauge-win32-arm64-msvc",
+)
 PRIVATE_DEPENDENCIES = (
     "codegauge-application",
     "codegauge-core",
@@ -39,8 +71,8 @@ def private_patch(extra_changes: str = "") -> str:
     for dependency in PRIVATE_DEPENDENCIES:
         lines.extend(
             [
-                f'-{dependency} = {{ version = "0.1.0", path = "../{dependency}" }}',
-                f'+{dependency} = {{ version = "0.2.0", path = "../{dependency}" }}',
+                f'-{dependency} = {{ version = "{BASELINE_VERSION}", path = "../{dependency}" }}',
+                f'+{dependency} = {{ version = "{TARGET_VERSION}", path = "../{dependency}" }}',
             ]
         )
     lines.extend(
@@ -88,40 +120,145 @@ def content_entry(path: str, pairs: list[tuple[str, str]], *, context: tuple[str
     }
 
 
-def stage_a_prefix() -> list[dict[str, object]]:
-    crates = (
-        "codegauge-model",
-        "codegauge-core",
-        "codegauge-application",
-        "codegauge-provider-jacoco",
-        "codegauge-cli",
+def _entry_for(entries: list[dict[str, object]], filename: str) -> dict[str, object]:
+    matches = [entry for entry in entries if entry.get("filename") == filename]
+    assert len(matches) == 1, f"expected one fixture entry for {filename}, found {len(matches)}"
+    return matches[0]
+
+
+def _patch_text(entry: dict[str, object]) -> str:
+    patch = entry.get("patch")
+    assert isinstance(patch, str), "fixture entry must contain a textual patch"
+    return patch
+
+
+def _replace_patch_line(
+    entry: dict[str, object],
+    old_line: str,
+    new_line: str,
+) -> dict[str, object]:
+    patch = _patch_text(entry)
+    assert old_line in patch, f"fixture patch does not contain expected line: {old_line}"
+    mutated = dict(entry)
+    mutated["patch"] = patch.replace(old_line, new_line, 1)
+    return mutated
+
+
+def test_stage_a_prefix_builds_historical_fixture() -> None:
+    entries = stage_a_prefix()
+    manifest = _entry_for(entries, ".release-please-manifest.json")
+    manifest_patch = _patch_text(manifest)
+    assert manifest["additions"] == len(STAGE_A_MANIFEST_PATHS)
+    assert manifest["deletions"] == len(STAGE_A_MANIFEST_PATHS)
+    for path in STAGE_A_MANIFEST_PATHS:
+        assert f'-  "{path}": "{BASELINE_VERSION}",' in manifest_patch
+        assert f'+  "{path}": "{TARGET_VERSION}",' in manifest_patch
+
+    npm = _entry_for(entries, "npm/codegauge/package.json")
+    npm_patch = _patch_text(npm)
+    assert f'-  "version": "{BASELINE_VERSION}",' in npm_patch
+    assert f'+  "version": "{TARGET_VERSION}",' in npm_patch
+    for dependency in STAGE_A_OPTIONAL_DEPENDENCIES:
+        assert f'-    "{dependency}": "{BASELINE_VERSION}",' in npm_patch
+        assert f'+    "{dependency}": "{TARGET_VERSION}",' in npm_patch
+
+    validate_stage_a_diff(
+        [*entries, private_entry(private_patch())],
+        version=TARGET_VERSION,
     )
+
+
+def test_stage_a_fixture_rejects_noop_and_wrong_version() -> None:
+    entries = stage_a_prefix()
+    manifest = _entry_for(entries, ".release-please-manifest.json")
+    private = private_entry(private_patch())
+    mutations = (
+        (
+            "no-op",
+            _replace_patch_line(
+                manifest,
+                f'-  ".": "{BASELINE_VERSION}",',
+                f'-  ".": "{TARGET_VERSION}",',
+            ),
+        ),
+        (
+            "wrong-version",
+            _replace_patch_line(
+                manifest,
+                f'+  ".": "{TARGET_VERSION}",',
+                '+  ".": "0.3.0",',
+            ),
+        ),
+    )
+    for mutation_name, mutated_manifest in mutations:
+        mutated_entries = [
+            mutated_manifest if entry is manifest else entry for entry in entries
+        ]
+        try:
+            validate_stage_a_diff(
+                [*mutated_entries, private],
+                version=TARGET_VERSION,
+            )
+        except ProvenanceError:
+            continue
+        raise AssertionError(f"Stage-A fixture accepted {mutation_name} manifest replacement")
+
+
+def stage_a_prefix() -> list[dict[str, object]]:
+    if BASELINE_VERSION == TARGET_VERSION:
+        raise AssertionError("historical fixture baseline and target versions must differ")
+
     manifest = json.loads(
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
     )
+    if set(manifest) != set(STAGE_A_MANIFEST_PATHS):
+        raise AssertionError("current Release Please manifest has an unexpected path set")
+    if any(value != TARGET_VERSION for value in manifest.values()):
+        raise AssertionError("current Release Please manifest is not at the expected target version")
     manifest_pairs = [
-        (f'  "{path}": "{old}",', f'  "{path}": "0.2.0",')
-        for path, old in manifest.items()
+        (
+            f'  "{path}": "{BASELINE_VERSION}",',
+            f'  "{path}": "{TARGET_VERSION}",',
+        )
+        for path in STAGE_A_MANIFEST_PATHS
     ]
     base_package = json.loads(
         (ROOT / "npm" / "codegauge" / "package.json").read_text(encoding="utf-8")
     )
+    optional_dependencies = base_package.get("optionalDependencies")
+    if not isinstance(optional_dependencies, dict):
+        raise AssertionError("npm wrapper optionalDependencies must be an object")
+    if set(optional_dependencies) != set(STAGE_A_OPTIONAL_DEPENDENCIES):
+        raise AssertionError("npm wrapper has an unexpected optional dependency set")
+    if base_package.get("version") != TARGET_VERSION:
+        raise AssertionError("npm wrapper is not at the expected target version")
+    if any(value != TARGET_VERSION for value in optional_dependencies.values()):
+        raise AssertionError("npm wrapper optional dependencies are not at the expected target")
     npm_pairs = [
-        (f'  "version": "{base_package["version"]}",', '  "version": "0.2.0",')
+        (
+            f'  "version": "{BASELINE_VERSION}",',
+            f'  "version": "{TARGET_VERSION}",',
+        )
     ] + [
-        (f'    "{dependency}": "{old}",', f'    "{dependency}": "0.2.0",')
-        for dependency, old in base_package["optionalDependencies"].items()
+        (
+            f'    "{dependency}": "{BASELINE_VERSION}",',
+            f'    "{dependency}": "{TARGET_VERSION}",',
+        )
+        for dependency in STAGE_A_OPTIONAL_DEPENDENCIES
     ]
     return [
         content_entry(
             "Cargo.toml",
-            [('version = "0.1.0"', 'version = "0.2.0"')],
+            [(f'version = "{BASELINE_VERSION}"', f'version = "{TARGET_VERSION}"')],
             context=(" [workspace.package]",),
         ),
         content_entry(
             "Cargo.lock",
-            [('version = "0.1.0"', 'version = "0.2.0"')] * len(crates),
-            context=tuple(f' name = "{crate}"' for crate in crates),
+            [
+                (f'version = "{BASELINE_VERSION}"', f'version = "{TARGET_VERSION}"')
+            ]
+            * len(STAGE_A_RUNTIME_CRATES),
+            context=tuple(f' name = "{crate}"' for crate in STAGE_A_RUNTIME_CRATES),
         ),
         content_entry(".release-please-manifest.json", manifest_pairs),
         content_entry("npm/codegauge/package.json", npm_pairs),
@@ -151,6 +288,9 @@ def find_exact_package() -> Path | None:
 
 
 def main() -> int:
+    test_stage_a_prefix_builds_historical_fixture()
+    test_stage_a_fixture_rejects_noop_and_wrong_version()
+
     package_root = find_exact_package()
     if package_root is None:
         print(
@@ -183,7 +323,7 @@ def main() -> int:
                 *stage_a_prefix(),
                 private_entry(private_patch()),
             ],
-            version="0.2.0",
+            version=TARGET_VERSION,
         )
     except ProvenanceError:
         print("PRIVATE DEPENDENCY PIN UPDATE: REJECTED")
@@ -195,7 +335,10 @@ def main() -> int:
         (
             "package-version",
             private_entry(
-                private_patch('@@ -1 +1 @@\n-version = "0.1.0"\n+version = "0.2.0"'),
+                private_patch(
+                    f'@@ -1 +1 @@\n-version = "{BASELINE_VERSION}"\n'
+                    f'+version = "{TARGET_VERSION}"'
+                ),
                 additions=5,
                 deletions=5,
             ),
@@ -220,7 +363,7 @@ def main() -> int:
                     *stage_a_prefix(),
                     mutation,
                 ],
-                version="0.2.0",
+                version=TARGET_VERSION,
             )
         except ProvenanceError:
             print(f"PRIVATE MUTATION {mutation_name}: REJECTED")

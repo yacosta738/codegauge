@@ -1,4 +1,7 @@
-# Acceptance QA Report: codegauge-distribution (latest technical verify PASS WITH WARNINGS; acceptance rerun pending)
+# Acceptance QA Report: codegauge-distribution (fresh technical verify complete; independent QA pending)
+
+> The latest technical verification is **PASS WITH WARNINGS**. Local implementation checks are green;
+> QA remains blocked until the independent acceptance rerun and separately authorized hosted evidence.
 
 ## Latest technical verification handoff — 2026-08-15
 
@@ -542,3 +545,133 @@ operator acceptance.
 QA remains blocked on the independent acceptance rerun and separately authorized hosted evidence for
 the real merged PR/carrier path, tag delivery, publication/attestation, native target coverage, and
 failure-injection/rollback. Run `sdd-qa` next; do not archive from this technical handoff alone.
+
+## Latest apply handoff — dry-run-only historical carrier replay — 2026-08-15
+
+QA remains **BLOCKED** and was not rerun. This section records implementation evidence and the
+acceptance boundary only; it does not claim hosted success.
+
+- The new optional `replay_sha` path accepts only manual `workflow_dispatch` on `refs/heads/main`
+  with `dry_run=true`. The authorized historical SHA is
+  `fcc91b4850480945ae484c3ebdba18f8a4e38270`.
+- Local runtime/static tests select that SHA for exactly-one Release Please PR correlation and full
+  current-tree validation, reject push/live/malformed replay inputs, preserve ordinary current-main
+  dispatch behavior when replay is absent, and prove validation does not mutate source-tree bytes.
+- The workflow retains current-main checkout/source validation and sends only normalized `EVENT_SHA`
+  to historical commit/PR lookup, carrier validation, tag planning, and any live tag target. Replay
+  has explicit live tag/label guards and records every release/upload/publication/attestation path as
+  skipped, not-started, or not-dispatched without credentials.
+- The local carrier/provenance/runtime/distribution/bootstrap/README, compileall, Cargo, npm, OCI,
+  actionlint, ShellCheck, Dockerfile, and diff checks passed. This is technical local evidence only.
+- The capability is dry-run-only recovery/rehearsal plumbing, not production replay, not a live
+  historical release path, and not hosted-passed evidence. `sdd-verify` must rerun before QA accepts
+  any capability scenario.
+- No tag, label, release, upload, publication, attestation, credential, repository-variable change,
+  workflow dispatch, merge, push, commit, or hosted write occurred.
+
+## Latest technical verification handoff — Phase 11 replay mode — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. Fresh technical verification found one local
+CRITICAL defect in the ordinary carrier mode path; this report does not claim hosted or operator
+acceptance.
+
+- Valid manual replay locally selects the authorized historical SHA as normalized `EVENT_SHA`, keeps
+  the current-main checkout/source SHA separate, reaches the pure carrier validator/tag-plan fixture,
+  and preserves source-tree bytes. Push/live/malformed/wrong-ref replay inputs fail closed.
+- Exact Release Please `17.6.0` runtime, 32-path changeset, private four-pin exception, six npm pins,
+  synchronized workspace tests, hunk-only/full patch matrix, no-match behavior, mutation guards, and
+  all local Cargo/Python/npm/OCI/workflow/package checks passed.
+- The exact checked-in `Resolve carrier mode` shell body fails for every no-replay case because
+  `jq -er '.replay'` returns status 1 for the valid boolean `false` under `set -euo pipefail`. This
+  breaks ordinary manual current-SHA dispatch and push variable true/live/unset behavior before PR
+  lookup; task 11.3 is not technically accepted.
+- QA must wait for `sdd-apply` to repair this local defect and for a fresh `sdd-verify`. The separately
+  authorized hosted replay, tag/label/release/upload/publication/attestation behavior, and independent
+  acceptance rerun remain unperformed.
+- No tag, label, release, upload, publication, attestation, credential, repository-variable change,
+  workflow dispatch, merge, push, commit, or hosted write occurred.
+
+## Latest apply handoff — total replay schema and normal mode repair — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. This section records the local implementation
+handoff after the Phase 11 technical-verification defect; it does not upgrade local evidence to QA or
+hosted acceptance.
+
+- The new checked-in mode test failed before the repair on the normal push path, then passed normal
+  push, manual dry-run, manual live, valid manual replay, and replay-negative cases after the safe jq
+  boolean/default fix.
+- Absent replay now emits `replay=false` without aborting. Records and summaries have an explicit total
+  replay field, current source checkout SHA, and replay event SHA/null-or-none boundary; replay remains
+  valid only for manual dry-run with a valid SHA.
+- Focused carrier/provenance/runtime/distribution, exact Release Please, Cargo, npm, OCI, workflow,
+  ShellCheck, Dockerfile, five patched Cargo package checks, compile/package, and whitespace checks
+  passed locally. No hosted writes,
+  credentials, tags, releases, publication, uploads, attestations, variables, merges, pushes, or
+  commits were used.
+- Fresh `sdd-verify` must rerun before QA acceptance. Hosted replay/no-publication observation,
+  independent acceptance, publication/attestation, native target, and rollback evidence remain pending
+  or prohibited by the safety boundary.
+
+## Latest technical verification handoff — Phase 11 replay default repair — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. The repaired mode boundary is locally green, but
+fresh technical verification found a separate local test-fixture blocker in the exact Release Please
+wrapper; this section makes no hosted or operator acceptance claim.
+
+- Normal push with no replay, manual dry-run/live with no replay, valid manual replay, and replay-negative
+  cases passed. Replay uses the historical SHA only as normalized `EVENT_SHA`, keeps the current-main
+  checkout separate, reaches the pure PR/tree/patch/tag-plan validation fixture, and preserves source
+  bytes without mutation.
+- Stage-B four-pin/private, golden/README/contracts, hunk-only/full-patch, no-match, Cargo, npm, OCI,
+  workflow, package, compile, and whitespace checks passed locally. The exact Node
+  `release-please@17.6.0` harness recorded one synchronized PR, 32 generated paths, four private pins,
+  six npm rewrites, and zero release/tag calls.
+- `python3 tests/release_please_runtime_tests.py` exits 1 after the Node harness passes because its
+  positive `.release-please-manifest.json` fixture constructs a no-op `0.2.0 -> 0.2.0` patch on the
+  current checkout; `validate_stage_a_diff()` correctly rejects it. This prevents a PASS claim for the
+  full prior Release Please/conformance gate until the fixture is repaired and verification is rerun.
+- No tag, label, release, upload, publication, attestation, credential, repository-variable change,
+  workflow dispatch, merge, push, commit, or hosted write occurred. The separately authorized hosted
+  replay and independent acceptance rerun remain pending.
+
+## Latest apply handoff — deterministic Release Please wrapper fixture — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. This section records local implementation and
+regression evidence only; it does not upgrade the prior technical **FAIL** or claim hosted/operator
+acceptance.
+
+- The wrapper now declares the historical baseline `0.1.0` and target `0.2.0`, verifies the current
+  manifest/npm target shape, and emits explicit old-to-new lines for the exact 13 manifest paths and six
+  optional dependencies.
+- The new executable fixture test first failed on the stale current-value-as-old behavior. After the
+  repair, the positive private-pin fixture passed while explicit no-op and wrong-version manifest
+  mutations were rejected by `validate_stage_a_diff()`.
+- The exact Node `release-please@17.6.0` harness and local carrier boundaries remained green: 32 paths,
+  four private pins, six npm rewrites, one PR, zero release/tag calls, hunk/full patch parsing, replay
+  defaults/negatives, synchronized Cargo tests, and mutation guards.
+- The focused and full local suite passed, including Python/Cargo/npm/OCI/workflow/package/whitespace
+  checks. No tags, labels, releases, uploads, publication, attestations, credentials, variables,
+  hosted dispatches, merges, pushes, commits, or parent-repository changes were performed.
+- Fresh `sdd-verify` must rerun before QA acceptance. Hosted task 11.4 and independent acceptance remain
+  pending; this handoff makes no hosted success claim.
+
+## Latest technical verification handoff — final Phase 11 replay and fixture verification — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. The final local technical verification returned
+**PASS WITH WARNINGS** with no local implementation defect; this report does not claim hosted or
+operator acceptance.
+
+- The exact Node `release-please@17.6.0` fake-SCM harness passed with 32 effective paths, one private
+  manifest update containing exactly four dependency pin edits, six npm optional rewrites, one PR, and
+  zero release/tag calls.
+- The Python wrapper now builds a deterministic historical `0.1.0 -> 0.2.0` Stage-A fixture, asserts
+  the checked-out manifest/npm target shape, and rejects no-op and wrong-version replacements.
+- Synchronized copied-tree `cargo test --workspace --locked`, current locked Cargo metadata/tests/
+  check/fmt/Clippy, carrier/replay/hunk/full-patch/content/private/generated/version/no-match/
+  dry-run/live checks, npm/OCI/package checks, actionlint/ShellCheck/Dockerfile checks, and diff checks
+  all passed locally.
+- Workflow checks confirm full-SHA external actions, least privilege, current-main/replay SHA separation,
+  replay mutation guards, and canonical Stage-B-only tag ownership.
+- The separately authorized protected hosted replay (task 11.4), hosted no-publication record inspection,
+  and independent acceptance rerun remain pending. No tag, release, publication, upload, attestation,
+  credential, variable, dispatch, merge, push, commit, or hosted write occurred.
