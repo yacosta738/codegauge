@@ -51,6 +51,29 @@ def run_checks() -> list[str]:
         errors.append("carrier must read the temporary RELEASE_CARRIER_DRY_RUN repository variable")
     if "DISPATCH_DRY_RUN" not in carrier or "REPOSITORY_DRY_RUN" not in carrier:
         errors.append("carrier must normalize dispatch and repository-variable dry-run inputs")
+    if "id: collect" not in carrier:
+        errors.append("carrier must expose collection status to gate later validation/mutation steps")
+    if "carrier-pr-selection" not in carrier:
+        errors.append("carrier must classify matching Release Please PRs before fetching the diff")
+    if 'status=skipped' not in carrier or "no-matching-release-please-pr" not in carrier:
+        errors.append("carrier must record a successful no-matching-release skip")
+    if 'test "$release_pr_count" -eq 1' in carrier:
+        errors.append("carrier must not fail ordinary main pushes with a single-count assertion")
+    if carrier.count("steps.collect.outputs.status == 'matched'") < 5:
+        errors.append("validation and every mutation path must require one matching Release Please PR")
+    collection_marker = "carrier-pr-selection"
+    files_marker = 'pulls/${release_pr_number}/files'
+    if collection_marker in carrier and files_marker in carrier:
+        if carrier.index(collection_marker) > carrier.index(files_marker):
+            errors.append("carrier must classify the event before fetching Release Please diff files")
+    if "canonical_tag_ref" not in carrier or "not-started" not in carrier:
+        errors.append("no-match records must explicitly prove tag/publication paths did not start")
+    if "carrier_validation:" not in carrier or "not-run" not in carrier:
+        errors.append("no-match records must prove carrier validation was not run")
+    if "skipped)" in carrier:
+        skip_branch = carrier[carrier.index("skipped)") : carrier.index(";;", carrier.index("skipped)"))]
+        if "exit 0" not in skip_branch or files_marker in skip_branch:
+            errors.append("no-match selection must exit successfully before fetching PR files")
     if 'if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]' not in carrier:
         errors.append("carrier must branch explicitly for trusted workflow_dispatch events")
     if 'test "$GITHUB_EVENT_NAME" = "push" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"' not in carrier:
@@ -85,9 +108,9 @@ def run_checks() -> list[str]:
         errors.append("carrier plan must record the validated tree/diff/provenance boundaries")
     if "printf 'tag=%s\\n' \"$(jq -er '.tag' carrier-record.json)\" >> \"$GITHUB_OUTPUT\"" not in carrier:
         errors.append("carrier must write a valid named tag output")
-    if "- name: Compare and create one immutable lightweight tag\n        if: steps.mode.outputs.dry_run == 'false'" not in carrier:
+    if "- name: Compare and create one immutable lightweight tag\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'" not in carrier:
         errors.append("tag ref mutation must be conditional on live mode")
-    if "- name: Mark the carried version PR as tagged\n        if: steps.mode.outputs.dry_run == 'false'" not in carrier:
+    if "- name: Mark the carried version PR as tagged\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'" not in carrier:
         errors.append("Release Please label mutation must be conditional on live mode")
     if "release-on-tag.yml" in carrier or "gh workflow run" in carrier:
         errors.append("dry-run carrier must never dispatch the tag workflow directly")

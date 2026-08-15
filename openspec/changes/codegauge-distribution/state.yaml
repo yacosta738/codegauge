@@ -27,11 +27,13 @@ summary: |
   carrier, then a trusted post-merge carrier owns exactly one immutable unprefixed tag. The exact
   read-only runtime chain and effective changeset probe pass with six optional pin rewrites, no
   private/unapproved Stage-A paths, and zero release/tag calls; local quality and security checks
-  are green. The carrier now has a temporary explicit manual/repository-variable dry-run mode that
-  emits a credential-free plan while preserving the live push default. Fresh sdd-verify local checks
-  pass; the technical verdict is PASS WITH WARNINGS and the next phase is independent sdd-qa.
-  Acceptance remains BLOCKED because hosted execution, publication, native non-host target evidence,
-  attestation, and rollback remain unverified and unauthorized.
+  are green. The carrier now correlates the exact event SHA before validation: ordinary main pushes
+  with no matching Release Please PR are successful auditable no-ops, exactly one match follows the
+  full carrier path, and multiple/malformed data fail closed. Fresh local sdd-verify passed every
+  requested local contract with PASS WITH WARNINGS. The temporary manual/repository-variable dry-run
+  mode still emits a credential-free plan while preserving the live push default. Acceptance remains
+  BLOCKED because hosted execution, publication, native non-host target evidence, attestation, and
+  rollback remain unverified and unauthorized; independent sdd-qa is next.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -43,8 +45,9 @@ decision:
 blocked:
   - Hosted Release Please/tag carrier/release workflow rehearsal remains unexecuted
   - Temporary carrier rehearsal guard is implemented locally but requires protected hosted observation
+  - Carrier no-match correlation fix is locally verified but not yet hosted-verified
   - PAT scope/masking/ref authorization, branch protection, tag delivery, and workflow dispatch recovery remain unconfirmed
-  - R-F6 tasks 4.2/7.4 hosted no-publication rehearsal and task 4.3 QA remain downstream gates
+  - R-F6 tasks 4.2/7.4/8.4 hosted no-publication rehearsals and task 4.3 QA remain downstream gates
   - no v0.1.0 release/tag or GitHub Release exists
   - Cargo/npm/GitHub Release/GHCR publication and attestation not authorized/executed
   - native evidence for seven non-host targets unavailable

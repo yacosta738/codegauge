@@ -77,6 +77,16 @@ drift, malformed semver, an existing release, or prefixed artifacts. It recomput
 Compare-and-create is idempotent: absent tag creates one lightweight ref at the SHA; same-SHA is
 a no-op; different-SHA fails closed and never starts release.
 
+The carrier first classifies the read-only `/commits/{sha}/pulls` response with the shared provenance
+helper. It validates the response shape, filters Release Please candidates by exact
+`merge_commit_sha == GITHUB_SHA`, and fetches the version-PR file list only for exactly one match. A
+trusted ordinary `main` push with zero matches is a successful no-op: it writes a credential-free
+`carrier-record.json` with `status=skipped`, reason `no-matching-release-please-pr`, and explicit
+`not-run`/`not-started` mutation statuses, then exits before tree/version/diff/tag/label validation.
+Multiple matches or malformed PR data fail closed before the diff fetch. Every later validation, plan,
+tag-ref, and label step requires the collection step's `matched` output, so the no-match path cannot
+reach a mutation even when live mode is the normalized default.
+
 ### Temporary hosted rehearsal mode
 
 The carrier accepts the trusted `push` and `workflow_dispatch` events only when the checked-out ref is

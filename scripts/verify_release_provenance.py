@@ -533,6 +533,106 @@ def _is_release_please_pr(pull_request: Any) -> bool:
     )
 
 
+def _validate_pull_request_record(pull_request: Any, index: int) -> dict[str, Any]:
+    """Validate the GitHub pull-request shape before classifying a carrier event."""
+
+    if not isinstance(pull_request, dict):
+        raise ProvenanceError(f"pull request entry {index} must be an object")
+    required = {
+        "number",
+        "title",
+        "body",
+        "labels",
+        "base",
+        "merged_at",
+        "merge_commit_sha",
+    }
+    missing = sorted(required - set(pull_request))
+    if missing:
+        raise ProvenanceError(
+            f"pull request entry {index} is missing fields: {', '.join(missing)}"
+        )
+
+    number = pull_request["number"]
+    if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
+        raise ProvenanceError(f"pull request entry {index} has an invalid number")
+    if not isinstance(pull_request["title"], str):
+        raise ProvenanceError(f"pull request entry {index} has an invalid title")
+    if pull_request["body"] is not None and not isinstance(pull_request["body"], str):
+        raise ProvenanceError(f"pull request entry {index} has an invalid body")
+
+    base = pull_request["base"]
+    if not isinstance(base, dict) or not isinstance(base.get("ref"), str):
+        raise ProvenanceError(f"pull request entry {index} has an invalid base")
+    base_repository = base.get("repo")
+    if base_repository is not None and (
+        not isinstance(base_repository, dict)
+        or not isinstance(base_repository.get("full_name"), str)
+    ):
+        raise ProvenanceError(f"pull request entry {index} has an invalid base repository")
+
+    labels = pull_request["labels"]
+    if not isinstance(labels, list) or any(
+        not isinstance(label, dict) or not isinstance(label.get("name"), str)
+        for label in labels
+    ):
+        raise ProvenanceError(f"pull request entry {index} has invalid labels")
+
+    merged_at = pull_request["merged_at"]
+    if merged_at is not None and not isinstance(merged_at, str):
+        raise ProvenanceError(f"pull request entry {index} has an invalid merged_at value")
+    merge_commit_sha = pull_request["merge_commit_sha"]
+    if merge_commit_sha is not None:
+        if not isinstance(merge_commit_sha, str):
+            raise ProvenanceError(
+                f"pull request entry {index} has an invalid merge_commit_sha"
+            )
+        require_sha(merge_commit_sha, f"pull request entry {index} merge_commit_sha")
+    return pull_request
+
+
+def select_matching_release_please_prs(
+    pull_requests: Any, event_sha: str
+) -> list[dict[str, Any]]:
+    """Return Release Please PRs merged exactly at the trusted event SHA."""
+
+    event_sha = require_sha(event_sha, "event SHA")
+    if not isinstance(pull_requests, list):
+        raise ProvenanceError("pull requests JSON must contain an array")
+    validated = [
+        _validate_pull_request_record(pull_request, index)
+        for index, pull_request in enumerate(pull_requests)
+    ]
+    return [
+        pull_request
+        for pull_request in validated
+        if _is_release_please_pr(pull_request)
+        and pull_request["merge_commit_sha"] == event_sha
+    ]
+
+
+def classify_carrier_prs(pull_requests: Any, event_sha: str) -> dict[str, Any]:
+    """Classify a trusted main event before any carrier validation or mutation."""
+
+    matching = select_matching_release_please_prs(pull_requests, event_sha)
+    if len(matching) > 1:
+        raise ProvenanceError(
+            "expected at most one merged Release Please PR for the event SHA, "
+            f"found {len(matching)}"
+        )
+    if not matching:
+        return {
+            "status": "skipped",
+            "reason": "no-matching-release-please-pr",
+            "matching_release_pr_count": 0,
+        }
+    return {
+        "status": "matched",
+        "matching_release_pr_count": 1,
+        "version_pr_number": matching[0]["number"],
+    }
+
+
 def validate_stage_a_diff(changed_files: list[Any]) -> None:
     """Allow only the synchronized version-PR file boundary."""
 
@@ -573,12 +673,13 @@ def validate_carrier_event(
     if require_clean:
         validate_clean_checkout(root)
     version = validate_carrier_tree(root)
-    candidates = [pull_request for pull_request in pull_requests if _is_release_please_pr(pull_request)]
+    candidates = select_matching_release_please_prs(pull_requests, event_sha)
     if len(candidates) != 1:
-        raise ProvenanceError(f"expected exactly one merged Release Please PR, found {len(candidates)}")
+        raise ProvenanceError(
+            "expected exactly one merged Release Please PR for the event SHA, "
+            f"found {len(candidates)}"
+        )
     pull_request = candidates[0]
-    if pull_request.get("merge_commit_sha") != event_sha:
-        raise ProvenanceError("merged Release Please PR commit does not match the main event SHA")
     body = pull_request.get("body") or ""
     if body.count("---") < 2 or version not in body:
         raise ProvenanceError("merged Release Please PR body is not a synchronized version PR")
@@ -820,6 +921,9 @@ def parser() -> argparse.ArgumentParser:
     archives.add_argument("--release-version", required=True)
     archives.add_argument("--source-revision", required=True)
     archives.add_argument("--release-out", type=Path, required=True)
+    carrier_selection = subcommands.add_parser("carrier-pr-selection")
+    carrier_selection.add_argument("--event-sha", required=True)
+    carrier_selection.add_argument("--pull-requests", type=Path, required=True)
     carrier = subcommands.add_parser("carrier")
     carrier.add_argument("--event-name", required=True)
     carrier.add_argument("--ref", required=True)
@@ -870,6 +974,11 @@ def main(argv: list[str] | None = None) -> int:
             validate_sha = require_sha(args.source_revision, "source_revision")
             validate_archive_set(args.release_out, args.release_version, validate_sha)
             print("RELEASE ARCHIVE PROVENANCE: PASS")
+        elif args.command == "carrier-pr-selection":
+            selection = classify_carrier_prs(
+                _load_json_value(args.pull_requests), args.event_sha
+            )
+            print(json.dumps(selection, sort_keys=True))
         elif args.command == "carrier":
             pull_requests = _load_json_value(args.pull_requests)
             changed_files = _changed_files(_load_json_value(args.pull_request_files))
