@@ -1,6 +1,6 @@
 [package]
 name = "codegauge-application"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ description = "Artifact orchestration and canonical serialization for CodeGauge"
 exclude = ["tests/**"]
 
 [dependencies]
-codegauge-core = { version = "0.1.0", path = "../codegauge-core" }
-codegauge-model = { version = "0.1.0", path = "../codegauge-model" }
+codegauge-core = { version = "0.2.0", path = "../codegauge-core" }
+codegauge-model = { version = "0.2.0", path = "../codegauge-model" }
 serde_json.workspace = true
 sha2.workspace = true

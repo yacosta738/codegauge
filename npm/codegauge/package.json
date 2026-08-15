@@ -1,20 +1,22 @@
 {
   "name": "@yacosta738/codegauge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CodeGauge deterministic JaCoCo evidence CLI wrapper",
   "license": "MIT",
   "repository": "yacosta738/codegauge",
   "bin": {
     "codegauge": "dist/index.js"
   },
-  "files": ["dist/index.js"],
+  "files": [
+    "dist/index.js"
+  ],
   "optionalDependencies": {
-    "@yacosta738/codegauge-linux-x64-gnu": "0.1.0",
-    "@yacosta738/codegauge-linux-arm64-gnu": "0.1.0",
-    "@yacosta738/codegauge-darwin-x64": "0.1.0",
-    "@yacosta738/codegauge-darwin-arm64": "0.1.0",
-    "@yacosta738/codegauge-win32-x64-msvc": "0.1.0",
-    "@yacosta738/codegauge-win32-arm64-msvc": "0.1.0"
+    "@yacosta738/codegauge-linux-x64-gnu": "0.2.0",
+    "@yacosta738/codegauge-linux-arm64-gnu": "0.2.0",
+    "@yacosta738/codegauge-darwin-x64": "0.2.0",
+    "@yacosta738/codegauge-darwin-arm64": "0.2.0",
+    "@yacosta738/codegauge-win32-x64-msvc": "0.2.0",
+    "@yacosta738/codegauge-win32-arm64-msvc": "0.2.0"
   },
   "scripts": {
     "build": "tsc --outDir dist --rootDir src",

@@ -1,6 +1,6 @@
 {
   "name": "@yacosta738/codegauge-win32-arm64-msvc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CodeGauge executable for Windows arm64 MSVC",
   "license": "MIT",
   "repository": "yacosta738/codegauge",
