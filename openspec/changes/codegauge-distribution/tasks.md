@@ -73,7 +73,29 @@ Use the feature-branch chain; later units target the preceding branch. No Stack 
 - [x] 7.3 **REFACTOR** — Document `RELEASE_CARRIER_DRY_RUN`, the manual `dry_run=true` command, plan evidence, and variable cleanup; update the OpenSpec design/spec and QA handoff without claiming hosted execution.
 - [ ] 7.4 Run the protected hosted rehearsal for both the variable-controlled merge and manual `dry_run: true`; inspect the plan record and prove no hosted write. This remains pending and is not executed by apply.
 
-## Verification handoff — 2026-08-15
+## Phase 8: Carrier event-correlation defect remediation
+
+### Layer boundary
+
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Trunk/base: `origin/main`; branch: `fix/release-carrier-skip-unmatched`; no Stack metadata.
+- Scope: correlate the trusted event SHA before Stage-B validation so ordinary `main` pushes are
+  auditable successful no-ops while the exact-one, multiple, and malformed paths remain fail-closed.
+
+- [x] 8.1 **RED** — Extend the existing runtime/static carrier suites with ordinary-main zero-match,
+  exactly-one-match full-path, multiple-match failure, malformed-data failure, and no-mutation guard
+  regressions; confirm the pre-fix workflow/test boundary fails.
+- [x] 8.2 **GREEN** — Add the read-only carrier PR classifier and CLI boundary, make the workflow emit a
+  skipped `carrier-record.json`/summary and exit 0 for zero matching Release Please PRs, and gate all
+  later validation/tag/label steps on exactly one matching PR.
+- [x] 8.3 **REFACTOR** — Preserve the existing dry-run/live, exact diff/version/private/root/SemVer,
+  idempotency/conflict, full-SHA, permissions, concurrency, and no-publication contracts; rerun the
+  focused and complete local checks without hosted writes.
+- [ ] 8.4 Run a new protected hosted rehearsal for an ordinary feature-PR main push and the actual
+  Release Please merge; prove the former is a successful no-op and the latter still follows the
+  existing dry-run/live carrier path. This remains pending and is not executed by apply.
+
+## Historical verification handoff — 2026-08-15 (pre-Phase-8)
 
 The `sdd-verify` executor reran the local carrier, provenance, distribution, bootstrap, README,
 Release Please runtime, compile, Cargo, npm, OCI, package, workflow-lint, ShellCheck, Dockerfile,
@@ -81,3 +103,17 @@ and diff checks successfully. The exact carrier mode and plan steps were also ex
 read-only fake GitHub CLI; this is local evidence only. Tasks `4.2`, `4.3`, and `7.4` remain
 intentionally unchecked because the protected hosted rehearsal and independent acceptance QA were
 not performed under the no-write boundary.
+
+The first hosted Stage-A rehearsal remains valid: it created PR `#59` and produced no tag or GitHub
+Release. The automatic Stage-B run that observed the preceding feature-PR merge is the defect being
+fixed by Phase 8; the Phase-8 no-match behavior has local regression evidence only and is not yet
+hosted-verified.
+
+## Verification handoff — 2026-08-15 (Phase 8)
+
+Fresh `sdd-verify` completed against the dirty `fix/release-carrier-skip-unmatched` checkout. All
+local implementation tasks are complete and all requested local carrier, exact Release Please
+17.6.0, Cargo, npm, OCI, workflow, package, and whitespace checks passed. The four remaining
+unchecked tasks are external/downstream gates: `4.2`, `7.4`, and `8.4` hosted rehearsals plus `4.3`
+verification/QA handoff. Technical verdict: **PASS WITH WARNINGS**. The next phase is `sdd-qa`;
+this task artifact does not claim hosted or operator acceptance.

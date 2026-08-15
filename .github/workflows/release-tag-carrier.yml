@@ -77,11 +77,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect the one merged Release Please PR
+        id: collect
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
+          # shellcheck disable=SC2016 # jq variables are supplied with --arg/--argjson.
           test -n "${GH_TOKEN:-}"
           test "$GITHUB_EVENT_NAME" = "push" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
           test "$GITHUB_REF" = "refs/heads/main"
@@ -91,40 +93,71 @@ jobs:
           gh api --paginate --slurp \
             "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
             -H 'Accept: application/vnd.github+json' \
-            | jq 'add' > carrier-pull-requests.json
-          release_pr_count="$(jq --arg sha "$GITHUB_SHA" '
-            [ .[]
-              | select(
-                  .base.ref == "main"
-                  and .merged_at != null
-                  and .merge_commit_sha == $sha
-                  and (([.labels[]?.name] | index("autorelease: pending")) != null)
-                  and (((.title // "") | ascii_downcase | contains("release")))
-                  and (((.body // "") | contains("Release Please")))
-                )
-            ] | length
-          ' carrier-pull-requests.json)"
-          test "$release_pr_count" -eq 1
-          release_pr_number="$(jq -er --arg sha "$GITHUB_SHA" '
-            [ .[]
-              | select(
-                  .base.ref == "main"
-                  and .merged_at != null
-                  and .merge_commit_sha == $sha
-                  and (([.labels[]?.name] | index("autorelease: pending")) != null)
-                  and (((.title // "") | ascii_downcase | contains("release")))
-                  and (((.body // "") | contains("Release Please")))
-                )
-            ][0].number
-          ' carrier-pull-requests.json)"
+            | jq -e 'if (type == "array" and all(.[]; type == "array")) then (add // []) else error("GitHub pull-request response must contain arrays") end' \
+            > carrier-pull-requests.json
+          mv carrier-pull-requests.json "$carrier_input_dir/pull-requests.json"
+          selection="$(python3 scripts/verify_release_provenance.py carrier-pr-selection \
+            --event-sha "$GITHUB_SHA" \
+            --pull-requests "$carrier_input_dir/pull-requests.json")"
+          printf '%s\n' "$selection" > "$carrier_input_dir/selection.json"
+          selection_status="$(jq -er '.status' <<<"$selection")"
+          case "$selection_status" in
+            skipped)
+              test "$(jq -er '.matching_release_pr_count' <<<"$selection")" -eq 0
+              # shellcheck disable=SC2016 # jq variables are supplied with --arg/--argjson.
+              jq -n \
+                --arg event_name "$GITHUB_EVENT_NAME" \
+                --arg event_ref "$GITHUB_REF" \
+                --arg event_sha "$GITHUB_SHA" \
+                --argjson selection "$selection" \
+                "{
+                  status: \"skipped\",
+                  reason: \$selection.reason,
+                  event: {
+                    name: \$event_name,
+                    ref: \$event_ref,
+                    sha: \$event_sha
+                  },
+                  matching_release_pr_count: \$selection.matching_release_pr_count,
+                  mutations: {
+                    carrier_validation: \"not-run\",
+                    canonical_tag_ref: \"not-started\",
+                    version_pr_label: \"not-started\",
+                    release_on_tag_workflow: \"not-dispatched\",
+                    publication: \"not-started\"
+                  }
+                }" > carrier-record.json
+              printf 'status=skipped\n' >> "$GITHUB_OUTPUT"
+              printf 'reason=no-matching-release-please-pr\n' >> "$GITHUB_OUTPUT"
+              {
+                printf '%s\n' '## Release carrier skipped'
+                printf -- '- status: skipped\n'
+                printf -- '- reason: no matching merged Release Please PR for GITHUB_SHA\n'
+                printf -- '- event: %s on %s at %s\n' "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$GITHUB_SHA"
+                printf -- '- record: carrier-record.json\n'
+                printf '%s\n' '- mutations: validation, tag, label, release, upload, and publication paths were not run'
+              } >> "$GITHUB_STEP_SUMMARY"
+              cat carrier-record.json
+              exit 0
+              ;;
+            matched)
+              test "$(jq -er '.matching_release_pr_count' <<<"$selection")" -eq 1
+              release_pr_number="$(jq -er '.version_pr_number' <<<"$selection")"
+              printf 'status=matched\n' >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              printf 'carrier PR selection returned an invalid status: %s\n' "$selection_status" >&2
+              exit 1
+              ;;
+          esac
           gh api --paginate --slurp \
             "repos/${GITHUB_REPOSITORY}/pulls/${release_pr_number}/files" \
             -H 'Accept: application/vnd.github+json' \
             | jq 'add | map(.filename)' > "$carrier_input_dir/files.json"
-          mv carrier-pull-requests.json "$carrier_input_dir/pull-requests.json"
 
       - name: Validate the merged tree and version PR
         id: carrier
+        if: steps.collect.outputs.status == 'matched'
         shell: bash
         run: |
           set -euo pipefail
@@ -142,6 +175,7 @@ jobs:
 
       - name: Compute read-only canonical tag plan
         id: plan
+        if: steps.collect.outputs.status == 'matched'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           NORMALIZED_MODE: ${{ steps.mode.outputs.mode }}
@@ -254,7 +288,7 @@ jobs:
           cat carrier-plan.json
 
       - name: Confirm dry-run has no mutation plan
-        if: steps.mode.outputs.dry_run == 'true'
+        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -265,7 +299,7 @@ jobs:
           test "$(jq -er '.mutations.publication' carrier-plan.json)" = "not-started"
 
       - name: Compare and create one immutable lightweight tag
-        if: steps.mode.outputs.dry_run == 'false'
+        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash
@@ -298,7 +332,7 @@ jobs:
           test "$(jq -er '.action' <<<"$retry_plan")" = "noop"
 
       - name: Mark the carried version PR as tagged
-        if: steps.mode.outputs.dry_run == 'false'
+        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash

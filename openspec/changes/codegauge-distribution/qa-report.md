@@ -1,4 +1,19 @@
-# Acceptance QA Report: codegauge-distribution (authoritative 2026-08-15)
+# Acceptance QA Report: codegauge-distribution (acceptance rerun pending; technical verify complete)
+
+## Technical verification handoff — carrier event-correlation fix — 2026-08-15
+
+The prior hosted Stage-A evidence remains valid: Release Please created PR `#59` and no tag or GitHub
+Release. Fresh `sdd-verify` verified the automatic Stage-B ordinary-main-push fix locally: zero
+matching Release Please PRs are a successful auditable no-op, exactly one matching PR follows the
+full carrier path, and multiple/malformed data fail closed. The new behavior is **not yet
+hosted-verified**, and no hosted write, tag, label, release, upload, publication, or credential use was
+performed. The QA verdict remains `BLOCKED`; this report makes no acceptance claim for the fix.
+
+- Local technical verdict: **PASS WITH WARNINGS**.
+- Local evidence: carrier correlation/static/runtime suites, exact Release Please `17.6.0` fake-SCM
+  (one PR, six pins, zero release/tag calls, private exclusion), Cargo/npm/OCI/workflow/package checks.
+- Remaining acceptance gates: protected hosted ordinary-main and Release Please rehearsals, hosted
+  publication/tag delivery, native target evidence, failure injection/rollback, and independent QA.
 
 ## 1. Identity
 
@@ -9,8 +24,10 @@
 - QA verdict: `BLOCKED`
 - Scope: authorized R-F6 two-stage Release Please 17.6.0 version-PR pass plus post-merge canonical-tag carrier
 
-This is the authoritative QA section for the current R-F6 implementation. The older 2026-08-13 QA
-record is retained below as historical evidence and is superseded by this section.
+The scenario matrix below is the prior executable QA run and remains `BLOCKED` for the acceptance
+gates it could not observe. The technical verification handoff above supersedes its source-state
+description for the carrier fix, but does not upgrade it to QA acceptance. The older 2026-08-13 QA
+record is retained below as historical evidence.
 
 ## 2. Source artifacts and technical verification handoff
 
@@ -47,11 +64,10 @@ record is retained below as historical evidence and is superseded by this sectio
 
 ### Technical handoff
 
-The latest `verify-report.md` is dated 2026-08-15 and hands off a technical verdict of
-`PASS WITH WARNINGS`. It reports that all locally executable R-F6 contracts pass, including the
-private-candidate boundary remediation, and that no CRITICAL implementation defect was found. Tasks
-4.2 (protected hosted rehearsal) and 4.3 (downstream QA) remain incomplete. This QA report does not
-upgrade that handoff into hosted or product acceptance.
+The fresh authoritative technical-verification section in `verify-report.md` hands off `PASS WITH
+WARNINGS` for the current carrier-fix checkout. Tasks 4.2/7.4/8.4 (protected hosted rehearsal) and
+4.3 (downstream QA) remain incomplete. This QA report does not upgrade local evidence into hosted or
+product acceptance.
 
 The checked-in fake-SCM harness records the upstream raw `Update[]` proposals before the exact
 v17.6.0 `GitHub.buildChangeSet` missing-file filtering boundary; its log therefore contains some
@@ -62,9 +78,9 @@ as local evidence and does not treat either probe as hosted changed-file or publ
 ## 3. Target, environment, permissions, and limitations
 
 - Local target: `/Users/acosta/Dev/agent-swarm/codegauge`.
-- Checkout: branch `fix/release-please-root-files`, `HEAD=1623c7175dcc9dd07427c0a48a89054bb274bce1`.
-- Worktree: intentionally dirty with the pre-existing R-F6 implementation; QA made no source,
-  workflow, credential, release, or registry changes.
+- Checkout: branch `fix/release-carrier-skip-unmatched`, `HEAD=6c9e6dfd8507b12d37eef21b303cfe435e70abc9`.
+- Worktree: intentionally dirty with the carrier-correlation remediation and prior R-F6 artifacts;
+  QA made no source, workflow, credential, release, or registry changes.
 - Host: macOS arm64.
 - Toolchain observed in `/tmp/codegauge-rf6-qa.weKmyI/environment.log`: Rust/Cargo 1.97.1,
   Node 24.19.0, npm 11.17.0, Python 3.14.6, Docker 29.7.2, actionlint 1.7.12.

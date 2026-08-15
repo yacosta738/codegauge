@@ -981,3 +981,105 @@ credential injection, or hosted write was performed.
 - [ ] Task `7.4` hosted variable-controlled and manual carrier rehearsal.
 - Hosted PAT scope/masking/ref authorization, branch protection, tag delivery, publication,
   attestation, rollback/failure injection, and native non-host target evidence remain unverified.
+
+## Carrier event-correlation defect remediation — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the hosted-discovered Stage-B carrier
+  correlation defect.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Layer boundary: `trunk=main`, `base=origin/main`, `branch=fix/release-carrier-skip-unmatched`,
+  `position=carrier event-correlation repair`; no Stack metadata.
+- The prior hosted Stage-A rehearsal remains valid: Release Please created PR `#59` with no tag or
+  GitHub Release. This slice does not claim hosted verification of the new carrier behavior.
+- No commit, push, merge, repository-variable change, tag, label, release, upload, publication,
+  attestation, credential use, or parent-repository mutation was performed.
+
+### Completed tasks
+
+- [x] 8.1 — Added runtime/static regressions for ordinary `main` pushes with zero matching Release
+  Please PRs, exactly one matching PR with a normal neighboring PR, multiple matches, malformed PR
+  data, and the no-mutation workflow guard.
+- [x] 8.2 — Added `classify_carrier_prs()` and the `carrier-pr-selection` CLI boundary. The carrier
+  workflow now validates the read-only PR response, filters by exact `merge_commit_sha == GITHUB_SHA`,
+  exits 0 with an auditable skipped `carrier-record.json`/summary for zero matches, and gates diff,
+  tree, version, tag-plan, tag-ref, and label steps on `status=matched`.
+- [x] 8.3 — Preserved the existing exact Stage-B validator, manual/variable dry-run precedence,
+  live default, idempotency/conflict behavior, full-SHA actions, permissions, concurrency, and
+  no-publication topology; updated the release-artifacts spec/design and verify/QA handoffs.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding the new runtime/static assertions before production changes,
+   `python3 tests/release_carrier_tests.py` failed with `ImportError` for the not-yet-existing
+   classifier, and `python3 tests/release_carrier_static_tests.py` failed because the workflow still
+   had the unconditional `test release_pr_count -eq 1` boundary and no skip/mutation guards.
+2. **GREEN:** after implementing the classifier, CLI selection command, no-match record/summary, and
+   matched-only workflow gates, `python3 tests/release_carrier_tests.py` and
+   `python3 tests/release_carrier_static_tests.py` passed. The runtime suite covers zero-match skip,
+   exactly-one full validation, multiple-match failure, malformed-data failure, and a CLI nonzero
+   multiple-match path.
+3. **REFACTOR:** replaced duplicated workflow `jq` candidate filters with the shared Python
+   classifier, validated the GitHub PR response shape fail-closed, made the no-match record explicit,
+   tightened shell quoting/ShellCheck handling, and reran focused tests plus `actionlint` green.
+
+### Local verification
+
+- `python3 tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`,
+  `tests/release_provenance_tests.py`, `tests/distribution_checks.py`, `tests/bootstrap_checks.py`,
+  and `tests/readme_checks.py` — PASS.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` —
+  PASS.
+- `python3 tests/oci_distribution_tests.py`, `tests/oci_distribution_static_tests.py`,
+  `tests/oci_distribution_evidence_tests.py`, and `tests/oci_distribution_failure_tests.py` — PASS.
+- `cargo +1.97.1 metadata --locked --format-version 1`, workspace tests (31 passed), check, fmt, and
+  locked Clippy with `-D warnings` — PASS.
+- npm wrapper typecheck/tests (6 passed) and wrapper plus six platform `npm pack --dry-run` checks —
+  PASS (7 packages).
+- `actionlint .github/workflows/*.yml`, `shellcheck scripts/build_oci_release.sh`,
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+- A local read-only `jq` record probe confirmed the skipped record's `not-run`/`not-started`,
+  `not-dispatched`, and `not-started` mutation statuses. This is supplemental local evidence, not
+  hosted acceptance evidence.
+
+### Remaining gates and risks
+
+- [ ] 8.4 / 4.2 / 7.4 — protected hosted ordinary-main no-op, Release Please merge, and manual/variable
+  dry-run rehearsal; the new no-match fix is not yet hosted-verified.
+- [ ] 4.3 — fresh `sdd-verify` followed by independent `sdd-qa`; apply makes no user/operator
+  acceptance claim.
+- Publication, credentials, tag/label delivery, downstream workflow execution, attestation,
+  rollback/failure injection, and native non-host target evidence remain outside this no-write slice.
+- An extra local five-crate `cargo package` loop was attempted; the first package passed, while the
+  second stopped on the repository's pre-existing unpublished local dependency not being present in
+  the crates.io index. The requested Cargo metadata/test/check/fmt/Clippy checks passed, and no
+  package/publication state was changed. The fresh verification rerun below supersedes that transient
+  apply-time result and passed all five package checks with the local dependency patches.
+
+## SDD verification executor rerun — 2026-08-15
+
+### Result
+
+- [x] Re-read the proposal, all five delta specs, design, tasks, current diff, implementation,
+  workflow topology, state, and QA handoff before judging the change.
+- [x] Fresh local verification passed: carrier correlation/runtime/static suites, exact
+  `release-please@17.6.0` fake-SCM, provenance/distribution/bootstrap/README checks, all OCI layers,
+  Python compilation/package generation, locked Cargo metadata/tests/check/fmt/Clippy, all five
+  local Cargo package checks, npm typecheck/tests/seven pack dry-runs, actionlint, ShellCheck,
+  Dockerfile check, and `git diff --check`.
+- [x] Zero-match local record probe emitted `status=skipped`, reason
+  `no-matching-release-please-pr`, and explicit validation/tag/label/release/publication no-op
+  statuses without fetching a diff; exact-one, multiple, malformed, wrong-context, and mutation
+  boundary probes remained green.
+- [x] No commit, push, merge, repository-variable change, tag, label, release, upload, publication,
+  attestation, credential injection, or hosted write was performed.
+
+### Verification handoff
+
+- Technical verdict: **PASS WITH WARNINGS**. No CRITICAL local defect was found.
+- Hosted ordinary-main no-op, actual Release Please merge, manual/variable rehearsal, tag delivery,
+  publication, attestation, rollback/failure injection, and native non-host target evidence remain
+  unverified or prohibited.
+- Independent `sdd-qa` remains the next phase and owns acceptance; no user/operator acceptance is
+  claimed by this technical verification.

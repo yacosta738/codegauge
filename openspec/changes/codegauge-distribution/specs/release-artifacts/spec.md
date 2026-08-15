@@ -110,6 +110,39 @@ create or update a Git ref, mutate Release Please labels, dispatch `release-on-t
 release asset, or invoke any registry publisher. Live mode MUST retain the existing tag compare/create,
 race retry, and label handoff behavior.
 
+Before tree or version validation, the carrier MUST correlate merged Release Please PRs to the exact
+trusted event SHA. Zero matching PRs on a trusted `main` push or dispatch MUST be a successful no-op:
+the carrier MUST emit a skipped/no-matching-release record and summary, and MUST NOT run carrier
+validation or any tag, label, release, upload, or publication path. Exactly one matching PR MUST enter
+the full validation flow. More than one matching PR, an invalid PR collection, or malformed PR data
+MUST fail closed before mutation.
+
+#### Scenario: Ordinary main push has no matching Release Please PR
+
+- GIVEN a trusted `push` or `workflow_dispatch` on `refs/heads/main`
+- AND the GitHub pull-request collection contains zero merged Release Please PRs whose
+  `merge_commit_sha` equals `GITHUB_SHA`
+- WHEN the carrier correlates the event before fetching the version-PR diff
+- THEN the workflow exits successfully with `status=skipped` and reason
+  `no-matching-release-please-pr`
+- AND it emits `carrier-record.json` plus a workflow summary proving carrier validation, tag, label,
+  release, upload, and publication paths were not run
+
+#### Scenario: Exactly one Release Please PR matches the event SHA
+
+- GIVEN a trusted `main` event with exactly one merged Release Please PR whose `merge_commit_sha`
+  equals `GITHUB_SHA`
+- WHEN the carrier correlates the pull requests
+- THEN it fetches that PR's diff and continues the existing exact tree, version, provenance, tag-plan,
+  dry-run, live, idempotency, and conflict validation flow
+
+#### Scenario: Multiple matching Release Please PRs or malformed data
+
+- GIVEN a trusted `main` event with more than one matching Release Please PR or malformed GitHub PR
+  collection data
+- WHEN the carrier correlates the pull requests
+- THEN it fails closed before fetching the diff or performing any mutation
+
 #### Scenario: Manual carrier dry-run
 
 - GIVEN `release-tag-carrier.yml` is dispatched on `main` with `dry_run: true`

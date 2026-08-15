@@ -22,7 +22,9 @@ from scripts.verify_release_provenance import (  # noqa: E402
     CarrierRecord,
     ProvenanceError,
     VERSION_RE,
+    classify_carrier_prs,
     plan_carrier_tag,
+    select_matching_release_please_prs,
     validate_carrier_event,
     validate_carrier_release_slot,
     validate_carrier_tree,
@@ -111,6 +113,18 @@ def release_pr(merge_sha: str = SHA, number: int = 42) -> dict[str, object]:
     }
 
 
+def ordinary_main_pr(merge_sha: str = SHA, number: int = 59) -> dict[str, object]:
+    pull_request = release_pr(merge_sha=merge_sha, number=number)
+    pull_request.update(
+        {
+            "title": "feat: add a carrier rehearsal fixture",
+            "body": "ordinary feature pull request",
+            "labels": [],
+        }
+    )
+    return pull_request
+
+
 def copy_release_tree() -> Path:
     directory = Path(tempfile.mkdtemp(prefix="codegauge-carrier-test-"))
     fixture = directory / "repo"
@@ -170,6 +184,47 @@ def main() -> int:
             root=fixture,
         )
         assert manual_record == record
+        mixed_record = validate_carrier_event(
+            event_name="push",
+            ref="refs/heads/main",
+            event_sha=SHA,
+            pull_requests=[ordinary_main_pr(), release_pr()],
+            changed_files=DIFF,
+            root=fixture,
+        )
+        assert mixed_record == record
+
+        # A normal feature-PR merge can trigger the carrier workflow before the
+        # Release Please PR is merged.  That event is a successful no-op and
+        # must never enter tree/version/tag validation.
+        assert classify_carrier_prs([], SHA) == {
+            "status": "skipped",
+            "reason": "no-matching-release-please-pr",
+            "matching_release_pr_count": 0,
+        }
+        assert select_matching_release_please_prs([ordinary_main_pr()], SHA) == []
+        assert classify_carrier_prs([ordinary_main_pr()], SHA) == {
+            "status": "skipped",
+            "reason": "no-matching-release-please-pr",
+            "matching_release_pr_count": 0,
+        }
+        assert classify_carrier_prs([ordinary_main_pr(), release_pr()], SHA) == {
+            "status": "matched",
+            "matching_release_pr_count": 1,
+            "version_pr_number": 42,
+        }
+        assert_fails(
+            lambda: classify_carrier_prs(
+                [release_pr(), release_pr(number=43)], SHA
+            ),
+            "carrier accepted more than one matching Release Please PR",
+        )
+        malformed_pr = ordinary_main_pr()
+        del malformed_pr["base"]
+        assert_fails(
+            lambda: classify_carrier_prs([malformed_pr], SHA),
+            "carrier treated malformed PR data as a no-op",
+        )
         carrier_inputs = fixture / "carrier-inputs"
         carrier_inputs.mkdir()
         (carrier_inputs / "pull-requests.json").write_text(
@@ -227,6 +282,48 @@ def main() -> int:
             text=True,
         )
         assert json.loads(manual_cli_result.stdout) == json.loads(cli_result.stdout)
+
+        selection_input = carrier_inputs / "ordinary-pull-requests.json"
+        selection_input.write_text(
+            json.dumps([ordinary_main_pr()]), encoding="utf-8"
+        )
+        skip_cli_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "verify_release_provenance.py"),
+                "carrier-pr-selection",
+                "--event-sha",
+                SHA,
+                "--pull-requests",
+                str(selection_input),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert json.loads(skip_cli_result.stdout) == {
+            "matching_release_pr_count": 0,
+            "reason": "no-matching-release-please-pr",
+            "status": "skipped",
+        }
+        (carrier_inputs / "multiple-release-pull-requests.json").write_text(
+            json.dumps([release_pr(), release_pr(number=43)]), encoding="utf-8"
+        )
+        multiple_cli_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "verify_release_provenance.py"),
+                "carrier-pr-selection",
+                "--event-sha",
+                SHA,
+                "--pull-requests",
+                str(carrier_inputs / "multiple-release-pull-requests.json"),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert multiple_cli_result.returncode != 0
 
         for package_path in APPROVED_NPM_PACKAGE_DIFFS:
             validate_stage_a_diff(

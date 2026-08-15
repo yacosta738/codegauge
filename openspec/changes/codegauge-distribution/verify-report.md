@@ -1,15 +1,179 @@
 # Verification Report
 
 **Change**: `codegauge-distribution`
-**Verification date**: 2026-08-15
-**Version under test**: `0.1.0`
-**Persistence mode**: OpenSpec
-**Baseline**: `6477eb1`
-**Current checkout**: `1623c7175dcc9dd07427c0a48a89054bb274bce1` plus the intentionally dirty remediation files
-**Scope**: technical conformance only; observable acceptance remains with `sdd-qa`
-**Worktree**: intentionally dirty; no commit, push, merge, tag, release, publication, or credential use
 
 ## Fresh executor verification — 2026-08-15 (authoritative)
+
+**Change**: `codegauge-distribution`
+**Mode**: OpenSpec
+**Verification scope**: current carrier-correlation diff, all five delta specs, design/tasks,
+workflow topology, carrier/provenance/runtime tests, and relevant local quality/package checks
+**Branch**: `fix/release-carrier-skip-unmatched`
+**Checkout**: `HEAD=6c9e6dfd8507b12d37eef21b303cfe435e70abc9`, equal to `origin/main`, plus the
+intentionally dirty 11-file remediation/artifact checkout
+**Version under test**: `0.1.0`
+**Baseline**: `6477eb1`
+**Persistence mode**: OpenSpec
+**Scope**: technical conformance only; observable acceptance remains with `sdd-qa`
+**Safety boundary**: no commit, push, merge, repository-variable change, tag, release, upload,
+publication, attestation, credential injection, or hosted write
+
+### Completeness
+
+| Metric | Result |
+|---|---:|
+| Task checkboxes | 28 |
+| Complete | 24 |
+| Incomplete | 4 |
+| Requirements reviewed | 25 |
+| Scenarios reviewed | 40 |
+| Technical verdict | **PASS WITH WARNINGS** |
+
+Incomplete tasks are hosted/acceptance gates only: `4.2`, `4.3`, `7.4`, and `8.4`. No local
+implementation task is incomplete.
+
+### Build, tests, and coverage evidence
+
+| Command/check | Result |
+|---|---|
+| Carrier correlation runtime suite | **PASS**: zero-match skip, exact-one matching/full validation, neighboring ordinary PR, multiple-match rejection, malformed-shape rejection, wrong ref/SHA, private/unapproved/missing state, strict SemVer, idempotency, and conflicts |
+| Carrier static/security suite | **PASS**: exact correlation-before-diff ordering, matched-only validation/mutation gates, full-SHA actions, permissions, token separation, concurrency, canonical tag topology, and no publication calls |
+| Exact Release Please runtime | **PASS**: installed `17.6.0` fake SCM produced one synchronized PR, six optional pin rewrites to `0.2.0`, zero release calls, zero tag calls, and no private conformance candidate; private Stage-B mutation rejected |
+| Provenance/distribution/bootstrap/README suites | **PASS** |
+| OCI regression layers | **PASS**: primary, static, evidence, and failure suites |
+| Python/package checks | **PASS**: `compileall`, npm package generation, and the hermetic no-match record probe |
+| Locked Cargo gates | **PASS**: metadata, 31 workspace tests (0 failed/0 skipped), check, fmt, and Clippy `-D warnings` |
+| Cargo package verification | **PASS**: all five runtime crates with locked local dependency patch verification; no publication |
+| npm gates | **PASS**: wrapper typecheck, six npm tests, and wrapper plus six platform `npm pack --dry-run` checks |
+| Workflow/container/whitespace gates | **PASS**: `actionlint`, ShellCheck, Dockerfile `buildx --check`, and `git diff --check` |
+| Carrier mode probe | **PASS**: manual true/false, push variable true/false/unset, precedence, and invalid-value rejection |
+| Hosted/publication checks | **NOT RUN** by safety boundary; no credentials or hosted state were used |
+| Coverage | ➖ Not configured; `openspec/config.yaml` declares coverage unavailable |
+
+The local no-match probe emitted `status=skipped`, reason `no-matching-release-please-pr`, and
+explicit `not-run`/`not-started`/`not-dispatched` mutation statuses without creating a diff input.
+The workflow itself remains hosted-only; this probe plus the checked-in runtime/static tests is not
+hosted acceptance evidence.
+
+### Spec compliance matrix
+
+`✅ LOCAL` means a covering local runtime test or executable validator passed. `⚠️ PARTIAL` means
+the local/static contract is green but hosted execution, publication, native target evidence, or
+failure injection was unavailable or prohibited. No local scenario failed.
+
+| ID | Scenario | Evidence | Result |
+|---|---|---|---|
+| CI-1 | Untrusted pull request has no release credentials | Workflow permissions inspection; no hosted PR run | ⚠️ PARTIAL |
+| CI-2 | Mutable action reference blocks distribution | Full-SHA audit and actionlint; no injected mutable ref | ⚠️ PARTIAL |
+| CI-3 | Baseline quality commands pass | Locked Cargo/Python suites | ✅ LOCAL |
+| CI-4 | Existing lint failure remains blocking | `-D warnings` retained; no failure injection | ⚠️ PARTIAL |
+| CI-5 | Incomplete target declaration blocks eligibility | Distribution/OCI negative validators | ✅ LOCAL |
+| CI-6 | Failed preflight blocks later publishers | Workflow `needs` topology; no hosted injection | ⚠️ PARTIAL |
+| CARGO-1 | Runtime graph packages/publishes in order | Five local package checks and workflow order; no registry publish | ⚠️ PARTIAL |
+| CARGO-2 | Source fallback preserves CLI contracts | Locked workspace tests plus `version`/`profiles` runtime | ✅ LOCAL |
+| CARGO-3 | Immutable source install preserves behavior | No canonical tag/release exists | ⚠️ PARTIAL |
+| CARGO-4 | Distribution-only change preserves RFC-0001 | Workspace/conformance/CLI tests | ✅ LOCAL |
+| CARGO-5 | Incomplete Cargo package stops upload | Positive package checks; no failure injection | ⚠️ PARTIAL |
+| CARGO-6 | Cargo/version/provenance mismatch blocks release | Carrier/provenance drift mutations | ✅ LOCAL |
+| NPM-1 | Only approved base and six platform packages are eligible | Generator, manifests, typecheck, tests, and seven pack dry-runs | ✅ LOCAL |
+| NPM-2 | Supported runtime selects exactly one package | npm target-resolution tests | ✅ LOCAL |
+| NPM-3 | Unsupported/missing optional dependency fails nonzero | npm negative tests | ✅ LOCAL |
+| NPM-4 | npm arguments/stdio/exit status pass through | npm passthrough test | ✅ LOCAL |
+| NPM-5 | Checksum mismatch blocks npm eligibility | Provenance/checksum regression validators | ✅ LOCAL |
+| OCI-1 | Only approved GHCR identity is eligible | Workflow identity/permission static checks; no registry run | ⚠️ PARTIAL |
+| OCI-2 | Unsupported OCI architecture is rejected | OCI negative suite | ✅ LOCAL |
+| OCI-3 | Workspace-aware non-root image builds/runs | Dockerfile and local OCI evidence suites; no fresh hosted matrix | ⚠️ PARTIAL |
+| OCI-4 | OCI label/runtime/root/digest drift fails | OCI evidence regression suite | ✅ LOCAL |
+| OCI-5 | Failed architecture blocks manifest/tags | Fail-stop topology; no hosted failure injection | ⚠️ PARTIAL |
+| REL-1 | Version/source provenance mismatch blocks release | Provenance identity and version-drift checks; no immutable hosted release | ⚠️ PARTIAL |
+| REL-2 | Root updates survive exact v17.6.0 plugins | Exact fake-SCM runtime and effective-set evidence | ✅ LOCAL |
+| REL-3 | Virtual root cannot publish as a fake package | Root carrier config/runtime checks and zero release calls | ✅ LOCAL |
+| REL-4 | Private conformance stays outside Stage-A | Exact harness plus private mutation rejection | ✅ LOCAL |
+| REL-5 | v17.6.0 empty-component/tag coupling is avoided | Component-tagged runtime chain | ✅ LOCAL |
+| REL-6 | Six npm optional pins synchronize | Exact Node/linked-version runtime | ✅ LOCAL |
+| REL-7 | Zero matching PRs are an auditable no-op | Classifier, CLI, record probe, and matched-only workflow gates; no hosted run | ✅ LOCAL / ⚠️ HOSTED |
+| REL-8 | Exactly one matching PR enters full validation | Full carrier validator plus exact-one runtime fixture; no hosted run | ✅ LOCAL / ⚠️ HOSTED |
+| REL-9 | Multiple/malformed PR data fails closed | Runtime classifier and CLI nonzero cases before diff fetch | ✅ LOCAL |
+| REL-10 | Manual dry-run plans without mutation | Mode/plan probes and static mutation gates; no hosted run | ✅ LOCAL / ⚠️ HOSTED |
+| REL-11 | Push variable `true` is plan-only | Mode normalization and static mutation gates; no hosted run | ✅ LOCAL / ⚠️ HOSTED |
+| REL-12 | Unset/`false` preserves live default | Mode probe and live-only conditions; no hosted write | ✅ LOCAL / ⚠️ HOSTED |
+| REL-13 | Invalid rehearsal mode fails closed | Invalid-value mode probe and static checks | ✅ LOCAL |
+| REL-14 | Complete eight-target archive release is proven | Local archive/package validators; native hosted matrix absent | ⚠️ PARTIAL |
+| REL-15 | Missing target blocks dependent channels | Archive failure validator | ✅ LOCAL |
+| REL-16 | Gate failure blocks upload/publish | Workflow dependency topology; no hosted failure injection | ⚠️ PARTIAL |
+| REL-17 | Credential exposure blocks promotion | Credential-free records/static inspection; no credential-bearing run | ⚠️ PARTIAL |
+| REL-18 | Partial publication stops and exposes recovery | Documented ordered graph; no publication/rollback rehearsal | ⚠️ PARTIAL |
+
+**Matrix summary:** 25 scenarios have executable local coverage, 15 remain partial external or
+failure-injection boundaries, and 0 failed locally. The `REL-7`/`REL-8` hosted portions remain
+explicitly unclaimed.
+
+### Correctness
+
+| Requirement/contract | Status | Evidence |
+|---|---|---|
+| Exact event correlation precedes diff/tree/version validation | ✅ LOCAL | `carrier-pr-selection`, static ordering check, and no-match record probe |
+| Zero-match trusted main event is successful and non-mutating | ✅ LOCAL / ⚠️ HOSTED | Classifier/CLI, record fields, and matched-only conditions; hosted event unrun |
+| Exactly one matching PR follows the existing full carrier path | ✅ LOCAL | Mixed ordinary/release fixture and `validate_carrier_event` |
+| Multiple/malformed collection fails closed before diff | ✅ LOCAL | Shape validation, multiple-match runtime/CLI failures, and workflow order |
+| Wrong base/ref/SHA and missing/unapproved/malformed state cannot mutate | ✅ LOCAL | Full validator negatives; wrong-context PRs are excluded as the safe zero-match path |
+| Stage-A exact v17.6.0 graph/private boundary/no-write behavior | ✅ LOCAL | Fake-SCM output: one PR, six pins, zero release/tag calls, no private candidate |
+| Dry-run/live/idempotency/conflict gates remain intact | ✅ LOCAL / ⚠️ HOSTED | Runtime planner, mode probe, static conditions; no hosted mutation |
+| Full-SHA actions, permissions, token usage, concurrency | ✅ LOCAL | Static carrier/distribution suites and `actionlint` |
+| Downstream canonical tag is the sole release trigger and post-gate release owner | ✅ LOCAL / ⚠️ HOSTED | Tag caller/reusable workflow topology; event delivery unrun |
+
+### Design coherence
+
+| Design decision | Followed? | Notes |
+|---|---|---|
+| Component-tagged Stage A plus trusted post-merge carrier | ✅ | Current config/workflows preserve the two-stage split |
+| Explicit five-crate list and non-Cargo root carrier | ✅ | Exact v17.6.0 runtime test excludes private conformance |
+| Correlate event SHA before Stage-B validation | ✅ | Shared classifier runs before PR diff fetch and matched-only gates all later steps |
+| Manual/variable dry-run is reversible | ✅ | Explicit input/variable normalization and no-mutation plan statuses remain present |
+| Canonical tag is the downstream release trigger | ✅ LOCAL / ⚠️ HOSTED | Static/reusable topology passes; hosted delivery remains unobserved |
+
+### Issues found
+
+#### CRITICAL
+
+None.
+
+#### WARNING
+
+1. Protected hosted rehearsal for an ordinary main push, the actual Release Please merge, and the
+   manual/variable carrier dry-run remains unrun. PAT scope/masking/ref authorization, branch
+   protection, tag delivery, and downstream workflow execution are not locally observable.
+2. Publication, attestation, native non-host target evidence, partial-publication rollback, and
+   failure-injection acceptance remain unavailable or explicitly prohibited; `sdd-qa` owns those
+   acceptance scenarios.
+3. The worktree is intentionally dirty, so strict-TDD commit ordering cannot be independently proved;
+   `strict_tdd: true` is configured but the installed `strict-tdd-verify.md` module is absent.
+
+#### SUGGESTION
+
+1. Promote the hermetic carrier mode/record probe into a checked-in workflow-step harness after the
+   protected hosted rehearsal, so the exact shell boundary is regression-tested without credentials.
+
+### Verdict table
+
+| Finding | Judge A | Judge B | Severity | Status |
+|---|---|---|---|---|
+| Zero matching PRs skip before validation/diff/mutation and emit an auditable record | ✅ classifier/runtime | ✅ static/order + jq record probe | SUGGESTION | Confirmed locally |
+| Exactly one matching PR reaches full validation and mutation mode gates | ✅ carrier runtime | ✅ workflow conditions/actionlint | SUGGESTION | Confirmed locally |
+| Multiple or malformed PR data fails closed | ✅ runtime/CLI | ✅ collection-before-diff workflow | SUGGESTION | Confirmed locally |
+| Wrong base/ref/SHA and private/unapproved/missing state cannot produce a tag | ✅ negative fixtures | ✅ validator/static mutation guards | SUGGESTION | Confirmed locally |
+| Stage-A exact v17.6.0 graph has one PR, six pins, zero release/tag calls | ✅ package runtime | ✅ fake-SCM counters/private exclusion | SUGGESTION | Confirmed locally |
+| Pins, permissions, concurrency, token boundaries, and canonical downstream gating | ✅ static suites | ✅ actionlint/topology inspection | SUGGESTION | Confirmed locally; hosted unrun |
+| Hosted carrier/release/publication/acceptance | ✅ policy boundary | ❌ not executed or authorized | WARNING | Remaining external gate |
+
+### Final verdict
+
+**PASS WITH WARNINGS** — every requested local contract and relevant local quality/package/workflow
+check passed. Only hosted rehearsal, hosted delivery/publication, native target, failure-injection,
+and independent acceptance evidence remain. Hand off explicitly to `sdd-qa`; this report makes no
+user/operator acceptance claim.
+
+## Previous fresh executor verification — 2026-08-15 (pre-correlation fix; superseded)
 
 **Change**: `codegauge-distribution`
 **Mode**: OpenSpec
