@@ -8,6 +8,7 @@ GitHub API, credential, tag, release, package, or registry write is permitted.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -35,39 +36,252 @@ from scripts.verify_release_provenance import (  # noqa: E402
 SHA = "a" * 40
 OTHER_SHA = "b" * 40
 VERSION = "0.2.0"
+PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
+PRIVATE_CONFORMANCE_DEPENDENCIES = (
+    "codegauge-application",
+    "codegauge-core",
+    "codegauge-model",
+    "codegauge-provider-jacoco",
+)
+
+
+def private_conformance_patch(
+    *,
+    version: str = VERSION,
+    extra_changes: str = "",
+) -> str:
+    lines = [
+        "diff --git a/crates/codegauge-conformance/Cargo.toml b/crates/codegauge-conformance/Cargo.toml",
+        "index 1111111..2222222 100644",
+        "--- a/crates/codegauge-conformance/Cargo.toml",
+        "+++ b/crates/codegauge-conformance/Cargo.toml",
+        "@@ -10,11 +10,11 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
+        ' description = "Private cross-crate CodeGauge conformance suite"',
+        " ",
+        " [dependencies]",
+    ]
+    for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
+        lines.extend(
+            [
+                f'-{dependency} = {{ version = "0.1.0", path = "../{dependency}" }}',
+                f'+{dependency} = {{ version = "{version}", path = "../{dependency}" }}',
+            ]
+        )
+    lines.extend(
+        [
+            " ",
+            " [dev-dependencies]",
+            " schemars.workspace = true",
+            " serde_json.workspace = true",
+        ]
+    )
+    if extra_changes:
+        lines.extend(extra_changes.splitlines())
+    return "\n".join(lines) + "\n"
+
+
+def private_conformance_entry(
+    *,
+    patch: str | None = None,
+    additions: int = 4,
+    deletions: int = 4,
+    changes: int = 8,
+) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "filename": PRIVATE_CONFORMANCE_PATH,
+        "status": "modified",
+        "additions": additions,
+        "deletions": deletions,
+        "changes": changes,
+    }
+    if patch is not None:
+        entry["patch"] = patch
+    return entry
+
+
+PRIVATE_CONFORMANCE_DIFF = private_conformance_entry(
+    patch=private_conformance_patch()
+)
+
+
+def carrier_content_entry(
+    path: str,
+    patch: str,
+    *,
+    status: str = "modified",
+    additions: int = 1,
+    deletions: int = 1,
+) -> dict[str, object]:
+    return {
+        "filename": path,
+        "status": status,
+        "additions": additions,
+        "deletions": deletions,
+        "changes": additions + deletions,
+        "patch": patch,
+    }
+
+
+def line_patch(path: str, old: str, new: str) -> str:
+    return "\n".join(
+        [
+            f"diff --git a/{path} b/{path}",
+            f"--- a/{path}",
+            f"+++ b/{path}",
+            "@@ -1 +1 @@",
+            f"-{old}",
+            f"+{new}",
+            "",
+        ]
+    )
+
+
+GOLDEN_JSON_PATH = "tests/golden/valid-methods.json"
+README_PATH = "README.md"
+CONTRACTS_PATH = "crates/codegauge-model/tests/contracts.rs"
+GENERATED_CHANGELOG_PATH = "crates/codegauge-model/CHANGELOG.md"
+
+
+def patch_with_pairs(
+    path: str,
+    pairs: list[tuple[str, str]],
+    *,
+    context: tuple[str, ...] = (),
+    status: str = "modified",
+) -> str:
+    if status == "added":
+        header = [
+            f"diff --git a/{path} b/{path}",
+            "new file mode 100644",
+            "--- /dev/null",
+            f"+++ b/{path}",
+            f"@@ -0,0 +1,{len(pairs)} @@",
+        ]
+        return "\n".join(header + [f"+{new}" for _, new in pairs] + [""])
+    header = [
+        f"diff --git a/{path} b/{path}",
+        f"--- a/{path}",
+        f"+++ b/{path}",
+        f"@@ -1,{len(pairs)} +1,{len(pairs)} @@",
+    ]
+    return "\n".join(
+        header
+        + list(context)
+        + [line for old, new in pairs for line in (f"-{old}", f"+{new}")]
+        + [""],
+    )
+
+
+def valid_root_cargo_entry() -> dict[str, object]:
+    old = 'version = "0.1.0"'
+    new = 'version = "0.2.0"'
+    return carrier_content_entry(
+        "Cargo.toml",
+        patch_with_pairs("Cargo.toml", [(old, new)], context=(" [workspace.package]",)),
+    )
+
+
+def valid_lock_entry() -> dict[str, object]:
+    crates = (
+        "codegauge-model",
+        "codegauge-core",
+        "codegauge-application",
+        "codegauge-provider-jacoco",
+        "codegauge-cli",
+    )
+    pairs = [(f'version = "0.1.0"', 'version = "0.2.0"') for _ in crates]
+    context = tuple(f' name = "{crate}"' for crate in crates)
+    return carrier_content_entry(
+        "Cargo.lock",
+        patch_with_pairs("Cargo.lock", pairs, context=context),
+        additions=len(pairs),
+        deletions=len(pairs),
+    )
+
+
+def valid_release_manifest_entry() -> dict[str, object]:
+    manifest = json.loads(
+        (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+    )
+    pairs = [
+        (f'  "{path}": "{old_version}",', f'  "{path}": "{VERSION}",')
+        for path, old_version in manifest.items()
+    ]
+    return carrier_content_entry(
+        ".release-please-manifest.json",
+        patch_with_pairs(
+            ".release-please-manifest.json",
+            pairs,
+            context=(" {", " }"),
+        ),
+        additions=len(pairs),
+        deletions=len(pairs),
+    )
+
+
+def valid_golden_entry() -> dict[str, object]:
+    path = ROOT / GOLDEN_JSON_PATH
+    before = path.read_text(encoding="utf-8").rstrip("\n")
+    after = before.replace('"version":"0.1.0"', '"version":"0.2.0"', 1)
+    return carrier_content_entry(
+        GOLDEN_JSON_PATH,
+        patch_with_pairs(GOLDEN_JSON_PATH, [(before, after)]),
+    )
+
+
+def valid_annotated_entry(path: str) -> dict[str, object]:
+    before_lines = [
+        line
+        for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
+        if "x-release-please-version" in line
+    ]
+    pairs = [(line, line.replace("0.1.0", VERSION, 1)) for line in before_lines]
+    return carrier_content_entry(
+        path,
+        patch_with_pairs(path, pairs),
+        additions=len(pairs),
+        deletions=len(pairs),
+    )
+
+
+def valid_changelog_entry(path: str = GENERATED_CHANGELOG_PATH) -> dict[str, object]:
+    lines = ("# Changelog", "## 0.2.0", "", "* chore: synchronized runtime graph")
+    return carrier_content_entry(
+        path,
+        patch_with_pairs(path, [("", line) for line in lines], status="added"),
+        status="added",
+        additions=len(lines),
+        deletions=0,
+    )
+
+
+def valid_npm_entry(path: str = "npm/codegauge/package.json") -> dict[str, object]:
+    package = json.loads((ROOT / path).read_text(encoding="utf-8"))
+    pairs = [(f'  "version": "{package["version"]}",', '  "version": "0.2.0",')]
+    if path == "npm/codegauge/package.json":
+        pairs.extend(
+            (f'    "{dependency}": "{old}",', f'    "{dependency}": "0.2.0",')
+            for dependency, old in package["optionalDependencies"].items()
+        )
+    return carrier_content_entry(
+        path,
+        patch_with_pairs(path, pairs),
+        additions=len(pairs),
+        deletions=len(pairs),
+    )
+
+
+CORE_STAGE_A_DIFF = [
+    valid_root_cargo_entry(),
+    valid_lock_entry(),
+    valid_release_manifest_entry(),
+    valid_npm_entry(),
+]
+
 
 DIFF = [
-    "Cargo.toml",
-    "Cargo.lock",
-    ".release-please-manifest.json",
-    "README.md",
-    "tests/golden/valid-methods.json",
-    "crates/codegauge-model/tests/contracts.rs",
-    "crates/codegauge-cli/tests/cli.rs",
-    "crates/codegauge-model/Cargo.toml",
-    "crates/codegauge-core/Cargo.toml",
-    "crates/codegauge-application/Cargo.toml",
-    "crates/codegauge-provider-jacoco/Cargo.toml",
-    "crates/codegauge-cli/Cargo.toml",
-    "npm/codegauge/package.json",
-    "npm/packages/codegauge-linux-x64-gnu/package.json",
-    "npm/packages/codegauge-linux-arm64-gnu/package.json",
-    "npm/packages/codegauge-darwin-x64/package.json",
-    "npm/packages/codegauge-darwin-arm64/package.json",
-    "npm/packages/codegauge-win32-x64-msvc/package.json",
-    "npm/packages/codegauge-win32-arm64-msvc/package.json",
-    "crates/codegauge-model/CHANGELOG.md",
-    "crates/codegauge-core/CHANGELOG.md",
-    "crates/codegauge-application/CHANGELOG.md",
-    "crates/codegauge-provider-jacoco/CHANGELOG.md",
-    "crates/codegauge-cli/CHANGELOG.md",
-    "npm/codegauge/CHANGELOG.md",
-    "npm/packages/codegauge-linux-x64-gnu/CHANGELOG.md",
-    "npm/packages/codegauge-linux-arm64-gnu/CHANGELOG.md",
-    "npm/packages/codegauge-darwin-x64/CHANGELOG.md",
-    "npm/packages/codegauge-darwin-arm64/CHANGELOG.md",
-    "npm/packages/codegauge-win32-x64-msvc/CHANGELOG.md",
-    "npm/packages/codegauge-win32-arm64-msvc/CHANGELOG.md",
+    *CORE_STAGE_A_DIFF,
+    PRIVATE_CONFORMANCE_DIFF,
 ]
 
 APPROVED_NPM_PACKAGE_DIFFS = (
@@ -91,6 +305,7 @@ ROOT_CARRIER_PATHS = (
     "tests/golden/valid-methods.json",
     "crates/codegauge-model/tests/contracts.rs",
     "crates/codegauge-cli/tests/cli.rs",
+    PRIVATE_CONFORMANCE_PATH,
 )
 
 
@@ -137,15 +352,88 @@ def copy_release_tree() -> Path:
         fixture / "Cargo.toml",
         fixture / "Cargo.lock",
         fixture / ".release-please-manifest.json",
-        *fixture.glob("crates/*/Cargo.toml"),
+        *(
+            path
+            for path in fixture.glob("crates/*/Cargo.toml")
+            if path.parent.name != "codegauge-conformance"
+        ),
         fixture / "npm" / "codegauge" / "package.json",
         *fixture.glob("npm/packages/*/package.json"),
     ]
     for path in versioned_files:
-        path.write_text(
-            path.read_text(encoding="utf-8").replace("0.1.0", VERSION),
-            encoding="utf-8",
+        contents = path.read_text(encoding="utf-8")
+        if path.name == "Cargo.lock":
+            for crate in (
+                "codegauge-model",
+                "codegauge-core",
+                "codegauge-application",
+                "codegauge-provider-jacoco",
+                "codegauge-cli",
+            ):
+                contents = re.sub(
+                    rf'(name = "{re.escape(crate)}"\nversion = ")0\.1\.0("$)',
+                    rf"\g<1>{VERSION}\g<2>",
+                    contents,
+                    flags=re.MULTILINE,
+                )
+        else:
+            contents = contents.replace("0.1.0", VERSION)
+        path.write_text(contents, encoding="utf-8")
+    for relative_path in (README_PATH, CONTRACTS_PATH):
+        path = fixture / relative_path
+        lines = [
+            line.replace("0.1.0", VERSION, 1)
+            if "x-release-please-version" in line
+            else line
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    private_manifest = fixture / PRIVATE_CONFORMANCE_PATH
+    private_text = private_manifest.read_text(encoding="utf-8")
+    for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
+        private_text = private_text.replace(
+            f'{dependency} = {{ version = "0.1.0"',
+            f'{dependency} = {{ version = "{VERSION}"',
         )
+    private_manifest.write_text(private_text, encoding="utf-8")
+    golden_path = fixture / GOLDEN_JSON_PATH
+    golden_text = golden_path.read_text(encoding="utf-8")
+    golden_path.write_text(
+        golden_text.replace('"version":"0.1.0"', f'"version":"{VERSION}"', 1),
+        encoding="utf-8",
+    )
+    golden = json.loads(golden_path.read_text(encoding="utf-8"))
+    assert golden["tool"]["version"] == VERSION
+    metadata = subprocess.run(
+        [
+            "cargo",
+            "metadata",
+            "--manifest-path",
+            str(fixture / "Cargo.toml"),
+            "--locked",
+            "--no-deps",
+            "--format-version",
+            "1",
+        ],
+        cwd=fixture,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert metadata.returncode == 0, metadata.stderr
+    metadata_packages = {
+        package["name"]: package
+        for package in json.loads(metadata.stdout)["packages"]
+    }
+    assert metadata_packages["codegauge-conformance"]["version"] == "0.1.0"
+    workspace_tests = subprocess.run(
+        ["cargo", "test", "--workspace", "--locked"],
+        cwd=fixture,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert workspace_tests.returncode == 0, workspace_tests.stdout + workspace_tests.stderr
     return fixture
 
 
@@ -335,7 +623,6 @@ def main() -> int:
                 ]
             )
         for unapproved_path in (
-            "crates/codegauge-conformance/Cargo.toml",
             "npm/packages/codegauge-evil/package.json",
             "npm/packages/codegauge-linux-x86-gnu/package.json",
             "npm/packages/codegauge-linux-x64-gnu/package.json.bak",
@@ -347,8 +634,239 @@ def main() -> int:
                 f"carrier accepted unapproved npm path {unapproved_path}",
             )
 
+        for approved_content_entry in (
+            valid_golden_entry(),
+            valid_annotated_entry(README_PATH),
+            valid_annotated_entry(CONTRACTS_PATH),
+            valid_changelog_entry(),
+        ):
+            validate_stage_a_diff(
+                [*CORE_STAGE_A_DIFF, approved_content_entry],
+                version=VERSION,
+            )
+
+        assert_fails(
+            lambda: validate_stage_a_diff(
+                [*CORE_STAGE_A_DIFF, README_PATH],
+                version=VERSION,
+            ),
+            "carrier accepted an annotated root file by filename only",
+        )
+        assert_fails(
+            lambda: validate_stage_a_diff(
+                [
+                    *CORE_STAGE_A_DIFF,
+                    {
+                        "filename": README_PATH,
+                        "status": "modified",
+                        "additions": 4,
+                        "deletions": 4,
+                        "changes": 8,
+                    },
+                ],
+                version=VERSION,
+            ),
+            "carrier accepted a root file with missing patch metadata",
+        )
+
+        for mutation_name, mutation in (
+            (
+                "golden JSON wrong version",
+                carrier_content_entry(
+                    GOLDEN_JSON_PATH,
+                    line_patch(
+                        GOLDEN_JSON_PATH,
+                        '{"tool":{"version":"0.1.0"}}',
+                        '{"tool":{"version":"9.9.9"}}',
+                    ),
+                ),
+            ),
+            (
+                "README wrong version",
+                carrier_content_entry(
+                    README_PATH,
+                    line_patch(
+                        README_PATH,
+                        "CodeGauge `0.1.0` <!-- x-release-please-version -->",
+                        "CodeGauge `9.9.9` <!-- x-release-please-version -->",
+                    ),
+                ),
+            ),
+            (
+                "contracts wrong version",
+                carrier_content_entry(
+                    CONTRACTS_PATH,
+                    line_patch(
+                        CONTRACTS_PATH,
+                        'version: "0.1.0".into(), // x-release-please-version',
+                        'version: "9.9.9".into(), // x-release-please-version',
+                    ),
+                ),
+            ),
+            (
+                "arbitrary generated-file content",
+                carrier_content_entry(
+                    GENERATED_CHANGELOG_PATH,
+                    line_patch(
+                        GENERATED_CHANGELOG_PATH,
+                        "# Changelog",
+                        "arbitrary generated content",
+                    ),
+                ),
+            ),
+            (
+                "malformed annotated replacement",
+                carrier_content_entry(
+                    README_PATH,
+                    line_patch(
+                        README_PATH,
+                        "CodeGauge `0.1.0` <!-- x-release-please-version -->",
+                        "CodeGauge `0.2.0` <!-- x-release-please-version --> extra",
+                    ),
+                ),
+            ),
+            (
+                "unexpected annotated replacement",
+                carrier_content_entry(
+                    README_PATH,
+                    line_patch(
+                        README_PATH,
+                        "unrelated semver 0.1.0",
+                        "unrelated semver 0.2.0 <!-- x-release-please-version -->",
+                    ),
+                ),
+            ),
+        ):
+            assert_fails(
+                lambda mutation=mutation: validate_stage_a_diff(
+                    [*CORE_STAGE_A_DIFF, mutation],
+                    version=VERSION,
+                ),
+                f"carrier accepted {mutation_name}",
+            )
+
+        validate_stage_a_diff(
+            [*CORE_STAGE_A_DIFF, PRIVATE_CONFORMANCE_DIFF],
+            version=VERSION,
+        )
+        for mutation_name, mutation in (
+            (
+                "private package version",
+                private_conformance_entry(
+                    patch=private_conformance_patch(
+                        extra_changes='@@ -1,3 +1,3 @@\n-version = "0.1.0"\n+version = "0.2.0"'
+                    ),
+                    additions=5,
+                    deletions=5,
+                    changes=10,
+                ),
+            ),
+            (
+                "private publish flag",
+                private_conformance_entry(
+                    patch=private_conformance_patch(
+                        extra_changes="@@ -7,1 +7,1 @@\n-publish = false\n+publish = true"
+                    ),
+                    additions=5,
+                    deletions=5,
+                    changes=10,
+                ),
+            ),
+            (
+                "private package name",
+                private_conformance_entry(
+                    patch=private_conformance_patch(
+                        extra_changes='@@ -2,1 +2,1 @@\n-name = "codegauge-conformance"\n+name = "codegauge-public"'
+                    ),
+                    additions=5,
+                    deletions=5,
+                    changes=10,
+                ),
+            ),
+            (
+                "private dependency path",
+                private_conformance_entry(
+                    patch=private_conformance_patch().replace(
+                        'path = "../codegauge-application"',
+                        'path = "../unapproved"',
+                    )
+                ),
+            ),
+            (
+                "private dependency key",
+                private_conformance_entry(
+                    patch=private_conformance_patch().replace(
+                        "codegauge-model =",
+                        "codegauge-unapproved =",
+                    )
+                ),
+            ),
+            (
+                "private dependency feature",
+                private_conformance_entry(
+                    patch=private_conformance_patch().replace(
+                        'path = "../codegauge-application"',
+                        'path = "../codegauge-application", features = ["unapproved"]',
+                    )
+                ),
+            ),
+            (
+                "private formatting/comment",
+                private_conformance_entry(
+                    patch=private_conformance_patch(
+                        extra_changes="@@ -11,1 +11,2 @@\n [dependencies]\n+# unapproved formatting mutation"
+                    ),
+                    additions=5,
+                    deletions=4,
+                    changes=9,
+                ),
+            ),
+            (
+                "private truncated patch",
+                private_conformance_entry(
+                    patch=private_conformance_patch().replace(
+                        '-codegauge-provider-jacoco = { version = "0.1.0", path = "../codegauge-provider-jacoco" }\n'
+                        '+codegauge-provider-jacoco = { version = "0.2.0", path = "../codegauge-provider-jacoco" }\n',
+                        "",
+                    ),
+                    additions=3,
+                    deletions=3,
+                    changes=6,
+                ),
+            ),
+        ):
+            assert_fails(
+                lambda mutation=mutation: validate_stage_a_diff(
+                    [*CORE_STAGE_A_DIFF[:3], mutation],
+                    version=VERSION,
+                ),
+                f"carrier accepted {mutation_name} mutation",
+            )
+
+        assert_fails(
+            lambda: validate_stage_a_diff(
+                [
+                    *CORE_STAGE_A_DIFF[:3],
+                    {"filename": PRIVATE_CONFORMANCE_PATH, "status": "modified"},
+                ],
+                version=VERSION,
+            ),
+            "carrier accepted a private manifest without complete patch metadata",
+        )
+        for private_path in (
+            "crates/codegauge-conformance/CHANGELOG.md",
+            "crates/codegauge-conformance/README.md",
+        ):
+            assert_fails(
+                lambda path=private_path: validate_stage_a_diff(
+                    ["Cargo.toml", "Cargo.lock", ".release-please-manifest.json", path],
+                    version=VERSION,
+                ),
+                f"carrier accepted unapproved private path {private_path}",
+            )
+
         for changelog_path in DIFF:
-            if changelog_path.endswith("/CHANGELOG.md"):
+            if isinstance(changelog_path, str) and changelog_path.endswith("/CHANGELOG.md"):
                 validate_stage_a_diff(
                     [
                         "Cargo.toml",

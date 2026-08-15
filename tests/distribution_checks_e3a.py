@@ -206,6 +206,62 @@ def check_cargo(errors: list[str]) -> None:
         errors.append(
             "Stage A root carrier must update approved runtime Cargo.lock entries explicitly"
         )
+    private_pin_paths = {
+        (
+            extra_file.get("path"),
+            extra_file.get("jsonpath"),
+        )
+        for extra_file in extra_files
+        if isinstance(extra_file, dict)
+        and extra_file.get("type") == "toml"
+        and extra_file.get("path") == "/crates/codegauge-conformance/Cargo.toml"
+    }
+    expected_private_pin_paths = {
+        (
+            "/crates/codegauge-conformance/Cargo.toml",
+            '$.dependencies["codegauge-application"].version',
+        ),
+        (
+            "/crates/codegauge-conformance/Cargo.toml",
+            '$.dependencies["codegauge-core"].version',
+        ),
+        (
+            "/crates/codegauge-conformance/Cargo.toml",
+            '$.dependencies["codegauge-model"].version',
+        ),
+        (
+            "/crates/codegauge-conformance/Cargo.toml",
+            '$.dependencies["codegauge-provider-jacoco"].version',
+        ),
+    }
+    if private_pin_paths != expected_private_pin_paths:
+        errors.append(
+            "Stage A root carrier must own exactly the four approved private conformance dependency pins"
+        )
+    typed_golden = {
+        (extra_file.get("type"), extra_file.get("path"), extra_file.get("jsonpath"))
+        for extra_file in extra_files
+        if isinstance(extra_file, dict)
+        and extra_file.get("path") == "/tests/golden/valid-methods.json"
+    }
+    if typed_golden != {
+        ("json", "/tests/golden/valid-methods.json", "$.tool.version")
+    }:
+        errors.append(
+            "the conformance golden must use the typed $.tool.version updater"
+        )
+    readme = read_text(ROOT / "README.md", errors)
+    contracts = read_text(
+        ROOT / "crates" / "codegauge-model" / "tests" / "contracts.rs", errors
+    )
+    if readme.count("x-release-please-version") != 4:
+        errors.append("README must contain exactly four intended Release Please version markers")
+    if contracts.count("x-release-please-version") != 2:
+        errors.append("contracts.rs must contain exactly two intended Release Please version markers")
+    if "x-release-please-version" in read_text(
+        ROOT / "crates" / "codegauge-cli" / "tests" / "cli.rs", errors
+    ):
+        errors.append("cli.rs must not carry an unrelated Release Please version marker")
     if release_config.get("packages", {}).get("crates/codegauge-cli", {}).get("skip-github-release", True) is not True:
         errors.append("Stage A must suppress the CLI component release")
 

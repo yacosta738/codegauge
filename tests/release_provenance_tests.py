@@ -42,6 +42,7 @@ ROOT_EXTRA_PATHS = {
     "tests/golden/valid-methods.json",
     "crates/codegauge-model/tests/contracts.rs",
     "crates/codegauge-cli/tests/cli.rs",
+    "crates/codegauge-conformance/Cargo.toml",
 }
 NEW_RELEASE_VERSION = "0.2.0"
 RUNTIME_GRAPH_PATHS = {
@@ -314,6 +315,37 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
     assert root_updates == ROOT_EXTRA_PATHS, (
         "the surviving root candidate must own every repository-level extra-file update"
     )
+    root_extra_files = {
+        extra_file["path"]: extra_file
+        for extra_file in root.extra_files
+        if isinstance(extra_file, dict)
+    }
+    assert root_extra_files["/tests/golden/valid-methods.json"] == {
+        "type": "json",
+        "path": "/tests/golden/valid-methods.json",
+        "jsonpath": "$.tool.version",
+    }, "the conformance golden must use the typed JSON updater"
+    assert root_extra_files["/README.md"] == {
+        "type": "generic",
+        "path": "/README.md",
+    }
+    assert root_extra_files["/crates/codegauge-model/tests/contracts.rs"] == {
+        "type": "generic",
+        "path": "/crates/codegauge-model/tests/contracts.rs",
+    }
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    contracts = (
+        ROOT / "crates" / "codegauge-model" / "tests" / "contracts.rs"
+    ).read_text(encoding="utf-8")
+    assert readme.count("x-release-please-version") == 4, (
+        "README must mark only its four release-version lines"
+    )
+    assert contracts.count("x-release-please-version") == 2, (
+        "contract fixtures must mark both release-version lines"
+    )
+    assert "x-release-please-version" not in (
+        ROOT / "crates" / "codegauge-cli" / "tests" / "cli.rs"
+    ).read_text(encoding="utf-8")
     assert not any(
         isinstance(plugin, dict) and plugin.get("type") == "cargo-workspace"
         for plugin in config.get("plugins", [])
@@ -440,8 +472,32 @@ def main() -> int:
             "path": "/crates/codegauge-cli/Cargo.toml",
             "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
         },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-conformance/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-application"].version',
+        },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-conformance/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-core"].version',
+        },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-conformance/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-model"].version',
+        },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-conformance/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
+        },
         {"type": "generic", "path": "/README.md"},
-        {"type": "generic", "path": "/tests/golden/valid-methods.json"},
+        {
+            "type": "json",
+            "path": "/tests/golden/valid-methods.json",
+            "jsonpath": "$.tool.version",
+        },
         {"type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs"},
         {"type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs"},
     ], "root release files must be root-anchored and owned by the root candidate"

@@ -23,6 +23,9 @@ const { Manifest } = require(
 const { Version } = require(
   path.join(releasePleaseRoot, "build/src/version.js"),
 );
+const { mergeUpdates } = require(
+  path.join(releasePleaseRoot, "build/src/updaters/composite.js"),
+);
 
 const config = JSON.parse(
   fs.readFileSync(path.join(repositoryRoot, "release-please-config.json"), "utf8"),
@@ -114,7 +117,22 @@ class ReadOnlyFakeScm {
   }
 
   async createPullRequest(pullRequest, _targetBranch, _message, updates) {
-    this.pullRequestCreates.push({ pullRequest, updates });
+    const effectiveUpdates = [];
+    for (const update of mergeUpdates(updates)) {
+      const absolutePath = path.join(repositoryRoot, update.path);
+      const exists = fs.existsSync(absolutePath);
+      if (!exists && !update.createIfMissing) {
+        continue;
+      }
+      const originalContent = exists
+        ? fs.readFileSync(absolutePath, "utf8")
+        : undefined;
+      const updatedContent = update.updater.updateContent(originalContent);
+      if (updatedContent) {
+        effectiveUpdates.push(update);
+      }
+    }
+    this.pullRequestCreates.push({ pullRequest, updates: effectiveUpdates });
     return {
       ...pullRequest,
       number: 9001,
@@ -192,12 +210,18 @@ if (scm.mutationCalls.length !== 0) {
 
 const updates = scm.pullRequestCreates[0].updates;
 const generatedPaths = new Set(updates.map((update) => update.path));
+const privateManifestPath = "crates/codegauge-conformance/Cargo.toml";
 const privateCandidatePaths = updates
   .map((update) => update.path)
   .filter((updatePath) => updatePath.startsWith("crates/codegauge-conformance/"));
-if (privateCandidatePaths.length !== 0) {
+const privateUpdates = updates.filter((update) => update.path === privateManifestPath);
+if (
+  privateCandidatePaths.length !== privateUpdates.length ||
+  privateUpdates.length !== 1 ||
+  privateCandidatePaths.some((updatePath) => updatePath !== privateManifestPath)
+) {
   throw new Error(
-    `Stage-A update set contains private conformance candidates: ${privateCandidatePaths.join(", ")}`,
+    `Stage-A private update set is not exactly one conformance dependency update containing four pin edits: ${privateCandidatePaths.join(", ")}`,
   );
 }
 const expectedRootPaths = new Set([
@@ -208,6 +232,7 @@ const expectedRootPaths = new Set([
   "tests/golden/valid-methods.json",
   "crates/codegauge-model/tests/contracts.rs",
   "crates/codegauge-cli/tests/cli.rs",
+  privateManifestPath,
 ]);
 const expectedRuntimeChangelogs = new Set([
   ...[
@@ -255,6 +280,11 @@ for (const expectedPath of [
     throw new Error(`exact Release Please chain omitted update path: ${expectedPath}`);
   }
 }
+if (generatedPaths.size !== 32) {
+  throw new Error(
+    `expected the exact 32-path Stage-A effective update set, got ${generatedPaths.size}`,
+  );
+}
 
 const optionalDependencyUpdate = updates.find(
   (update) => update.path === "npm/codegauge/package.json",
@@ -269,6 +299,63 @@ const rewrittenBase = JSON.parse(
   ),
 );
 const releaseVersion = rewrittenBase.version;
+const goldenUpdate = updates.find(
+  (update) => update.path === "tests/golden/valid-methods.json",
+);
+if (!goldenUpdate) {
+  throw new Error("the typed golden JSON updater was not generated");
+}
+const goldenBefore = JSON.parse(
+  fs.readFileSync(path.join(repositoryRoot, "tests/golden/valid-methods.json"), "utf8"),
+);
+const goldenAfter = JSON.parse(
+  goldenUpdate.updater.updateContent(
+    fs.readFileSync(path.join(repositoryRoot, "tests/golden/valid-methods.json"), "utf8"),
+  ),
+);
+const expectedGolden = structuredClone(goldenBefore);
+expectedGolden.tool.version = releaseVersion;
+if (JSON.stringify(goldenAfter) !== JSON.stringify(expectedGolden)) {
+  throw new Error(
+    `typed golden updater changed more than $.tool.version or kept the wrong version: ${JSON.stringify(goldenAfter.tool)}`,
+  );
+}
+
+function assertAnnotatedVersionUpdater(updatePath, expectedLines) {
+  const update = updates.find((candidate) => candidate.path === updatePath);
+  if (!update) {
+    throw new Error(`annotated root updater was not generated: ${updatePath}`);
+  }
+  const before = fs.readFileSync(path.join(repositoryRoot, updatePath), "utf8");
+  const after = update.updater.updateContent(before);
+  if (after === before) {
+    throw new Error(`annotated root updater made no version substitutions: ${updatePath}`);
+  }
+  const beforeLines = before.split("\n");
+  const afterLines = after.split("\n");
+  const changed = beforeLines.flatMap((line, index) =>
+    line === afterLines[index] ? [] : [[line, afterLines[index]]],
+  );
+  if (changed.length !== expectedLines) {
+    throw new Error(
+      `annotated updater changed ${changed.length} lines in ${updatePath}; expected ${expectedLines}`,
+    );
+  }
+  for (const [oldLine, newLine] of changed) {
+    if (
+      !oldLine.includes("x-release-please-version") ||
+      !newLine.includes("x-release-please-version") ||
+      oldLine.replace(/0\.1\.0/g, releaseVersion) !== newLine
+    ) {
+      throw new Error(
+        `annotated updater changed an unexpected line in ${updatePath}: ${JSON.stringify([oldLine, newLine])}`,
+      );
+    }
+  }
+}
+
+assertAnnotatedVersionUpdater("README.md", 4);
+assertAnnotatedVersionUpdater("crates/codegauge-model/tests/contracts.rs", 2);
 const optionalVersions = Object.values(rewrittenBase.optionalDependencies ?? {});
 if (
   optionalVersions.length !== 6 ||
@@ -306,6 +393,62 @@ for (const crate of [
 }
 if (lockVersion("codegauge-conformance") !== "0.1.0") {
   throw new Error("Cargo.lock carrier mutated the private conformance package");
+}
+
+const privateManifestPathOnDisk = path.join(repositoryRoot, privateManifestPath);
+const privateBefore = fs.readFileSync(privateManifestPathOnDisk, "utf8");
+const privateAfter = privateUpdates.reduce(
+  (contents, update) => update.updater.updateContent(contents),
+  privateBefore,
+);
+if (!/^version = "0\.1\.0"$/m.test(privateAfter)) {
+  throw new Error("private conformance package version was changed");
+}
+if (!/^name = "codegauge-conformance"$/m.test(privateAfter)) {
+  throw new Error("private conformance package identity was changed");
+}
+if (!/^publish = false$/m.test(privateAfter)) {
+  throw new Error("private conformance publish=false boundary was changed");
+}
+for (const dependency of [
+  "codegauge-application",
+  "codegauge-core",
+  "codegauge-model",
+  "codegauge-provider-jacoco",
+]) {
+  const dependencyPattern = new RegExp(
+    `${dependency} = \\{ version = "${releaseVersion}", path = "../${dependency}" \\}`,
+  );
+  if (!dependencyPattern.test(privateAfter)) {
+    throw new Error(`private dependency pin was not synchronized: ${dependency}`);
+  }
+}
+const privateBeforeLines = privateBefore.split("\n");
+const privateAfterLines = privateAfter.split("\n");
+const changedPrivatePairs = privateBeforeLines.flatMap((beforeLine, index) => {
+  const afterLine = privateAfterLines[index];
+  return beforeLine === afterLine ? [] : [[beforeLine, afterLine]];
+});
+const expectedPrivatePairs = new Set(
+  [
+    "codegauge-application",
+    "codegauge-core",
+    "codegauge-model",
+    "codegauge-provider-jacoco",
+  ].map((dependency) =>
+    JSON.stringify([
+      `${dependency} = { version = "0.1.0", path = "../${dependency}" }`,
+      `${dependency} = { version = "${releaseVersion}", path = "../${dependency}" }`,
+    ]),
+  ),
+);
+if (
+  changedPrivatePairs.length !== 4 ||
+  changedPrivatePairs.some((pair) => !expectedPrivatePairs.has(JSON.stringify(pair)))
+) {
+  throw new Error(
+    `private conformance updater changed unexpected lines: ${JSON.stringify(changedPrivatePairs)}`,
+  );
 }
 
 const runtimeCargoDependencies = {
@@ -380,6 +523,7 @@ console.log(
       generatedUpdatePaths: [...generatedPaths].sort(),
       releaseVersion,
       optionalDependencyVersions: rewrittenBase.optionalDependencies,
+      privateDependencyUpdates: privateUpdates.length,
       synchronizedPullRequests: scm.pullRequestCreates.length,
       releaseCalls: scm.releaseCalls.length,
       tagCalls: scm.tagCalls.length,

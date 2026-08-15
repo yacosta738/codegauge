@@ -9,6 +9,7 @@ release-please SHA; local tests can exercise the pure validators without credent
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import re
@@ -43,6 +44,10 @@ SEMVER_CORE = (
 )
 SEMVER_RE = re.compile(rf"^v{SEMVER_CORE}$")
 VERSION_RE = re.compile(rf"^{SEMVER_CORE}$")
+VERSION_TOKEN_RE = re.compile(
+    rf"(?<![0-9A-Za-z-])({SEMVER_CORE})(?![0-9A-Za-z-])"
+)
+RELEASE_PLEASE_ANNOTATION_RE = re.compile(r"x-release-please-[A-Za-z-]+")
 RUNTIME_CRATES = (
     "codegauge-model",
     "codegauge-core",
@@ -69,6 +74,22 @@ TARGET_EXTENSIONS = {
     "aarch64-pc-windows-msvc": "zip",
 }
 RELEASE_PR_LABEL = "autorelease: pending"
+PRIVATE_CONFORMANCE_MANIFEST_PATH = "crates/codegauge-conformance/Cargo.toml"
+PRIVATE_CONFORMANCE_PACKAGE_VERSION = "0.1.0"
+PRIVATE_CONFORMANCE_DEPENDENCIES = (
+    "codegauge-application",
+    "codegauge-core",
+    "codegauge-model",
+    "codegauge-provider-jacoco",
+)
+PRIVATE_CONFORMANCE_EXTRA_FILES = tuple(
+    {
+        "type": "toml",
+        "path": f"/{PRIVATE_CONFORMANCE_MANIFEST_PATH}",
+        "jsonpath": f'$.dependencies["{dependency}"].version',
+    }
+    for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES
+)
 ROOT_EXTRA_FILES = (
     {
         "type": "toml",
@@ -126,8 +147,13 @@ ROOT_EXTRA_FILES = (
         "path": "/crates/codegauge-cli/Cargo.toml",
         "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
     },
+    *PRIVATE_CONFORMANCE_EXTRA_FILES,
     {"type": "generic", "path": "/README.md"},
-    {"type": "generic", "path": "/tests/golden/valid-methods.json"},
+    {
+        "type": "json",
+        "path": "/tests/golden/valid-methods.json",
+        "jsonpath": "$.tool.version",
+    },
     {"type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs"},
     {"type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs"},
 )
@@ -191,6 +217,43 @@ ALLOWED_STAGE_A_DIFFS = (
     | frozenset({f"crates/{crate}/Cargo.toml" for crate in RUNTIME_CRATES})
     | NPM_PACKAGE_DIFF_PATHS
     | RUNTIME_CHANGELOG_PATHS
+    | frozenset({PRIVATE_CONFORMANCE_MANIFEST_PATH})
+)
+RELEASE_METADATA_PATH = ".release-please-manifest.json"
+ANNOTATED_ROOT_VERSION_LINES = {
+    "README.md": 4,
+    "crates/codegauge-model/tests/contracts.rs": 2,
+}
+TYPED_JSON_ROOT_PATHS = {
+    "tests/golden/valid-methods.json": ("tool", "version"),
+}
+RUNTIME_CARGO_DEPENDENCIES = {
+    "crates/codegauge-core/Cargo.toml": ("codegauge-model",),
+    "crates/codegauge-application/Cargo.toml": (
+        "codegauge-core",
+        "codegauge-model",
+    ),
+    "crates/codegauge-provider-jacoco/Cargo.toml": (
+        "codegauge-application",
+        "codegauge-model",
+    ),
+    "crates/codegauge-cli/Cargo.toml": (
+        "codegauge-application",
+        "codegauge-model",
+        "codegauge-provider-jacoco",
+    ),
+}
+RUNTIME_CARGO_MANIFEST_DEPENDENCIES = {
+    "crates/codegauge-model/Cargo.toml": (),
+    **RUNTIME_CARGO_DEPENDENCIES,
+}
+NPM_BASE_PACKAGE_PATH = "npm/codegauge/package.json"
+NPM_PLATFORM_PACKAGE_PATHS = {
+    f"npm/packages/{package.removeprefix('@yacosta738/')}/package.json": package
+    for package in NPM_PACKAGES
+}
+CONTENT_VALIDATED_STAGE_A_DIFFS = (
+    ALLOWED_STAGE_A_DIFFS - {PRIVATE_CONFORMANCE_MANIFEST_PATH}
 )
 
 
@@ -437,7 +500,11 @@ def validate_release_manifest(version: str, root: Path = ROOT) -> None:
             raise ProvenanceError(f"release-please manifest version drift for {path}")
 
 
-def validate_private_boundaries(root: Path = ROOT) -> None:
+def validate_private_boundaries(
+    root: Path = ROOT,
+    *,
+    runtime_version: str | None = None,
+) -> None:
     """Keep the virtual root and conformance package outside publication."""
 
     if tomllib is None:
@@ -451,8 +518,26 @@ def validate_private_boundaries(root: Path = ROOT) -> None:
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise ProvenanceError(f"unable to read private conformance manifest: {error}") from error
     package = document.get("package", {})
-    if package.get("name") != "codegauge-conformance" or package.get("publish") is not False:
+    if (
+        package.get("name") != "codegauge-conformance"
+        or package.get("version") != PRIVATE_CONFORMANCE_PACKAGE_VERSION
+        or package.get("publish") is not False
+    ):
         raise ProvenanceError("codegauge-conformance must remain a private non-publishable package")
+    if runtime_version is not None:
+        dependencies = document.get("dependencies", {})
+        if not isinstance(dependencies, dict):
+            raise ProvenanceError("private conformance dependencies must be a TOML table")
+        for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
+            dependency_config = dependencies.get(dependency)
+            if (
+                not isinstance(dependency_config, dict)
+                or dependency_config.get("version") != runtime_version
+                or dependency_config.get("path") != f"../{dependency}"
+            ):
+                raise ProvenanceError(
+                    f"private conformance dependency pin drift for {dependency}"
+                )
     config = load_json(root / "release-please-config.json")
     linked = {
         component
@@ -481,7 +566,7 @@ def validate_carrier_metadata(version: str, root: Path = ROOT) -> None:
 
     validate_stage_a_configuration(root)
     validate_release_manifest(version, root)
-    validate_private_boundaries(root)
+    validate_private_boundaries(root, runtime_version=version)
 
 
 def validate_clean_checkout(root: Path = ROOT) -> None:
@@ -633,18 +718,523 @@ def classify_carrier_prs(pull_requests: Any, event_sha: str) -> dict[str, Any]:
     }
 
 
-def validate_stage_a_diff(changed_files: list[Any]) -> None:
+def _patch_change_lines(
+    entry: dict[str, Any],
+    *,
+    path: str,
+) -> tuple[list[str], list[str], list[str]]:
+    """Return added/deleted patch lines after validating complete GitHub metadata."""
+
+    if entry.get("status") not in {"modified", "added"}:
+        raise ProvenanceError(f"{path} must be an added or modified file")
+    numeric_metadata = ("additions", "deletions", "changes")
+    if any(
+        isinstance(entry.get(field), bool) or not isinstance(entry.get(field), int)
+        for field in numeric_metadata
+    ):
+        raise ProvenanceError(f"{path} diff is missing complete change metadata")
+    if entry["changes"] != entry["additions"] + entry["deletions"]:
+        raise ProvenanceError(f"{path} diff change count is inconsistent")
+
+    patch = entry.get("patch")
+    if not isinstance(patch, str) or not patch.strip():
+        raise ProvenanceError(f"{path} diff requires a complete unified patch")
+    lines = patch.splitlines()
+    if lines.count(f"diff --git a/{path} b/{path}") != 1:
+        raise ProvenanceError(f"{path} diff has missing or unexpected file context")
+    if any(
+        line.startswith("diff --git ") and line != f"diff --git a/{path} b/{path}"
+        for line in lines
+    ):
+        raise ProvenanceError(f"{path} diff contains an unexpected file section")
+    if not any(line.startswith("@@") for line in lines):
+        raise ProvenanceError(f"{path} diff is missing a complete hunk")
+    if entry["status"] == "added":
+        if "--- /dev/null" not in lines or f"+++ b/{path}" not in lines:
+            raise ProvenanceError(f"{path} added-file patch has invalid headers")
+    elif f"--- a/{path}" not in lines or f"+++ b/{path}" not in lines:
+        raise ProvenanceError(f"{path} modified-file patch has invalid headers")
+
+    added: list[str] = []
+    deleted: list[str] = []
+    for line in lines:
+        if line.startswith(("+++ ", "--- ")) or line.startswith("\\ No newline"):
+            continue
+        if line.startswith("+"):
+            added.append(line[1:])
+        elif line.startswith("-"):
+            deleted.append(line[1:])
+    if len(added) != entry["additions"] or len(deleted) != entry["deletions"]:
+        raise ProvenanceError(f"{path} diff patch is truncated or has inconsistent counts")
+    return added, deleted, lines
+
+
+def _annotation_tokens(line: str) -> list[str]:
+    return RELEASE_PLEASE_ANNOTATION_RE.findall(line)
+
+
+def _version_tokens(line: str) -> list[str]:
+    return VERSION_TOKEN_RE.findall(line)
+
+
+def _validate_version_line_replacement(
+    old_line: str,
+    new_line: str,
+    *,
+    runtime_version: str,
+    require_annotation: bool = False,
+) -> None:
+    old_versions = _version_tokens(old_line)
+    new_versions = _version_tokens(new_line)
+    if (
+        len(old_versions) != 1
+        or len(new_versions) != 1
+        or not VERSION_RE.fullmatch(old_versions[0])
+        or old_versions[0] == runtime_version
+        or new_versions[0] != runtime_version
+        or old_line.replace(old_versions[0], runtime_version, 1) != new_line
+    ):
+        raise ProvenanceError("version carrier patch contains an unexpected replacement")
+    if require_annotation:
+        if _annotation_tokens(old_line) != ["x-release-please-version"]:
+            raise ProvenanceError("annotated carrier patch has an unexpected old marker")
+        if _annotation_tokens(new_line) != ["x-release-please-version"]:
+            raise ProvenanceError("annotated carrier patch has an unexpected new marker")
+    elif _annotation_tokens(old_line) or _annotation_tokens(new_line):
+        raise ProvenanceError("typed carrier patch contains an unapproved Release Please marker")
+
+
+def _validate_annotated_root_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    added, deleted, _ = _patch_change_lines(entry, path=path)
+    expected_lines = ANNOTATED_ROOT_VERSION_LINES[path]
+    if len(added) != expected_lines or len(deleted) != expected_lines:
+        raise ProvenanceError(
+            f"{path} must contain exactly {expected_lines} annotated version replacements"
+        )
+    for old_line, new_line in zip(deleted, added):
+        _validate_version_line_replacement(
+            old_line,
+            new_line,
+            runtime_version=runtime_version,
+            require_annotation=True,
+        )
+
+
+def _validate_typed_json_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    added, deleted, _ = _patch_change_lines(entry, path=path)
+    if len(added) != 1 or len(deleted) != 1:
+        raise ProvenanceError(f"{path} must contain one complete JSON replacement")
+    if _annotation_tokens(added[0]) or _annotation_tokens(deleted[0]):
+        raise ProvenanceError(f"{path} contains an unapproved Release Please marker")
+    try:
+        before = json.loads(deleted[0])
+        after = json.loads(added[0])
+    except json.JSONDecodeError as error:
+        raise ProvenanceError(f"{path} patch is not complete JSON: {error}") from error
+    expected = deepcopy(before)
+    try:
+        current: Any = expected
+        for key in TYPED_JSON_ROOT_PATHS[path][:-1]:
+            current = current[key]
+        current[TYPED_JSON_ROOT_PATHS[path][-1]] = runtime_version
+    except (KeyError, TypeError) as error:
+        raise ProvenanceError(f"{path} is missing its configured typed JSONPath") from error
+    if after != expected:
+        raise ProvenanceError(f"{path} changed content outside its typed JSONPath")
+    try:
+        old_value: Any = before
+        new_value: Any = after
+        for key in TYPED_JSON_ROOT_PATHS[path]:
+            old_value = old_value[key]
+            new_value = new_value[key]
+    except (KeyError, TypeError) as error:
+        raise ProvenanceError(f"{path} is missing its configured typed JSONPath") from error
+    if (
+        not isinstance(old_value, str)
+        or not VERSION_RE.fullmatch(old_value)
+        or old_value == runtime_version
+        or new_value != runtime_version
+    ):
+        raise ProvenanceError(f"{path} has an invalid typed version replacement")
+
+
+def _validate_release_manifest_patch(
+    entry: dict[str, Any],
+    *,
+    runtime_version: str,
+) -> None:
+    added, deleted, _ = _patch_change_lines(entry, path=RELEASE_METADATA_PATH)
+    if _annotation_tokens("\n".join(added)) or _annotation_tokens("\n".join(deleted)):
+        raise ProvenanceError("release metadata contains an unapproved Release Please marker")
+    if len(added) == 1 and len(deleted) == 1:
+        try:
+            before = json.loads(deleted[0])
+            after = json.loads(added[0])
+        except json.JSONDecodeError as error:
+            raise ProvenanceError(f"release metadata patch is not complete JSON: {error}") from error
+        if set(before) != EXPECTED_RELEASE_MANIFEST_PATHS or set(after) != set(before):
+            raise ProvenanceError("release metadata changed its approved path set")
+        old_values = before.values()
+        new_values = after.values()
+    else:
+        if len(added) != len(deleted) or len(added) != len(EXPECTED_RELEASE_MANIFEST_PATHS):
+            raise ProvenanceError("release metadata patch is truncated or has unexpected lines")
+        old_values = []
+        new_values = []
+        changed_paths: set[str] = set()
+        for old_line, new_line in zip(deleted, added):
+            old_match = re.fullmatch(r'\s*"([^"]+)": "([^"]+)",?\s*', old_line)
+            new_match = re.fullmatch(
+                rf'\s*"([^"]+)": "{re.escape(runtime_version)}",?\s*',
+                new_line,
+            )
+            if not old_match or not new_match or old_match.group(1) != new_match.group(1):
+                raise ProvenanceError("release metadata contains an unexpected line replacement")
+            changed_paths.add(old_match.group(1))
+            old_values.append(old_match.group(2))
+            new_values.append(runtime_version)
+        if changed_paths != EXPECTED_RELEASE_MANIFEST_PATHS:
+            raise ProvenanceError("release metadata changed its approved path set")
+    if any(
+        not isinstance(value, str)
+        or not VERSION_RE.fullmatch(value)
+        or value == runtime_version
+        for value in old_values
+    ) or any(value != runtime_version for value in new_values):
+        raise ProvenanceError("release metadata contains an unexpected version replacement")
+
+
+def _validate_toml_version_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    added, deleted, patch_lines = _patch_change_lines(entry, path=path)
+    if path == "Cargo.toml":
+        expected_pairs = 1
+        if not any(line.strip() == "[workspace.package]" for line in patch_lines):
+            raise ProvenanceError("root Cargo.toml patch is outside workspace.package.version")
+        if any(
+            old.strip() != f'version = "{_version_tokens(old)[0]}"'
+            or new.strip() != f'version = "{runtime_version}"'
+            for old, new in zip(deleted, added)
+            if len(_version_tokens(old)) == 1
+        ):
+            raise ProvenanceError("root Cargo.toml contains an unexpected replacement")
+    elif path == "Cargo.lock":
+        expected_pairs = len(RUNTIME_CRATES)
+        if "codegauge-conformance" in "\n".join(patch_lines):
+            raise ProvenanceError("Cargo.lock patch must not change the private package")
+        missing = [
+            crate
+            for crate in RUNTIME_CRATES
+            if not any(line.strip() == f'name = "{crate}"' for line in patch_lines)
+        ]
+        if missing:
+            raise ProvenanceError(
+                "Cargo.lock patch is missing runtime package context: " + ", ".join(missing)
+            )
+    elif path in RUNTIME_CARGO_MANIFEST_DEPENDENCIES:
+        expected_pairs = 1 + len(RUNTIME_CARGO_MANIFEST_DEPENDENCIES[path])
+        if not any(line.strip() == "[package]" for line in patch_lines):
+            raise ProvenanceError(f"{path} patch is missing package context")
+    else:
+        raise ProvenanceError(f"no TOML content contract exists for {path}")
+
+    if len(added) != expected_pairs or len(deleted) != expected_pairs:
+        raise ProvenanceError(f"{path} contains an unexpected number of TOML replacements")
+    package_versions = 0
+    dependency_versions: set[str] = set()
+    for old_line, new_line in zip(deleted, added):
+        _validate_version_line_replacement(
+            old_line,
+            new_line,
+            runtime_version=runtime_version,
+        )
+        old_stripped = old_line.strip()
+        new_stripped = new_line.strip()
+        if old_stripped.startswith("version = ") and new_stripped == f'version = "{runtime_version}"':
+            package_versions += 1
+            continue
+        dependency_match = re.fullmatch(
+            r'([A-Za-z0-9_-]+) = \{ version = "([^"]+)", path = "\.\./([A-Za-z0-9_-]+)" \}',
+            old_stripped,
+        )
+        new_dependency_match = re.fullmatch(
+            rf'([A-Za-z0-9_-]+) = \{{ version = "{re.escape(runtime_version)}", path = "\.\./([A-Za-z0-9_-]+)" \}}',
+            new_stripped,
+        )
+        if not dependency_match or not new_dependency_match:
+            raise ProvenanceError(f"{path} contains an unapproved TOML mutation")
+        if (
+            dependency_match.group(1) != new_dependency_match.group(1)
+            or dependency_match.group(3) != new_dependency_match.group(2)
+            or dependency_match.group(1) != dependency_match.group(3)
+        ):
+            raise ProvenanceError(f"{path} changed a dependency path")
+        dependency_versions.add(dependency_match.group(3))
+
+    if path == "Cargo.toml" and package_versions != 1:
+        raise ProvenanceError("root Cargo.toml must update only workspace.package.version")
+    if path == "Cargo.lock" and package_versions != expected_pairs:
+        raise ProvenanceError("Cargo.lock must update exactly the five runtime versions")
+    if path in RUNTIME_CARGO_MANIFEST_DEPENDENCIES:
+        if package_versions != 1 or dependency_versions != set(
+            RUNTIME_CARGO_MANIFEST_DEPENDENCIES[path]
+        ):
+            raise ProvenanceError(f"{path} changed an unexpected runtime dependency set")
+
+
+def _validate_npm_package_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    added, deleted, _ = _patch_change_lines(entry, path=path)
+    optional_keys = (
+        set(NPM_PACKAGES)
+        if path == NPM_BASE_PACKAGE_PATH
+        else set()
+    )
+    expected_pairs = 1 + len(optional_keys)
+    if len(added) != expected_pairs or len(deleted) != expected_pairs:
+        raise ProvenanceError(f"{path} contains an unexpected number of package version edits")
+    seen_keys: set[str] = set()
+    for old_line, new_line in zip(deleted, added):
+        old_match = re.fullmatch(r'\s*"([^"]+)": "([^"]+)",?\s*', old_line)
+        new_match = re.fullmatch(
+            rf'\s*"([^"]+)": "{re.escape(runtime_version)}",?\s*',
+            new_line,
+        )
+        if not old_match or not new_match or old_match.group(1) != new_match.group(1):
+            raise ProvenanceError(f"{path} contains an unapproved package mutation")
+        key = old_match.group(1)
+        if key != "version" and key not in optional_keys:
+            raise ProvenanceError(f"{path} changed an unapproved package key")
+        old_version = old_match.group(2)
+        if not VERSION_RE.fullmatch(old_version) or old_version == runtime_version:
+            raise ProvenanceError(f"{path} contains an invalid old package version")
+        if key in seen_keys:
+            raise ProvenanceError(f"{path} contains a duplicate package version edit")
+        seen_keys.add(key)
+    if seen_keys != {"version"} | optional_keys:
+        raise ProvenanceError(f"{path} did not synchronize its approved package versions")
+
+
+def _validate_generated_changelog_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    added, deleted, _ = _patch_change_lines(entry, path=path)
+    if entry.get("status") != "added" or deleted or not added:
+        raise ProvenanceError(f"{path} must be a complete generated changelog addition")
+    if added[0] != "# Changelog":
+        raise ProvenanceError(f"{path} is not a Release Please changelog")
+    version_header = re.compile(
+        rf"^##+ (?:\[)?v?{re.escape(runtime_version)}(?:\]|(?:\s|$))"
+    )
+    if not any(version_header.match(line) for line in added):
+        raise ProvenanceError(f"{path} changelog is missing the synchronized version header")
+    if any(_annotation_tokens(line) for line in added):
+        raise ProvenanceError(f"{path} contains an unapproved Release Please marker")
+
+
+def _validate_noop_generic_patch(entry: dict[str, Any], *, path: str) -> None:
+    _patch_change_lines(entry, path=path)
+    raise ProvenanceError(
+        f"{path} has no configured Release Please version marker and cannot be changed"
+    )
+
+
+def _validate_approved_content_patch(
+    entry: dict[str, Any],
+    *,
+    path: str,
+    runtime_version: str,
+) -> None:
+    if path in ANNOTATED_ROOT_VERSION_LINES:
+        _validate_annotated_root_patch(
+            entry,
+            path=path,
+            runtime_version=runtime_version,
+        )
+    elif path in TYPED_JSON_ROOT_PATHS:
+        _validate_typed_json_patch(
+            entry,
+            path=path,
+            runtime_version=runtime_version,
+        )
+    elif path == RELEASE_METADATA_PATH:
+        _validate_release_manifest_patch(entry, runtime_version=runtime_version)
+    elif path == "crates/codegauge-cli/tests/cli.rs":
+        _validate_noop_generic_patch(entry, path=path)
+    elif path == PRIVATE_CONFORMANCE_MANIFEST_PATH:
+        _validate_private_conformance_patch(entry, runtime_version=runtime_version)
+    elif (
+        path == "Cargo.toml"
+        or path == "Cargo.lock"
+        or path in RUNTIME_CARGO_MANIFEST_DEPENDENCIES
+    ):
+        _validate_toml_version_patch(
+            entry,
+            path=path,
+            runtime_version=runtime_version,
+        )
+    elif path == NPM_BASE_PACKAGE_PATH or path in NPM_PLATFORM_PACKAGE_PATHS:
+        _validate_npm_package_patch(
+            entry,
+            path=path,
+            runtime_version=runtime_version,
+        )
+    elif path in RUNTIME_CHANGELOG_PATHS:
+        _validate_generated_changelog_patch(
+            entry,
+            path=path,
+            runtime_version=runtime_version,
+        )
+    else:
+        raise ProvenanceError(f"no content contract exists for approved path {path}")
+
+
+def _validate_private_conformance_patch(
+    entry: dict[str, Any],
+    *,
+    runtime_version: str | None,
+) -> None:
+    """Allow only four complete dependency-version replacements in the private manifest."""
+
+    if runtime_version is None or not VERSION_RE.fullmatch(runtime_version):
+        raise ProvenanceError(
+            "private conformance diff validation requires a valid synchronized runtime version"
+        )
+    if entry.get("status") != "modified":
+        raise ProvenanceError("private conformance manifest must be an existing modified file")
+
+    added_patch_lines, deleted_patch_lines, _ = _patch_change_lines(
+        entry,
+        path=PRIVATE_CONFORMANCE_MANIFEST_PATH,
+    )
+    if (
+        entry["additions"] != len(PRIVATE_CONFORMANCE_DEPENDENCIES)
+        or entry["deletions"] != len(PRIVATE_CONFORMANCE_DEPENDENCIES)
+        or entry["changes"] != entry["additions"] + entry["deletions"]
+    ):
+        raise ProvenanceError(
+            "private conformance diff must contain exactly four additions and four deletions"
+        )
+
+    patch = entry["patch"]
+    if (
+        f"--- a/{PRIVATE_CONFORMANCE_MANIFEST_PATH}" not in patch
+        or f"+++ b/{PRIVATE_CONFORMANCE_MANIFEST_PATH}" not in patch
+        or not any(line.startswith("@@") for line in patch.splitlines())
+    ):
+        raise ProvenanceError("private conformance diff patch is missing complete file context")
+    required_context = {
+        ' description = "Private cross-crate CodeGauge conformance suite"',
+        " [dependencies]",
+        " [dev-dependencies]",
+        " schemars.workspace = true",
+        " serde_json.workspace = true",
+    }
+    if not required_context <= set(patch.splitlines()):
+        raise ProvenanceError("private conformance diff patch is truncated")
+
+    if len(deleted_patch_lines) != len(PRIVATE_CONFORMANCE_DEPENDENCIES) or len(
+        added_patch_lines
+    ) != len(PRIVATE_CONFORMANCE_DEPENDENCIES):
+        raise ProvenanceError(
+            "private conformance diff patch is truncated or contains unrelated changes"
+        )
+
+    deleted_dependencies: set[str] = set()
+    added_dependencies: set[str] = set()
+    for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
+        old_pattern = re.compile(
+            rf"^-{re.escape(dependency)} = \{{ version = \"([^\"]+)\", path = \"\.\./{re.escape(dependency)}\" \}}$"
+        )
+        new_pattern = re.compile(
+            rf"^\+{re.escape(dependency)} = \{{ version = \"{re.escape(runtime_version)}\", path = \"\.\./{re.escape(dependency)}\" \}}$"
+        )
+        old_matches = [
+            f"-{line}" for line in deleted_patch_lines if old_pattern.fullmatch(f"-{line}")
+        ]
+        new_matches = [
+            f"+{line}" for line in added_patch_lines if new_pattern.fullmatch(f"+{line}")
+        ]
+        if len(old_matches) != 1 or len(new_matches) != 1:
+            raise ProvenanceError(
+                f"private conformance diff contains an unapproved mutation for {dependency}"
+            )
+        old_version = old_pattern.fullmatch(old_matches[0]).group(1)
+        if not VERSION_RE.fullmatch(old_version) or old_version == runtime_version:
+            raise ProvenanceError(
+                f"private conformance dependency {dependency} has an invalid old version"
+            )
+        deleted_dependencies.add(dependency)
+        added_dependencies.add(dependency)
+
+    expected_dependencies = set(PRIVATE_CONFORMANCE_DEPENDENCIES)
+    if deleted_dependencies != expected_dependencies or added_dependencies != expected_dependencies:
+        raise ProvenanceError("private conformance diff changed an unexpected dependency key")
+
+
+def validate_stage_a_diff(
+    changed_files: list[Any],
+    *,
+    version: str | None = None,
+) -> None:
     """Allow only the synchronized version-PR file boundary."""
 
     paths: list[str] = []
+    seen_paths: set[str] = set()
     for entry in changed_files:
         path = entry.get("filename") if isinstance(entry, dict) else entry
         if not isinstance(path, str) or not path:
             raise ProvenanceError("release PR diff contains invalid file metadata")
         normalized = path[2:] if path.startswith("./") else path
+        if normalized in seen_paths:
+            raise ProvenanceError(f"release PR diff contains duplicate path: {normalized}")
+        seen_paths.add(normalized)
         paths.append(normalized)
         if normalized not in ALLOWED_STAGE_A_DIFFS:
             raise ProvenanceError(f"release PR diff contains an unapproved path: {normalized}")
+        if normalized == PRIVATE_CONFORMANCE_MANIFEST_PATH:
+            if not isinstance(entry, dict):
+                raise ProvenanceError(
+                    "private conformance manifest requires filename and complete patch metadata"
+                )
+            _validate_private_conformance_patch(entry, runtime_version=version)
+        elif normalized in CONTENT_VALIDATED_STAGE_A_DIFFS:
+            if version is None:
+                continue
+            if not isinstance(entry, dict):
+                raise ProvenanceError(
+                    f"{normalized} requires filename and complete patch metadata"
+                )
+            if not VERSION_RE.fullmatch(version):
+                raise ProvenanceError(
+                    f"{normalized} content validation requires a valid synchronized version"
+                )
+            _validate_approved_content_patch(
+                entry,
+                path=normalized,
+                runtime_version=version,
+            )
     if not paths:
         raise ProvenanceError("release PR diff is empty")
     if not {"Cargo.toml", "Cargo.lock", ".release-please-manifest.json"}.intersection(paths):
@@ -683,7 +1273,7 @@ def validate_carrier_event(
     body = pull_request.get("body") or ""
     if body.count("---") < 2 or version not in body:
         raise ProvenanceError("merged Release Please PR body is not a synchronized version PR")
-    validate_stage_a_diff(changed_files)
+    validate_stage_a_diff(changed_files, version=version)
     number = pull_request.get("number")
     if not isinstance(number, int) or number <= 0:
         raise ProvenanceError("merged Release Please PR number is invalid")

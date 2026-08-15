@@ -1,4 +1,103 @@
-# Acceptance QA Report: codegauge-distribution (acceptance rerun pending; technical verify complete)
+# Acceptance QA Report: codegauge-distribution (latest technical verify PASS WITH WARNINGS; acceptance rerun pending)
+
+## Latest technical verification handoff — 2026-08-15
+
+Fresh `sdd-verify` independently reran the generated-version/updater boundary and returned
+**PASS WITH WARNINGS**. The exact Release Please `17.6.0` read-only fake-SCM produced the release
+version `0.2.0`, exact 32-path effective changeset, one private manifest update containing only the
+four approved dependency pins, six npm optional pin rewrites, one synchronized PR, and zero Stage-A
+release/tag calls.
+
+- The copied synchronized tree changed the golden through typed `$.tool.version`, changed exactly
+  the four README and two model-contract annotated version lines, aligned public Cargo/npm/lock
+  values, and passed `cargo test --workspace --locked` while conformance remained version `0.1.0`
+  with `publish = false`.
+- Stage-B accepted legitimate typed/annotated/TOML/npm/changelog/private-pin updates and rejected
+  wrong-version, arbitrary, unannotated, malformed, filename-only, missing, duplicate, and
+  truncated mutations.
+- Current-tree Cargo, Python, npm, OCI, workflow, shell, package, and whitespace checks passed;
+  exact workflow mode/no-match probes also passed without a diff fetch or mutation.
+- QA remains **BLOCKED** pending the independent acceptance rerun and protected hosted evidence.
+  This handoff makes no user/operator acceptance claim. No hosted writes, credentials, tags,
+  releases, publication, variables, uploads, or attestations were used.
+
+## Apply handoff — Phase 9 private conformance dependency-pin exception — 2026-08-15
+
+The local implementation correcting hosted PR `#59` is complete for this apply slice. Acceptance QA
+remains **BLOCKED** and has not been rerun: the hosted PR `#59` metadata failure is still the latest
+hosted evidence until a separately authorized protected rerun proves the synchronized private pins.
+
+- Local evidence now covers one exact v17.6.0 fake-SCM PR, 32 effective Stage-A paths, one private
+  root-carrier manifest update changing only four dependency versions, six npm rewrites, and zero
+  release/tag calls.
+- Local Stage-B patch/content tests accept only the four approved private dependency replacements and
+  reject package metadata/version/publish, dependency path, formatting/comment, truncated/missing
+  patch, changelog, and other private-path mutations.
+- The synchronized fixture passes `cargo metadata --locked` while retaining conformance package
+  version `0.1.0` and `publish = false`; the requested local quality, package, OCI, workflow, and
+  whitespace checks are green.
+- This is implementation evidence only. `sdd-verify` must run next, followed by an independent QA
+  rerun; no user/operator acceptance is claimed.
+- No hosted writes occurred in this apply phase: no GitHub API mutation, workflow dispatch, repository
+  variable change, tag, label, release, upload, attestation, registry publication, credential use,
+  merge, push, or commit.
+
+## Apply remediation handoff — 2026-08-15
+
+The two local CRITICAL findings from the fresh technical verification were repaired by `sdd-apply`.
+Acceptance QA remains **BLOCKED** and has not been rerun; this handoff is local implementation
+evidence only.
+
+- The typed golden updater now changes `$.tool.version`, the four intended README lines and two model
+  contract lines use the exact Release Please 17.6.0 marker, and the exact 32-path fake-SCM result,
+  six optional pins, one PR, and zero Stage-A release/tag calls remain green.
+- A synchronized copied tree now reports the synchronized runtime version in the conformance golden
+  and passes the complete `cargo test --workspace --locked` suite while conformance remains version
+  `0.1.0` and `publish = false`.
+- Stage-B validates complete patch/count/content metadata for typed/annotated/TOML/npm/root/generated
+  paths and the private four-pin exception. Wrong versions, arbitrary content, unapproved markers,
+  filename-only entries, duplicates, and missing/truncated patches are covered by local negatives.
+- Focused/runtime/mutation, Python compileall, Cargo, npm, OCI, actionlint, ShellCheck, Dockerfile,
+  package, and whitespace checks passed locally.
+- `sdd-verify` must independently rerun the changed spec matrix before QA reruns. Hosted rehearsals,
+  tags/releases, publication, credentials, variables, uploads, attestations, and registry writes were
+  not performed.
+
+## Fresh technical verification handoff — 2026-08-15
+
+The Phase 9 `sdd-verify` rerun executed the requested local matrix but returned **FAIL**. The exact
+Release Please `17.6.0` fake-SCM and current-tree quality checks passed: 32 effective Stage-A paths,
+exactly four private dependency-version edits, synchronized public Cargo/npm/lock values, six npm
+optional rewrites, one PR, zero release/tag calls, private/non-publishable boundaries, and local
+dry-run/ordinary-main no-op guards were observed. The synchronized fixture's `cargo metadata --locked`
+also passed.
+
+QA must remain **BLOCKED** pending remediation of two local defects found by verification:
+
+1. A synchronized effective-tree `cargo test --workspace --locked` run fails because the conformance
+   golden still expects tool version `0.1.0` after the public runtime reaches `0.2.0`; the root generic
+   carrier does not update that unmarked file.
+2. Stage-B accepts a content-mutated approved generated file (`tests/golden/valid-methods.json`) by
+   filename alone; the direct probe returned `generated-file mutation: ACCEPTED`.
+
+No hosted rerun, publication, tag/release, credential, registry, or repository-variable write was
+performed. `sdd-qa` remains the acceptance owner only after `sdd-apply` repairs the local defects and
+`sdd-verify` passes again.
+
+## Superseding hosted finding — 2026-08-15
+
+Hosted PR `#59` established the real Stage-A boundary: the five public runtime Cargo packages and
+npm packages synchronized to `0.2.0` with no release/tag calls, but merged-tree `cargo metadata
+--locked` failed because the private conformance manifest still pinned its four runtime path
+dependencies to `^0.1.0`. The earlier local exclusion-only result is historical and cannot be used
+as acceptance of this corrected contract.
+
+The pending acceptance contract is now: the Java root carrier may change only the four private
+dependency `.version` fields to the synchronized runtime version; the private package version,
+`publish = false`, lock identity, changelog/release/tag exclusion, and linked-component exclusion
+must remain intact. Stage-B must accept that exact content and reject every other private or
+unapproved mutation. This correction is now implemented locally but not hosted-verified; QA remains
+`BLOCKED`.
 
 ## Technical verification handoff — carrier event-correlation fix — 2026-08-15
 
@@ -143,7 +242,7 @@ never recorded as `PASS`; those rows are `NOT TESTED` even when the diagnostic c
 | REL-1 | Release provenance is one immutable version/source identity from merged main. | BLOCKED | Local validators and drift negatives pass, but no immutable release-please tag, merged hosted PR, or GitHub Release exists. |
 | REL-2 | Root updates survive the exact Release Please 17.6.0 plugin pipeline. | PASS | Exact fake-SCM chain produced the root carrier, five runtime Cargo updates, package/changelog updates, and one synchronized PR; latest technical probe also recorded the effective 31-path set. Evidence in `focused/1.log` and the latest `verify-report.md`. |
 | REL-3 | Virtual root remains a non-publishable metadata carrier. | PASS | Current config and runtime harness preserve `release-type: java`, no root package identity, and skipped Stage-A release creation; evidence in `focused/1.log` and `focused/4.log`. |
-| REL-4 | Private conformance member stays outside Stage-A updates. | PASS | Exact harness recorded no `crates/codegauge-conformance/*`, and the mutated private manifest was rejected; evidence in `focused/1.log` and `focused/2.log`. |
+| REL-4 | Private conformance remains non-release/non-linked while its four root-carrier dependency pins align. | BLOCKED | Hosted PR `#59` proved that exclusion-only Stage A leaves `cargo metadata --locked` broken; Phase 9 exact-pin implementation and rerun are pending. |
 | REL-5 | v17.6.0 empty-component/tag coupling is avoided. | PASS | Component-tagged Stage A produced a full 13-component linked map while the fake SCM observed no release/tag calls; evidence in `focused/1.log`. |
 | REL-6 | All six npm optional pins synchronize to the linked version. | PASS | Harness output recorded six optional dependency versions rewritten to `0.2.0`; evidence in `focused/1.log`. |
 | REL-7 | Complete eight-target archive release has correct formats/checksums/evidence. | BLOCKED | Local synthetic packaging verified 8/8 archive formats, manifests, and checksums, but seven target binaries were explicitly `cross-target/execution=not-run`; evidence in `archives.log` and `archives/`. |
@@ -156,9 +255,9 @@ never recorded as `PASS`; those rows are `NOT TESTED` even when the diagnostic c
 | OCI-3 | Workspace-aware non-root images build/run for amd64 and arm64. | PASS | `build_oci_release.sh` built, loaded, ran, and verified both local architectures with version/profile/contract/non-root evidence; evidence in `oci-local-build-corrected.log` and `oci/{amd64,arm64}.json`. |
 | OCI-4 | OCI label/runtime/root/emulation/digest mismatch fails validation. | PASS | Positive and negative OCI evidence suites passed; real local evidence retained distinct Docker/OCI digest domains in `/tmp/codegauge-rf6-qa.weKmyI/oci/`. |
 | OCI-5 | Failed architecture blocks manifest/tag publication. | BLOCKED | No registry manifest/tag publication or hosted architecture failure injection was run. |
-| R-F6-A | Stage-A exact v17.6.0 fake-SCM creates one PR, rewrites six optional pins, makes no release/tag calls, and does not update private conformance. | PASS | `python3 tests/release_please_runtime_tests.py` exited 0; output records `synchronizedPullRequests: 1`, six `0.2.0` pins, `releaseCalls: 0`, `tagCalls: 0`, and `PRIVATE CANDIDATE MUTATION: REJECTED`. |
+| R-F6-A | Stage-A exact v17.6.0 fake-SCM creates one PR, rewrites six optional pins, makes no release/tag calls, and applies only the root-carrier private pin exception. | BLOCKED | The current harness still asserts private-path exclusion; it must be updated to expect one exact root-owned private manifest update after the hosted `#59` failure. |
 | R-F6-B | Stage-B positive carrier validates one merged-main version PR and canonical tag record. | PASS | `python3 tests/release_carrier_tests.py` exited 0; copied-tree positive carrier record matched `v0.2.0` and the expected merge SHA. |
-| R-F6-C | Stage-B rejects unapproved/private/missing/root/malformed-semver mutations. | PASS | Exact path, root-file deletion, private candidate, graph drift, lock/manifest deletion, and strict SemVer mutations all rejected in `focused/2.log`. |
+| R-F6-C | Stage-B accepts only the four private dependency-version edits and rejects private package/changelog/other-path mutations. | BLOCKED | The current validator rejects the entire private path; content-aware exception tests and implementation are pending in Phase 9. |
 | R-F6-D | Tag planning is idempotent and conflict-safe. | PASS | Create, same-SHA no-op, different-SHA conflict, annotated-tag rejection, existing-release conflict, retry, and bootstrap-version cases passed in `focused/2.log`. |
 | R-F6-E | Workflow security gates enforce full SHAs, least privilege, token separation, concurrency, and canonical topology. | NOT TESTED | `release_carrier_static_tests.py`, `distribution_checks.py`, `actionlint`, and ShellCheck exited 0, but this is static-only evidence and no hosted workflow acceptance is claimed. |
 | R-F6-F | Canonical tag state transition delivers the tag-triggered downstream release graph. | BLOCKED | Local pure planning/topology diagnostics pass, but no hosted tag creation, event delivery, build/publish graph, release URL, or downstream run was available. |
@@ -197,15 +296,16 @@ missing/prohibited external acceptance evidence rather than a newly observed loc
 
 ### Verdict rationale
 
-The local acceptance boundary is green for the capabilities that can execute safely: exact Release
-Please 17.6.0 fake-SCM behavior, six optional-pin rewrites, no Stage-A release/tag calls, private
-conformance exclusion, Stage-B positive/negative/idempotency/conflict behavior, local Cargo/npm/package
-quality, archive/checksum validators, and real local amd64/arm64 OCI runtime evidence. The expected
-negative fixtures fail closed. However, the requested capability is a two-stage distribution lifecycle,
-and its acceptance-critical hosted transition, immutable release provenance, complete native target
-matrix, publication ordering, attestation, and rollback cannot be observed under the explicit no-write
-and no-credential boundary. Per the QA/archive policy, those `BLOCKED` scenarios cannot be converted to
-`PASS` or `PASS WITH WARNINGS`; archive must remain gated.
+The local acceptance boundary is green only for the previously implemented exclusion-only behavior:
+exact Release Please 17.6.0 fake-SCM behavior, six optional-pin rewrites, no Stage-A release/tag
+calls, Stage-B positive/negative/idempotency/conflict behavior, local Cargo/npm/package quality,
+archive/checksum validators, and real local amd64/arm64 OCI runtime evidence. Hosted PR `#59` proves
+that this is insufficient because locked metadata still fails on stale private pins. The exact
+root-carrier exception and content-aware Stage-B acceptance are unimplemented, and the requested
+hosted transition, immutable release provenance, complete native target matrix, publication ordering,
+attestation, and rollback cannot be observed under the explicit no-write/no-credential boundary. Per
+the QA/archive policy, those `BLOCKED` scenarios cannot be converted to `PASS` or `PASS WITH WARNINGS`;
+archive must remain gated.
 
 ## 9. Implementation handoff
 

@@ -1,6 +1,6 @@
 # CodeGauge
 
-CodeGauge `0.1.0` is a standalone Rust CLI for deterministic JaCoCo evidence and the
+CodeGauge `0.1.0` <!-- x-release-please-version --> is a standalone Rust CLI for deterministic JaCoCo evidence and the
 `crap-original-v1` metric. It measures evidence, not policy: a score is never a quality verdict.
 
 ## Purpose and boundary
@@ -26,7 +26,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 The repository checks also include `python3 tests/bootstrap_checks.py` and
 `python3 tests/readme_checks.py`.
 
-## CLI `0.1.0`
+## CLI `0.1.0` <!-- x-release-please-version -->
 
 The public interface is JSON-only for analysis and requires the exact profile, input, and format:
 
@@ -36,7 +36,7 @@ codegauge profiles
 codegauge version
 ```
 
-`profiles` prints exactly `java-jacoco-v1`. `version` prints exactly `codegauge 0.1.0`.
+`profiles` prints exactly `java-jacoco-v1`. `version` prints exactly `codegauge 0.1.0` <!-- x-release-please-version -->.
 `analyze` writes exactly one result or structured error JSON document to stdout; human diagnostics go
 to stderr. The only accepted format is `json`.
 
@@ -173,7 +173,7 @@ recovering when necessary.
 
 ## Release checklist
 
-- [ ] Release from an immutable Git revision; retain the exact `codegauge 0.1.0` version and profile/schema IDs.
+- [ ] Release from an immutable Git revision; retain the exact `codegauge 0.1.0` <!-- x-release-please-version --> version and profile/schema IDs.
 - [ ] Keep `rust-toolchain.toml` pinned to Rust/Cargo `1.97.1` and `Cargo.lock` committed.
 - [ ] Run `cargo metadata --locked`, `cargo test --workspace --locked`, fmt, and clippy with locked inputs.
 - [ ] Publish an artifact SHA-256 for every binary/archive actually released and record its pinned target triple.
