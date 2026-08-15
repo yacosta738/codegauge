@@ -495,3 +495,50 @@ archive; the verdict therefore cannot be `PASS` or `PASS WITH WARNINGS`.
 - Recommended next step: rerun `sdd-qa` from an immutable release-please tag on merged `main` with
   approved hosted-runner evidence and a safe, authorized release rehearsal. Run `sdd-archive` only
   after the blocked acceptance scenarios are resolved or an explicit policy exception is recorded.
+
+## Latest apply handoff — hosted GitHub PR patch parser defect — 2026-08-15
+
+QA remains **BLOCKED** and was not rerun. This section records the implementation handoff only.
+
+- Hosted run `#31878496886` reached validation for the real merged Release Please PR `#59` and found
+  that the validator rejected GitHub's valid hunk-only `.release-please-manifest.json` patch because
+  it had no local `diff --git`, `---`, or `+++` headers.
+- The parser fix accepts exactly a complete single-file unified diff or a filename-bound GitHub
+  PR-files hunk-only patch, with strict hunk/body/count, status/header, path, and unexpected-section
+  checks. Local RED/GREEN evidence and the full carrier/provenance/runtime/distribution quality
+  matrix passed.
+- The exact 32-path Stage-A changeset, private four-pin exception, generated-file content validation,
+  no-match carrier no-op, dry-run/live gates, and no-publication contract remain preserved.
+- No tag, GitHub Release, Cargo/npm/GHCR publication, upload, attestation, workflow dispatch,
+  repository-variable change, credential use, merge, push, or hosted write occurred. Hosted run
+  `#31878496886` found the bug, and this fix is **not yet hosted-verified**.
+- `sdd-verify` must rerun before independent QA. The protected hosted rerun remains separately
+  authorized work; this handoff makes no user/operator acceptance claim.
+
+## Latest technical verification handoff — Phase 10 parser fix — 2026-08-15
+
+Acceptance QA remains **BLOCKED** and was not rerun. Fresh technical verification returned
+**PASS WITH WARNINGS** with no local implementation defect; this report does not claim hosted or
+operator acceptance.
+
+- The real `.release-please-manifest.json` fixture passed as a filename-bound GitHub PR-files
+  hunk-only patch with no `diff --git`, `---`, or `+++` headers, and the complete unified-diff form
+  also passed. Read-only matrices passed both forms for all 31 content-bearing Stage-A entries;
+  the exact Release Please effective set remains 32 paths because the unmarked CLI fixture has no
+  content mutation.
+- Strict hunk/body and additions/deletions/changes count validation rejected missing metadata,
+  missing patches, malformed/truncated/inconsistent hunks, and unexpected multi-file sections.
+- The exact `release-please@17.6.0` fake-SCM still records version `0.2.0`, 32 effective paths,
+  exactly four private dependency pins, six npm optional pin rewrites, one synchronized PR, and
+  zero release/tag calls. The private package remains `0.1.0` and `publish = false`.
+- Stage-B validators still reject generated-file wrong versions/arbitrary content, private package
+  and unrelated mutations, unapproved paths, missing roots, malformed SemVer, duplicate/truncated
+  patches, and tag/release conflicts. The synchronized copied workspace passes `cargo test
+  --workspace --locked`.
+- Current Cargo/Python/npm/OCI/workflow/package/whitespace checks and the ordinary-main no-match plus
+  dry-run/live mode probes passed locally. No hosted writes, credentials, tags, releases, registry
+  publication, uploads, attestations, variables, merges, pushes, or dispatches were used.
+
+QA remains blocked on the independent acceptance rerun and separately authorized hosted evidence for
+the real merged PR/carrier path, tag delivery, publication/attestation, native target coverage, and
+failure-injection/rollback. Run `sdd-qa` next; do not archive from this technical handoff alone.

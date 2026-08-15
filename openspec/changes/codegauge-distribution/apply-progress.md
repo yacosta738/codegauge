@@ -1303,3 +1303,85 @@ credential injection, or hosted write was performed.
 - Technical verdict: **PASS WITH WARNINGS**; no local implementation defect remains.
 - Hosted Release Please merge/carrier/tag rehearsal and independent `sdd-qa` remain pending or
   prohibited under the no-write boundary. This verification does not claim operator acceptance.
+
+## Phase 10 apply — hosted GitHub PR patch parser defect — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; branch: `fix/release-private-pins-rehearsal-v2`.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`; trunk/base:
+  `origin/main`; position: Stage-B PR-files hunk-only patch parser repair after the Phase 9 private
+  conformance pin exception. The branch was clean before this slice; no branch, commit, push, merge,
+  tag, release, publication, credential, repository-variable, or parent-repository mutation was
+  performed.
+- Hosted run `#31878496886` reached validation for the real merged Release Please PR `#59` and failed
+  with `RELEASE PROVENANCE: FAIL: .release-please-manifest.json diff has missing or unexpected file
+  context`. GitHub `GET /pulls/59/files` supplied a valid hunk-only `patch` beginning
+  `@@ -1,15 +1,15 @@` without `diff --git`, `---`, or `+++` headers; the old parser incorrectly required
+  local full-diff headers.
+- The exact 32-path Stage-A changeset, private four-pin exception, generated-file content validation,
+  no-match carrier no-op, dry-run/live gates, and no-publication contract remain unchanged.
+
+### Completed tasks
+
+- [x] 10.1 **RED** — Added an API-shaped hunk-only `.release-please-manifest.json` entry with
+  `filename`, `status`, `additions`, `deletions`, `changes`, and the 15-line hunk. Retained full
+  unified-diff fixtures and added malformed, missing, inconsistent-count, truncated, multi-hunk, and
+  unexpected multi-section regressions.
+- [x] 10.2 **GREEN** — `_patch_change_lines()` now accepts exactly a complete single-file unified
+  diff or a filename-bound GitHub PR-files hunk-only patch. It validates every hunk header/body count,
+  API additions/deletions/changes metadata, status-specific headers, path identity where headers are
+  present, and rejects malformed, truncated, or unexpected file sections. The private conformance
+  validator now uses parsed hunk context so the four-pin exception also works with API patches.
+- [x] 10.3 **REFACTOR** — Corrected test full-diff hunk counts, kept exact runtime fixtures valid, and
+  updated the release-artifacts/design contract plus verification/QA handoff. Local checks passed;
+  the fix is not yet hosted-verified.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** before the parser change, `python3 tests/release_carrier_tests.py` failed on the actual
+   hunk-only manifest entry with `ProvenanceError: .release-please-manifest.json diff has missing or
+   unexpected file context`, reproducing the hosted defect locally.
+2. **GREEN:** after the parser and private-validator changes,
+   `python3 tests/release_carrier_tests.py` passed the hunk-only and full unified-diff positives plus
+   missing/count/malformed/truncated/multi-section negatives. Carrier static, provenance, exact
+   Release Please runtime, and distribution tests also passed.
+3. **REFACTOR:** hunk parsing was centralized, declared hunk counts are checked independently of API
+   metadata, full-diff headers remain strict, and the existing path/content/version/private/dry-run/
+   live/no-publication boundaries stayed green.
+
+### Local verification evidence
+
+- `python3 tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`,
+  `tests/release_provenance_tests.py`, `tests/release_please_runtime_tests.py`, and
+  `tests/distribution_checks.py` — PASS.
+- No tag, GitHub Release, Cargo/npm/GHCR publication, upload, attestation, workflow dispatch,
+  repository-variable change, credential use, merge, push, or hosted write occurred. Hosted run
+  `#31878496886` found the bug; this fix is not yet hosted-verified.
+
+## Phase 10 technical verification — 2026-08-15
+
+### Verification result
+
+- [x] Fresh `sdd-verify` re-read the proposal, all five delta specs, design, tasks, current diff,
+  implementation, state, and QA handoff before judging the parser correction.
+- [x] The real `.release-please-manifest.json` fixture passes as a GitHub PR-files API-shaped
+  filename-bound hunk-only patch beginning `@@ -1,15 +1,15 @@`; the complete unified-diff form also
+  passes. A read-only generated matrix passed both forms for all 31 content-bearing Stage-A entries
+  (the 32nd effective path is the intentionally unmarked CLI fixture with no content mutation).
+- [x] Hunk headers/body counts, additions/deletions/changes metadata, status/path/header rules, and
+  unexpected-section handling fail closed for missing, truncated, inconsistent, malformed, and
+  multi-section patches. The private conformance four-pin validator passes with hunk-only context too.
+- [x] Exact Release Please `17.6.0` fake-SCM output remains 32 effective paths, four private pins,
+  six npm optional rewrites, one PR, and zero release/tag calls. Synchronized workspace tests and all
+  requested local Cargo/Python/npm/OCI/workflow/package/whitespace checks pass.
+- [x] Ordinary-main no-match classification still emits the successful skipped record, and the
+  manual/automatic dry-run/live mode matrix remains green with invalid values failing closed.
+
+### Handoff
+
+- Technical verdict: **PASS WITH WARNINGS**; no local implementation defect remains.
+- Independent `sdd-qa`, the protected hosted rerun, hosted tag/release/publication evidence, native
+  non-host target evidence, and failure-injection/rollback evidence remain outside this no-write phase.
+- No commit, push, merge, repository-variable change, tag, label, release, upload, publication,
+  attestation, credential injection, or hosted write was performed.

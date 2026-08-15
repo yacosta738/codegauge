@@ -169,12 +169,12 @@ publication, or verification success is claimed.
 
 - [x] Focused carrier, exact `release-please@17.6.0` fake-SCM, provenance, distribution, Cargo, npm,
   OCI, workflow, shell, package, and whitespace checks were executed without hosted writes.
-- [ ] Task `9.6` is not accepted: the synchronized effective-tree workspace test fails in the
-  conformance golden because the root generic carrier does not update its embedded tool version,
-  and Stage-B accepts a mutated approved generated file (`tests/golden/valid-methods.json`) by path
-  alone.
-- [ ] Task `9.7` remains pending and prohibited until the local defects are corrected and a protected
-  hosted rerun is separately authorized.
+- Historical note: task `9.6` was not accepted at this earlier handoff because the synchronized
+  effective-tree workspace test failed in the conformance golden and Stage-B accepted a mutated
+  approved generated file (`tests/golden/valid-methods.json`) by path alone. Both local defects were
+  remediated by tasks `9.8` and `9.9` and are superseded by the later verification handoff.
+- [ ] Task `9.7` remains pending and prohibited until the corrected local boundary receives a
+  separately authorized protected hosted rerun.
 
 ## Phase 9 local defect remediation — assigned apply slice
 
@@ -196,5 +196,44 @@ publication, or verification success is claimed.
   entries, and missing/truncated patches.
 - [x] 9.10 — Run the focused/runtime/mutation suites and the complete local Cargo, Python, npm, OCI,
   workflow, ShellCheck, Dockerfile, package, and whitespace checks without hosted writes.
-- [ ] 9.11 — Fresh `sdd-verify` is complete locally; run independent `sdd-qa`. The protected hosted
-  rerun remains separately authorized work and is not performed here.
+- [ ] 9.11 — Fresh `sdd-verify` completed locally on 2026-08-15; run independent `sdd-qa`. The
+  protected hosted rerun remains separately authorized work and is not performed here.
+
+## Phase 10: Hosted GitHub PR patch parser remediation
+
+### Layer boundary
+
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Trunk/base: `origin/main`; branch: `fix/release-private-pins-rehearsal-v2`; position: hosted
+  Stage-B hunk-only PR-files patch parser repair after the Phase 9 private-pin exception. No Stack
+  metadata, branch creation, commit, push, merge, tag, release, publication, credential, variable, or
+  parent-repository mutation is permitted.
+- Hosted run `#31878496886` reached validation for merged Release Please PR `#59` and exposed the
+  parser mismatch. Preserve the exact 32-path Stage-A changeset, private four-pin exception,
+  generated-file content validation, no-match carrier no-op, dry-run/live gates, and no-publication
+  contract.
+
+- [x] 10.1 **RED** — Add an actual GitHub PR-files API-shaped hunk-only
+  `.release-please-manifest.json` entry, retain complete unified-diff fixtures, and reject missing,
+  inconsistent, malformed/truncated, and unexpected multi-section patches.
+- [x] 10.2 **GREEN** — Make `_patch_change_lines()` accept only complete single-file unified diffs or
+  filename-bound GitHub hunk-only patches, validating hunk bodies/counts, path/status/header checks,
+  and rejecting unexpected sections or incomplete input.
+- [x] 10.3 **REFACTOR** — Re-run carrier/provenance/runtime/distribution and full local checks; update
+  the specification and verification/QA handoff with hosted run `#31878496886`, the local fix, and
+  the explicit not-hosted-verified/no-tag-release-publication boundary.
+- [ ] 10.4 — Fresh `sdd-verify` completed locally on 2026-08-15; independent `sdd-qa` and a
+  separately authorized protected hosted rerun remain pending. This phase does not claim hosted
+  verification or acceptance.
+
+## Phase 10 verification handoff — 2026-08-15
+
+Fresh technical verification passed the parser correction locally. The exact installed
+`release-please@17.6.0` chain still produces 32 effective paths, one synchronized PR, four private
+dependency pin edits, six npm optional pin rewrites, and zero Stage-A release/tag calls. Complete
+unified-diff fixtures and filename-bound GitHub PR-files hunk-only fixtures pass for all 31
+content-bearing changed entries (the 32nd effective path is the intentionally unmarked CLI fixture
+with no content mutation); malformed, missing, truncated, inconsistent-count, and unexpected-section
+patches fail closed. The synchronized workspace, Stage-B content validators, ordinary-main no-match
+classifier, and dry-run/live gates remain green. Only independent QA and the separately authorized
+hosted rerun remain outside this local verification boundary.

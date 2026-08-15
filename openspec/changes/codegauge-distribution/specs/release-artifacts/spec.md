@@ -117,10 +117,14 @@ file. `/tests/golden/valid-methods.json` MUST use the typed JSON path `$.tool.ve
 `crates/codegauge-model/tests/contracts.rs` MAY use the generic updater only on exact
 `x-release-please-version` marker lines; unrelated semver text MUST remain unmarked. The CLI
 integration fixture has no release-version marker and MUST NOT be changed by the root generic
-updater. Stage-B MUST retain complete file patch/content metadata and reject filename-only, wrong
-version, arbitrary-content, unapproved-marker, malformed, missing, or truncated updates for every
-approved root/candidate/generated path. The twelve generated changelogs are permitted only as
-complete Release Please changelog additions.
+updater. Stage-B MUST retain complete file patch/content metadata and accept exactly one of these
+patch forms: a complete single-file unified diff with matching file headers, or a GitHub PR-files API
+hunk-only patch whose validated entry supplies the filename. Either form MUST contain complete hunk
+headers/body lines and hunk counts consistent with the API additions/deletions/changes metadata; an
+unexpected file section MUST fail closed. Filename-only, wrong-version, arbitrary-content,
+unapproved-marker, malformed, missing, or truncated updates MUST fail closed for every approved
+root/candidate/generated path. The twelve generated changelogs are permitted only as complete
+Release Please changelog additions.
 
 #### Scenario: Synchronized golden and contract fixtures
 
@@ -136,6 +140,16 @@ complete Release Please changelog additions.
 - WHEN its complete patch contains `9.9.9`, arbitrary content, an unapproved marker, or missing/
   truncated patch data
 - THEN Stage-B fails closed before tag, label, release, upload, or publication mutation
+
+#### Scenario: GitHub PR-files API hunk-only patch
+
+- GIVEN `GET /pulls/{number}/files` returns a validated `.release-please-manifest.json` entry whose
+  `patch` begins with `@@` and contains no `diff --git`, `---`, or `+++` file headers
+- WHEN the hunk body and declared hunk/additions/deletions/changes counts describe exactly the
+  approved manifest version replacements
+- THEN Stage-B accepts the entry using its validated `filename`
+- AND a missing patch, inconsistent counts, malformed/truncated hunk, or unexpected second file
+  section fails closed before tag, label, release, upload, or publication mutation
 
 ### Requirement: Linked versions must not depend on tag naming
 

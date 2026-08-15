@@ -22,7 +22,9 @@ sys.path.insert(0, str(ROOT))
 from scripts.verify_release_provenance import (  # noqa: E402
     CarrierRecord,
     ProvenanceError,
+    RELEASE_METADATA_PATH,
     VERSION_RE,
+    _patch_change_lines,
     classify_carrier_prs,
     plan_carrier_tag,
     select_matching_release_please_prs,
@@ -162,7 +164,7 @@ def patch_with_pairs(
         f"diff --git a/{path} b/{path}",
         f"--- a/{path}",
         f"+++ b/{path}",
-        f"@@ -1,{len(pairs)} +1,{len(pairs)} @@",
+        f"@@ -1,{len(context) + len(pairs)} +1,{len(context) + len(pairs)} @@",
     ]
     return "\n".join(
         header
@@ -216,6 +218,27 @@ def valid_release_manifest_entry() -> dict[str, object]:
         ),
         additions=len(pairs),
         deletions=len(pairs),
+    )
+
+
+def valid_release_manifest_hunk_only_entry() -> dict[str, object]:
+    manifest = json.loads(
+        (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+    )
+    lines = ["@@ -1,15 +1,15 @@", " {"]
+    for path, old_version in manifest.items():
+        lines.extend(
+            [
+                f'-  "{path}": "{old_version}",',
+                f'+  "{path}": "{VERSION}",',
+            ]
+        )
+    lines.append(" }")
+    return carrier_content_entry(
+        ".release-please-manifest.json",
+        "\n".join(lines) + "\n",
+        additions=len(manifest),
+        deletions=len(manifest),
     )
 
 
@@ -669,6 +692,172 @@ def main() -> int:
             "carrier accepted a root file with missing patch metadata",
         )
 
+        full_manifest = valid_release_manifest_entry()
+        validate_stage_a_diff(
+            [
+                CORE_STAGE_A_DIFF[0],
+                CORE_STAGE_A_DIFF[1],
+                full_manifest,
+                CORE_STAGE_A_DIFF[3],
+            ],
+            version=VERSION,
+        )
+        hunk_only_manifest = valid_release_manifest_hunk_only_entry()
+        hunk_only_patch = hunk_only_manifest["patch"]
+        assert isinstance(hunk_only_patch, str)
+        assert hunk_only_patch.startswith("@@ -1,15 +1,15 @@\n")
+        assert not any(
+            line.startswith(("diff --git ", "--- ", "+++ "))
+            for line in hunk_only_patch.splitlines()
+        )
+        added, deleted, patch_lines = _patch_change_lines(
+            hunk_only_manifest,
+            path=RELEASE_METADATA_PATH,
+        )
+        assert len(added) == len(deleted) == 13
+        assert patch_lines[0] == "@@ -1,15 +1,15 @@"
+        validate_stage_a_diff(
+            [
+                CORE_STAGE_A_DIFF[0],
+                CORE_STAGE_A_DIFF[1],
+                hunk_only_manifest,
+                CORE_STAGE_A_DIFF[3],
+            ],
+            version=VERSION,
+        )
+        multi_hunk_entry = {
+            "filename": RELEASE_METADATA_PATH,
+            "status": "modified",
+            "additions": 2,
+            "deletions": 2,
+            "changes": 4,
+            "patch": (
+                "@@ -1 +1 @@\n"
+                "-old manifest line\n"
+                "+new manifest line\n"
+                "@@ -15 +15 @@\n"
+                "-old closing line\n"
+                "+new closing line\n"
+            ),
+        }
+        multi_hunk_added, multi_hunk_deleted, _ = _patch_change_lines(
+            multi_hunk_entry,
+            path=RELEASE_METADATA_PATH,
+        )
+        assert multi_hunk_added == ["new manifest line", "new closing line"]
+        assert multi_hunk_deleted == ["old manifest line", "old closing line"]
+        private_hunk_only = dict(PRIVATE_CONFORMANCE_DIFF)
+        private_patch = private_hunk_only["patch"]
+        assert isinstance(private_patch, str)
+        private_hunk_only["patch"] = "\n".join(
+            line
+            for line in private_patch.splitlines()
+            if not line.startswith(("diff --git ", "index ", "--- ", "+++ "))
+        ) + "\n"
+        validate_stage_a_diff(
+            [*CORE_STAGE_A_DIFF[:3], CORE_STAGE_A_DIFF[3], private_hunk_only],
+            version=VERSION,
+        )
+
+        manifest = json.loads(
+            (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+        )
+        last_path, last_version = next(reversed(manifest.items()))
+        old_line = f'  "{last_path}": "{last_version}",'
+        new_line = f'  "{last_path}": "{VERSION}",'
+
+        missing_patch = dict(hunk_only_manifest)
+        del missing_patch["patch"]
+        assert_fails(
+            lambda: _patch_change_lines(missing_patch, path=RELEASE_METADATA_PATH),
+            "parser accepted a GitHub entry without a patch",
+        )
+
+        inconsistent_counts = dict(hunk_only_manifest)
+        inconsistent_counts["changes"] = inconsistent_counts["additions"] + 1
+        assert_fails(
+            lambda: _patch_change_lines(
+                inconsistent_counts,
+                path=RELEASE_METADATA_PATH,
+            ),
+            "parser accepted inconsistent GitHub change counts",
+        )
+
+        truncated_patch = hunk_only_patch.replace(
+            f"-{old_line}\n+{new_line}\n",
+            "",
+            1,
+        )
+        truncated_hunk = dict(hunk_only_manifest)
+        truncated_hunk["patch"] = truncated_patch
+        truncated_hunk["additions"] = 12
+        truncated_hunk["deletions"] = 12
+        truncated_hunk["changes"] = 24
+        assert_fails(
+            lambda: _patch_change_lines(truncated_hunk, path=RELEASE_METADATA_PATH),
+            "parser accepted a truncated hunk with matching metadata counts",
+        )
+
+        malformed_hunk = dict(hunk_only_manifest)
+        malformed_hunk["patch"] = hunk_only_patch.replace(
+            "@@ -1,15 +1,15 @@\n",
+            "",
+            1,
+        )
+        assert_fails(
+            lambda: _patch_change_lines(malformed_hunk, path=RELEASE_METADATA_PATH),
+            "parser accepted a hunk-only patch without a hunk header",
+        )
+
+        unexpected_section = dict(hunk_only_manifest)
+        unexpected_section["patch"] = hunk_only_patch + (
+            "diff --git a/README.md b/README.md\n"
+            "--- a/README.md\n"
+            "+++ b/README.md\n"
+            "@@ -1 +1 @@\n"
+            "-old\n"
+            "+new\n"
+        )
+        assert_fails(
+            lambda: _patch_change_lines(
+                unexpected_section,
+                path=RELEASE_METADATA_PATH,
+            ),
+            "parser accepted an unexpected second diff section",
+        )
+
+        full_truncated = dict(full_manifest)
+        full_truncated_patch = full_truncated["patch"]
+        assert isinstance(full_truncated_patch, str)
+        full_truncated["patch"] = full_truncated_patch.replace(
+            f"-{old_line}\n+{new_line}\n",
+            "",
+            1,
+        )
+        assert_fails(
+            lambda: _patch_change_lines(full_truncated, path=RELEASE_METADATA_PATH),
+            "parser accepted a truncated full unified diff",
+        )
+
+        full_multi_section = dict(full_manifest)
+        full_multi_patch = full_multi_section["patch"]
+        assert isinstance(full_multi_patch, str)
+        full_multi_section["patch"] = full_multi_patch + (
+            "diff --git a/README.md b/README.md\n"
+            "--- a/README.md\n"
+            "+++ b/README.md\n"
+            "@@ -1 +1 @@\n"
+            "-old\n"
+            "+new\n"
+        )
+        assert_fails(
+            lambda: _patch_change_lines(
+                full_multi_section,
+                path=RELEASE_METADATA_PATH,
+            ),
+            "parser accepted multiple full unified diff sections",
+        )
+
         for mutation_name, mutation in (
             (
                 "golden JSON wrong version",
@@ -754,7 +943,7 @@ def main() -> int:
                 "private package version",
                 private_conformance_entry(
                     patch=private_conformance_patch(
-                        extra_changes='@@ -1,3 +1,3 @@\n-version = "0.1.0"\n+version = "0.2.0"'
+                        extra_changes='@@ -1 +1 @@\n-version = "0.1.0"\n+version = "0.2.0"'
                     ),
                     additions=5,
                     deletions=5,
@@ -765,7 +954,7 @@ def main() -> int:
                 "private publish flag",
                 private_conformance_entry(
                     patch=private_conformance_patch(
-                        extra_changes="@@ -7,1 +7,1 @@\n-publish = false\n+publish = true"
+                        extra_changes="@@ -7 +7 @@\n-publish = false\n+publish = true"
                     ),
                     additions=5,
                     deletions=5,
@@ -776,7 +965,7 @@ def main() -> int:
                 "private package name",
                 private_conformance_entry(
                     patch=private_conformance_patch(
-                        extra_changes='@@ -2,1 +2,1 @@\n-name = "codegauge-conformance"\n+name = "codegauge-public"'
+                        extra_changes='@@ -2 +2 @@\n-name = "codegauge-conformance"\n+name = "codegauge-public"'
                     ),
                     additions=5,
                     deletions=5,

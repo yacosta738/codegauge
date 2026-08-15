@@ -74,7 +74,7 @@ def content_entry(path: str, pairs: list[tuple[str, str]], *, context: tuple[str
         f"diff --git a/{path} b/{path}",
         f"--- a/{path}",
         f"+++ b/{path}",
-        f"@@ -1,{len(pairs)} +1,{len(pairs)} @@",
+        f"@@ -1,{len(context) + len(pairs)} +1,{len(context) + len(pairs)} @@",
         *context,
     ]
     lines.extend(line for old, new in pairs for line in (f"-{old}", f"+{new}"))
@@ -195,7 +195,7 @@ def main() -> int:
         (
             "package-version",
             private_entry(
-                private_patch('@@ -1,3 +1,3 @@\n-version = "0.1.0"\n+version = "0.2.0"'),
+                private_patch('@@ -1 +1 @@\n-version = "0.1.0"\n+version = "0.2.0"'),
                 additions=5,
                 deletions=5,
             ),
@@ -203,7 +203,7 @@ def main() -> int:
         (
             "publish-flag",
             private_entry(
-                private_patch("@@ -7,1 +7,1 @@\n-publish = false\n+publish = true"),
+                private_patch("@@ -7 +7 @@\n-publish = false\n+publish = true"),
                 additions=5,
                 deletions=5,
             ),

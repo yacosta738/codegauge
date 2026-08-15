@@ -17,8 +17,9 @@ four typed TOML updates in that existing private manifest. Those updates change 
 metadata remain unchanged.
 
 Stage B must validate file content, not only filenames. It may accept the private manifest path only
-when the complete patch or equivalent before/after content proves exactly those four replacements;
-missing or truncated patch data fails closed.
+when either a complete single-file unified diff or a GitHub PR-files API hunk-only patch (whose
+validated entry supplies the filename) proves exactly those four replacements; missing, truncated,
+malformed, or multi-file patch data fails closed.
 
 The root carrier's other version-bearing files use the updater that matches their content. The
 conformance golden is a typed JSON updater at `$.tool.version`; README and model contract fixtures
@@ -76,14 +77,16 @@ $.dependencies["codegauge-model"].version
 $.dependencies["codegauge-provider-jacoco"].version
 ```
 
-Stage-B input must retain each PR file's `filename`, status/count metadata, and complete patch (or
-verified before/after contents). Typed JSON/TOML/npm files and annotated generic root files must
-prove exactly the configured version replacements. The twelve generated changelog paths are
-accepted only as complete Release Please changelog additions. For the private path, the changed-key
-set must equal those four paths, every new value must equal the synchronized public version, and
-package version/publish/name plus all other bytes must be unchanged. Changelog, package-version,
-dependency, formatting, arbitrary-content, annotation, truncated-patch, or unapproved-path mutation
-is rejected.
+Stage-B input must retain each PR file's `filename`, status/count metadata, and either a complete
+single-file unified diff or a GitHub PR-files API hunk-only patch (or verified before/after contents).
+Both patch forms must contain at least one complete hunk, match every declared hunk and
+additions/deletions/changes count, and contain no unexpected file section. Typed JSON/TOML/npm files
+and annotated generic root files must prove exactly the configured version replacements. The twelve
+generated changelog paths are accepted only as complete Release Please changelog additions. For the
+private path, the changed-key set must equal those four paths, every new value must equal the
+synchronized public version, and package version/publish/name plus all other bytes must be unchanged.
+Changelog, package-version, dependency, formatting, arbitrary-content, annotation, truncated-patch,
+malformed-patch, or unapproved-path mutation is rejected.
 
 ## Testing Strategy
 
