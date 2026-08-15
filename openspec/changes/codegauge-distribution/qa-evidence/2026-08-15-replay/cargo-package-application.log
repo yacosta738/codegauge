@@ -1,0 +1,10 @@
+   Packaging codegauge-application v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-application)
+warning: ignoring test `application` as `tests/application.rs` is not included in the published package
+    Updating crates.io index
+error: failed to prepare local package for uploading
+
+Caused by:
+  no matching package named `codegauge-core` found
+  location searched: crates.io index
+  required by package `codegauge-application v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-application)`
+EXIT_STATUS=101

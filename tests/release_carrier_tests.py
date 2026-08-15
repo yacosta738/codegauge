@@ -27,6 +27,7 @@ from scripts.verify_release_provenance import (  # noqa: E402
     _patch_change_lines,
     classify_carrier_prs,
     plan_carrier_tag,
+    resolve_carrier_event_sha,
     select_matching_release_please_prs,
     validate_carrier_event,
     validate_carrier_release_slot,
@@ -37,6 +38,8 @@ from scripts.verify_release_provenance import (  # noqa: E402
 
 SHA = "a" * 40
 OTHER_SHA = "b" * 40
+CURRENT_MAIN_SHA = "c" * 40
+REPLAY_SHA = "fcc91b4850480945ae484c3ebdba18f8a4e38270"
 VERSION = "0.2.0"
 PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
 PRIVATE_CONFORMANCE_DEPENDENCIES = (
@@ -206,8 +209,8 @@ def valid_release_manifest_entry() -> dict[str, object]:
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
     )
     pairs = [
-        (f'  "{path}": "{old_version}",', f'  "{path}": "{VERSION}",')
-        for path, old_version in manifest.items()
+        (f'  "{path}": "0.1.0",', f'  "{path}": "{VERSION}",')
+        for path in manifest
     ]
     return carrier_content_entry(
         ".release-please-manifest.json",
@@ -226,10 +229,10 @@ def valid_release_manifest_hunk_only_entry() -> dict[str, object]:
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
     )
     lines = ["@@ -1,15 +1,15 @@", " {"]
-    for path, old_version in manifest.items():
+    for path in manifest:
         lines.extend(
             [
-                f'-  "{path}": "{old_version}",',
+                f'-  "{path}": "0.1.0",',
                 f'+  "{path}": "{VERSION}",',
             ]
         )
@@ -245,7 +248,8 @@ def valid_release_manifest_hunk_only_entry() -> dict[str, object]:
 def valid_golden_entry() -> dict[str, object]:
     path = ROOT / GOLDEN_JSON_PATH
     before = path.read_text(encoding="utf-8").rstrip("\n")
-    after = before.replace('"version":"0.1.0"', '"version":"0.2.0"', 1)
+    before = before.replace(f'"version":"{VERSION}"', '"version":"0.1.0"', 1)
+    after = before.replace('"version":"0.1.0"', f'"version":"{VERSION}"', 1)
     return carrier_content_entry(
         GOLDEN_JSON_PATH,
         patch_with_pairs(GOLDEN_JSON_PATH, [(before, after)]),
@@ -258,7 +262,10 @@ def valid_annotated_entry(path: str) -> dict[str, object]:
         for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
         if "x-release-please-version" in line
     ]
-    pairs = [(line, line.replace("0.1.0", VERSION, 1)) for line in before_lines]
+    pairs = [
+        (line.replace(VERSION, "0.1.0", 1), line)
+        for line in before_lines
+    ]
     return carrier_content_entry(
         path,
         patch_with_pairs(path, pairs),
@@ -280,11 +287,11 @@ def valid_changelog_entry(path: str = GENERATED_CHANGELOG_PATH) -> dict[str, obj
 
 def valid_npm_entry(path: str = "npm/codegauge/package.json") -> dict[str, object]:
     package = json.loads((ROOT / path).read_text(encoding="utf-8"))
-    pairs = [(f'  "version": "{package["version"]}",', '  "version": "0.2.0",')]
+    pairs = [(f'  "version": "0.1.0",', f'  "version": "{VERSION}",')]
     if path == "npm/codegauge/package.json":
         pairs.extend(
-            (f'    "{dependency}": "{old}",', f'    "{dependency}": "0.2.0",')
-            for dependency, old in package["optionalDependencies"].items()
+            (f'    "{dependency}": "0.1.0",', f'    "{dependency}": "{VERSION}",')
+            for dependency in package["optionalDependencies"]
         )
     return carrier_content_entry(
         path,
@@ -468,7 +475,92 @@ def assert_fails(callable_obj, message: str) -> None:
     raise AssertionError(message)
 
 
+def test_manual_replay_event_selection() -> None:
+    replay = resolve_carrier_event_sha(
+        event_name="workflow_dispatch",
+        ref="refs/heads/main",
+        github_sha=CURRENT_MAIN_SHA,
+        replay_sha=REPLAY_SHA,
+        dry_run=True,
+    )
+    assert replay == {
+        "event_sha": REPLAY_SHA,
+        "replay": True,
+        "source_sha": CURRENT_MAIN_SHA,
+    }
+
+    normal_dispatch = resolve_carrier_event_sha(
+        event_name="workflow_dispatch",
+        ref="refs/heads/main",
+        github_sha=CURRENT_MAIN_SHA,
+        replay_sha="",
+        dry_run=True,
+    )
+    assert normal_dispatch == {
+        "event_sha": CURRENT_MAIN_SHA,
+        "replay": False,
+        "source_sha": CURRENT_MAIN_SHA,
+    }
+    normal_dispatch_live = resolve_carrier_event_sha(
+        event_name="workflow_dispatch",
+        ref="refs/heads/main",
+        github_sha=CURRENT_MAIN_SHA,
+        replay_sha=None,
+        dry_run=False,
+    )
+    assert normal_dispatch_live == normal_dispatch
+
+    assert_fails(
+        lambda: resolve_carrier_event_sha(
+            event_name="push",
+            ref="refs/heads/main",
+            github_sha=CURRENT_MAIN_SHA,
+            replay_sha=REPLAY_SHA,
+            dry_run=True,
+        ),
+        "carrier accepted replay_sha on a push event",
+    )
+    assert_fails(
+        lambda: resolve_carrier_event_sha(
+            event_name="workflow_dispatch",
+            ref="refs/heads/main",
+            github_sha=CURRENT_MAIN_SHA,
+            replay_sha=REPLAY_SHA,
+            dry_run=False,
+        ),
+        "carrier accepted replay_sha outside dry-run mode",
+    )
+    for malformed_sha in (
+        "short",
+        "A" * 40,
+        "g" * 40,
+        "1" * 39,
+        "1" * 41,
+    ):
+        assert_fails(
+            lambda malformed_sha=malformed_sha: resolve_carrier_event_sha(
+                event_name="workflow_dispatch",
+                ref="refs/heads/main",
+                github_sha=CURRENT_MAIN_SHA,
+                replay_sha=malformed_sha,
+                dry_run=True,
+            ),
+            f"carrier accepted malformed replay SHA {malformed_sha!r}",
+        )
+
+    matched = select_matching_release_please_prs(
+        [release_pr(merge_sha=REPLAY_SHA)], replay["event_sha"]
+    )
+    assert len(matched) == 1 and matched[0]["number"] == 42
+
+    # Replay is a pure selection/validation rehearsal. Its inputs identify the
+    # old event while source code remains at the current selected main SHA.
+    assert replay["event_sha"] == REPLAY_SHA
+    assert replay["source_sha"] == CURRENT_MAIN_SHA
+
+
 def main() -> int:
+    test_manual_replay_event_selection()
     fixture = copy_release_tree()
     try:
         record = validate_carrier_event(
@@ -495,6 +587,28 @@ def main() -> int:
             root=fixture,
         )
         assert manual_record == record
+        replay_paths = (
+            fixture / "Cargo.toml",
+            fixture / ".release-please-manifest.json",
+            fixture / PRIVATE_CONFORMANCE_PATH,
+        )
+        replay_before = {path: path.read_bytes() for path in replay_paths}
+        replay_record = validate_carrier_event(
+            event_name="workflow_dispatch",
+            ref="refs/heads/main",
+            event_sha=REPLAY_SHA,
+            pull_requests=[release_pr(merge_sha=REPLAY_SHA)],
+            changed_files=DIFF,
+            root=fixture,
+        )
+        assert replay_record == CarrierRecord(
+            version=VERSION,
+            tag=f"v{VERSION}",
+            merge_sha=REPLAY_SHA,
+            version_pr_number=42,
+        )
+        assert {path: path.read_bytes() for path in replay_paths} == replay_before
+        assert plan_carrier_tag(VERSION, REPLAY_SHA).sha == REPLAY_SHA
         mixed_record = validate_carrier_event(
             event_name="push",
             ref="refs/heads/main",
@@ -762,8 +876,8 @@ def main() -> int:
         manifest = json.loads(
             (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
         )
-        last_path, last_version = next(reversed(manifest.items()))
-        old_line = f'  "{last_path}": "{last_version}",'
+        last_path = next(reversed(manifest))
+        old_line = f'  "{last_path}": "0.1.0",'
         new_line = f'  "{last_path}": "{VERSION}",'
 
         missing_patch = dict(hunk_only_manifest)

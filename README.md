@@ -147,6 +147,21 @@ workflow summary and the machine-readable `carrier-plan.json` record for the mer
 labels, dispatch the tag workflow, upload, or publish. Remove the temporary variable immediately
 after the rehearsal so the production push default remains live:
 
+For the explicitly authorized no-publication recovery rehearsal, add the historical merge SHA while
+keeping the current `main` source checkout:
+
+```bash
+gh workflow run release-tag-carrier.yml --repo yacosta738/codegauge --ref main \
+  -f dry_run=true \
+  -f replay_sha=fcc91b4850480945ae484c3ebdba18f8a4e38270
+```
+
+`replay_sha` is rejected on pushes, live dispatches, malformed SHAs, and non-main refs. Replay uses
+the historical SHA only for read-only commit/PR correlation, validation, and tag-plan identity; it
+cannot create a tag, update a label, dispatch a release workflow, upload, publish, or attest. A
+successful local or hosted replay plan is rehearsal evidence only, not production replay or hosted
+release acceptance.
+
 ```bash
 gh variable set RELEASE_CARRIER_DRY_RUN --repo yacosta738/codegauge --body true
 # Merge the synchronized Release Please PR through the protected main workflow while this is true.

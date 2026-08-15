@@ -300,6 +300,51 @@ def require_sha(value: str, field: str) -> str:
     return value
 
 
+def resolve_carrier_event_sha(
+    *,
+    event_name: str,
+    ref: str,
+    github_sha: str,
+    replay_sha: str | None,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Select the trusted event identity without changing the source checkout.
+
+    A replay deliberately separates the source revision (the current selected
+    ``main`` checkout) from the historical merge revision used for read-only
+    GitHub correlation and validation.  It is intentionally impossible to
+    select that historical identity for a push or a live dispatch.
+    """
+
+    if event_name not in {"push", "workflow_dispatch"}:
+        raise ProvenanceError(
+            "carrier accepts only push or workflow_dispatch events"
+        )
+    if ref != "refs/heads/main":
+        raise ProvenanceError("carrier accepts only refs/heads/main")
+    if not isinstance(dry_run, bool):
+        raise ProvenanceError("carrier dry_run mode must be boolean")
+
+    source_sha = require_sha(github_sha, "source event SHA")
+    if replay_sha is None:
+        replay_sha = ""
+    if not isinstance(replay_sha, str):
+        raise ProvenanceError("replay_sha must be a string")
+    if not replay_sha:
+        return {
+            "event_sha": source_sha,
+            "replay": False,
+            "source_sha": source_sha,
+        }
+    if event_name != "workflow_dispatch" or not dry_run:
+        raise ProvenanceError("replay_sha requires workflow_dispatch with dry_run=true")
+    return {
+        "event_sha": require_sha(replay_sha, "replay SHA"),
+        "replay": True,
+        "source_sha": source_sha,
+    }
+
+
 def version_from_tag(tag: str) -> str:
     match = SEMVER_RE.fullmatch(tag)
     if not match:
@@ -1350,15 +1395,15 @@ def validate_carrier_event(
             "carrier accepts only push or workflow_dispatch events on refs/heads/main"
         )
     event_sha = require_sha(event_sha, "event SHA")
-    if require_clean:
-        validate_clean_checkout(root)
-    version = validate_carrier_tree(root)
     candidates = select_matching_release_please_prs(pull_requests, event_sha)
     if len(candidates) != 1:
         raise ProvenanceError(
             "expected exactly one merged Release Please PR for the event SHA, "
             f"found {len(candidates)}"
         )
+    if require_clean:
+        validate_clean_checkout(root)
+    version = validate_carrier_tree(root)
     pull_request = candidates[0]
     body = pull_request.get("body") or ""
     if body.count("---") < 2 or version not in body:
@@ -1604,6 +1649,12 @@ def parser() -> argparse.ArgumentParser:
     carrier_selection = subcommands.add_parser("carrier-pr-selection")
     carrier_selection.add_argument("--event-sha", required=True)
     carrier_selection.add_argument("--pull-requests", type=Path, required=True)
+    carrier_event_sha = subcommands.add_parser("carrier-event-sha")
+    carrier_event_sha.add_argument("--event-name", required=True)
+    carrier_event_sha.add_argument("--ref", required=True)
+    carrier_event_sha.add_argument("--github-sha", required=True)
+    carrier_event_sha.add_argument("--replay-sha", default="")
+    carrier_event_sha.add_argument("--dry-run", choices=("true", "false"), required=True)
     carrier = subcommands.add_parser("carrier")
     carrier.add_argument("--event-name", required=True)
     carrier.add_argument("--ref", required=True)
@@ -1659,6 +1710,19 @@ def main(argv: list[str] | None = None) -> int:
                 _load_json_value(args.pull_requests), args.event_sha
             )
             print(json.dumps(selection, sort_keys=True))
+        elif args.command == "carrier-event-sha":
+            print(
+                json.dumps(
+                    resolve_carrier_event_sha(
+                        event_name=args.event_name,
+                        ref=args.ref,
+                        github_sha=args.github_sha,
+                        replay_sha=args.replay_sha,
+                        dry_run=args.dry_run == "true",
+                    ),
+                    sort_keys=True,
+                )
+            )
         elif args.command == "carrier":
             pull_requests = _load_json_value(args.pull_requests)
             changed_files = _changed_files(_load_json_value(args.pull_request_files))

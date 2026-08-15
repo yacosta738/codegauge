@@ -363,11 +363,11 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
     optional_update_path, rewritten_optional_dependencies = (
         _node_workspace_optional_update_17_6_0(config, after_cargo, linked_versions)
     )
-    current_optional_dependencies = json.loads(
-        (ROOT / "npm" / "codegauge" / "package.json").read_text(encoding="utf-8")
-    )["optionalDependencies"]
     assert optional_update_path == "npm/codegauge/package.json"
-    assert rewritten_optional_dependencies != current_optional_dependencies
+    assert rewritten_optional_dependencies == {
+        dependency: NEW_RELEASE_VERSION
+        for dependency in rewritten_optional_dependencies
+    }
     assert set(rewritten_optional_dependencies.values()) == {NEW_RELEASE_VERSION}
 
     effective_root_path, effective_root_updates = _linked_root_candidate_17_6_0(
@@ -403,7 +403,7 @@ def main() -> int:
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
     )
     assert set(release_manifest) == RUNTIME_GRAPH_PATHS
-    assert set(release_manifest.values()) == {"0.1.0"}
+    assert set(release_manifest.values()) == {NEW_RELEASE_VERSION}
 
     packages = config.get("packages")
     assert isinstance(packages, dict) and "." in packages, "release-please needs an explicit root candidate"

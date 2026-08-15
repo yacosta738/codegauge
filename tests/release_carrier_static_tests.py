@@ -47,6 +47,23 @@ def run_checks() -> list[str]:
         errors.append("carrier must be restricted to trusted main pushes")
     if "workflow_dispatch:" not in carrier or "dry_run:" not in carrier or "type: boolean" not in carrier:
         errors.append("carrier must expose an explicit manual dry-run input")
+    if "replay_sha:" not in carrier or "type: string" not in carrier:
+        errors.append("carrier must expose an optional replay_sha string input")
+    if "REPLAY_SHA: ${{ inputs.replay_sha }}" not in carrier:
+        errors.append("carrier must pass the optional replay_sha input to the resolver")
+    if "carrier-event-sha" not in carrier:
+        errors.append("carrier must resolve an explicit effective event SHA")
+    if "EVENT_SHA: ${{ steps.mode.outputs.event_sha }}" not in carrier:
+        errors.append("carrier must propagate the normalized EVENT_SHA output")
+    if "SOURCE_CHECKOUT_SHA: ${{ steps.mode.outputs.source_checkout_sha }}" not in carrier:
+        errors.append("carrier must record the current source checkout SHA")
+    checkout_start = carrier.index("- uses: actions/checkout")
+    checkout_end = carrier.index("- name: Resolve carrier mode", checkout_start)
+    checkout_block = carrier[checkout_start:checkout_end]
+    if "ref: ${{ github.sha }}" not in checkout_block:
+        errors.append("carrier checkout must remain bound to the current selected event revision")
+    if "replay_sha" in checkout_block:
+        errors.append("carrier checkout must not use replay_sha as its source revision")
     if "vars.RELEASE_CARRIER_DRY_RUN" not in carrier:
         errors.append("carrier must read the temporary RELEASE_CARRIER_DRY_RUN repository variable")
     if "DISPATCH_DRY_RUN" not in carrier or "REPOSITORY_DRY_RUN" not in carrier:
@@ -84,8 +101,14 @@ def run_checks() -> list[str]:
         errors.append("carrier dry-run normalization must fail closed on unknown values")
     if '""|false)' not in carrier or 'dry_run=false' not in carrier:
         errors.append("carrier must default to live mode when the repository variable is absent or false")
-    if "printf 'dry_run=%s\\n' \"$dry_run\" >> \"$GITHUB_OUTPUT\"" not in carrier:
+    if "printf 'dry_run=%s\\n' \"$dry_run\"" not in carrier:
         errors.append("carrier must expose the normalized dry-run mode to later steps")
+    if "printf 'event_sha=%s\\n' \"$event_sha\"" not in carrier:
+        errors.append("carrier must expose the normalized event SHA to later steps")
+    if "printf 'replay=%s\\n' \"$replay_mode\"" not in carrier:
+        errors.append("carrier must expose the replay mode to later steps")
+    if "source_checkout_sha" not in carrier or "replay_event_sha" not in carrier:
+        errors.append("carrier records must identify source and replay event revisions")
     if "release-carrier-main" not in carrier or "cancel-in-progress: false" not in carrier:
         errors.append("carrier concurrency must be non-canceling and stable")
     if "permissions:\n  contents: read" not in carrier:
@@ -102,18 +125,47 @@ def run_checks() -> list[str]:
         errors.append("carrier must not delete or force-update tags")
     if "refs/heads/main" not in carrier or "GITHUB_SHA" not in carrier or "git rev-parse HEAD" not in carrier:
         errors.append("carrier must bind validation to the main event SHA")
+    for required_event_use in (
+        'commits/${EVENT_SHA}/pulls',
+        '--event-sha "$EVENT_SHA"',
+        '--expected-sha "$EVENT_SHA"',
+        '--raw-field "sha=$EVENT_SHA"',
+    ):
+        if required_event_use not in carrier:
+            errors.append(f"carrier must use normalized EVENT_SHA for {required_event_use}")
+    if 'commits/${GITHUB_SHA}/pulls' in carrier or '--event-sha "$GITHUB_SHA"' in carrier or '--expected-sha "$GITHUB_SHA"' in carrier:
+        errors.append("carrier must not fall back to GITHUB_SHA after event normalization")
     if "id: plan" not in carrier or "carrier-plan.json" not in carrier:
         errors.append("carrier must persist a machine-readable canonical tag plan")
     if "GITHUB_STEP_SUMMARY" not in carrier or "mutations" not in carrier:
         errors.append("carrier dry-run must emit an auditable plan and mutation record")
+    for mutation_field in (
+        "canonical_tag_ref",
+        "version_pr_label",
+        "release_on_tag_workflow",
+        "release_asset_upload",
+        "cargo_publication",
+        "npm_publication",
+        "oci_publication",
+        "attestation",
+        "publication",
+    ):
+        if carrier.count(f"{mutation_field}:") < 2:
+            errors.append(f"carrier records must include mutation status {mutation_field}")
     if 'validation: {' not in carrier or 'stage_a_diff: "passed"' not in carrier:
         errors.append("carrier plan must record the validated tree/diff/provenance boundaries")
     if "printf 'tag=%s\\n' \"$(jq -er '.tag' carrier-record.json)\" >> \"$GITHUB_OUTPUT\"" not in carrier:
         errors.append("carrier must write a valid named tag output")
-    if "- name: Compare and create one immutable lightweight tag\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'" not in carrier:
+    live_tag_condition = "- name: Compare and create one immutable lightweight tag\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'"
+    if live_tag_condition not in carrier:
         errors.append("tag ref mutation must be conditional on live mode")
-    if "- name: Mark the carried version PR as tagged\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'" not in carrier:
+    live_label_condition = "- name: Mark the carried version PR as tagged\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'"
+    if live_label_condition not in carrier:
         errors.append("Release Please label mutation must be conditional on live mode")
+    if "steps.mode.outputs.replay == 'false'" not in carrier:
+        errors.append("tag and label mutations must be explicitly disabled during replay")
+    if '--replay-sha "${REPLAY_SHA:-}"' not in carrier or '--dry-run "$dry_run"' not in carrier:
+        errors.append("carrier must fail closed when replay_sha is outside manual dry-run")
     if "release-on-tag.yml" in carrier or "gh workflow run" in carrier:
         errors.append("dry-run carrier must never dispatch the tag workflow directly")
     if any(

@@ -23,6 +23,7 @@ RUNTIME_CRATES = (
     "codegauge-cli",
 )
 ALL_CRATES = (*RUNTIME_CRATES, "codegauge-conformance")
+PRIVATE_CONFORMANCE_VERSION = "0.1.0"
 RELEASE_INPUTS = ("release_tag", "release_sha", "main_sha", "release_url", "dry_run", "recovery")
 ACTION_REF = re.compile(r"^[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$")
 EXPECTED_GRAPH = {
@@ -126,10 +127,11 @@ def check_cargo(errors: list[str]) -> None:
         for key in ("edition", "rust-version", "license", "repository", "readme"):
             if package.get(key) != {"workspace": True}:
                 errors.append(f"{relative(path)} must inherit workspace {key}")
-        if package.get("version") != version:
-            errors.append(
-                f"{relative(path)} must declare package.version equal to the workspace version for Release Please"
-            )
+        expected_version = (
+            version if name in RUNTIME_CRATES else PRIVATE_CONFORMANCE_VERSION
+        )
+        if package.get("version") != expected_version:
+            errors.append(f"{relative(path)} has unexpected package.version")
         if not package.get("description"):
             errors.append(f"{relative(path)} needs package description metadata")
         if name in RUNTIME_CRATES and package.get("publish") is False:
@@ -160,7 +162,10 @@ def check_cargo(errors: list[str]) -> None:
         if not package:
             errors.append(f"Cargo.lock is missing workspace package {name}")
             continue
-        if package.get("version") != version:
+        expected_version = (
+            version if name in RUNTIME_CRATES else PRIVATE_CONFORMANCE_VERSION
+        )
+        if package.get("version") != expected_version:
             errors.append(f"Cargo.lock version drifted for {name}")
         actual = set(package.get("dependencies", []))
         missing = [dependency for dependency in dependencies if dependency not in actual]

@@ -1,0 +1,10 @@
+   Packaging codegauge-core v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-core)
+warning: ignoring test `crap` as `tests/crap.rs` is not included in the published package
+    Updating crates.io index
+error: failed to prepare local package for uploading
+
+Caused by:
+  no matching package named `codegauge-model` found
+  location searched: crates.io index
+  required by package `codegauge-core v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-core)`
+EXIT_STATUS=101

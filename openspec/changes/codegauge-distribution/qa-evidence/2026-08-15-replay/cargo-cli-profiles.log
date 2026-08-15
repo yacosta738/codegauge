@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running `target/debug/codegauge profiles`
+java-jacoco-v1
+EXIT_STATUS=0

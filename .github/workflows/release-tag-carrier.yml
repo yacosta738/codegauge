@@ -10,6 +10,11 @@ on:
         required: true
         default: true
         type: boolean
+      replay_sha:
+        description: "Historical merged-main SHA to replay read-only; valid only with dry_run=true"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -35,9 +40,11 @@ jobs:
         env:
           DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
           REPOSITORY_DRY_RUN: ${{ vars.RELEASE_CARRIER_DRY_RUN }}
+          REPLAY_SHA: ${{ inputs.replay_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             case "${DISPATCH_DRY_RUN:-}" in
               true) dry_run=true ;;
@@ -57,20 +64,52 @@ jobs:
                 ;;
             esac
           fi
+          source_checkout_sha="$(git rev-parse HEAD)"
+          event_resolution="$(python3 scripts/verify_release_provenance.py carrier-event-sha \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --ref "$GITHUB_REF" \
+            --github-sha "$GITHUB_SHA" \
+            --replay-sha "${REPLAY_SHA:-}" \
+            --dry-run "$dry_run")"
+          event_sha="$(jq -er '.event_sha' <<<"$event_resolution")"
+          replay_mode="$(jq -r '
+            (.replay // false) as $replay
+            | if ($replay | type) == "boolean"
+              then ($replay | tostring)
+              else error("replay must be a boolean")
+              end
+          ' <<<"$event_resolution")"
+          test "$source_checkout_sha" = "$(jq -er '.source_sha' <<<"$event_resolution")"
           if [[ "$dry_run" == "true" ]]; then
             mode="dry-run"
           else
             mode="live"
           fi
-          printf 'dry_run=%s\n' "$dry_run" >> "$GITHUB_OUTPUT"
-          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          {
+            printf 'dry_run=%s\n' "$dry_run"
+            printf 'mode=%s\n' "$mode"
+            printf 'event_sha=%s\n' "$event_sha"
+            printf 'replay=%s\n' "$replay_mode"
+            printf 'source_checkout_sha=%s\n' "$source_checkout_sha"
+          } >> "$GITHUB_OUTPUT"
           {
             printf '%s\n' '## Release carrier mode'
             printf -- '- event: %s\n' "$GITHUB_EVENT_NAME"
             printf -- '- ref: %s\n' "$GITHUB_REF"
             printf -- '- normalized mode: %s\n' "$mode"
+            printf -- '- replay: %s\n' "$replay_mode"
+            printf -- '- source checkout SHA: %s\n' "$source_checkout_sha"
+            printf -- '- effective event SHA: %s\n' "$event_sha"
+            printf -- '- dry-run: %s\n' "$dry_run"
+            if [[ "$replay_mode" == "true" ]]; then
+              printf -- '- replay event SHA: %s\n' "$event_sha"
+            else
+              printf '%s\n' '- replay event SHA: none'
+            fi
             if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
               printf '%s\n' '- automatic push mode uses vars.RELEASE_CARRIER_DRY_RUN; unset/false is live'
+            elif [[ "$replay_mode" == "true" ]]; then
+              printf '%s\n' '- replay is read-only and dry-run-only; historical event SHA is used for correlation'
             else
               printf '%s\n' '- manual dispatch mode uses the required dry_run input'
             fi
@@ -80,6 +119,11 @@ jobs:
         id: collect
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
+          SOURCE_CHECKOUT_SHA: ${{ steps.mode.outputs.source_checkout_sha }}
+          REPLAY_MODE: ${{ steps.mode.outputs.replay }}
+          DRY_RUN: ${{ steps.mode.outputs.dry_run }}
+          NORMALIZED_MODE: ${{ steps.mode.outputs.mode }}
         shell: bash
         run: |
           set -euo pipefail
@@ -87,17 +131,17 @@ jobs:
           test -n "${GH_TOKEN:-}"
           test "$GITHUB_EVENT_NAME" = "push" || test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
           test "$GITHUB_REF" = "refs/heads/main"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_CHECKOUT_SHA"
           carrier_input_dir="$RUNNER_TEMP/codegauge-carrier"
           mkdir -p "$carrier_input_dir"
           gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+            "repos/${GITHUB_REPOSITORY}/commits/${EVENT_SHA}/pulls" \
             -H 'Accept: application/vnd.github+json' \
             | jq -e 'if (type == "array" and all(.[]; type == "array")) then (add // []) else error("GitHub pull-request response must contain arrays") end' \
             > carrier-pull-requests.json
           mv carrier-pull-requests.json "$carrier_input_dir/pull-requests.json"
           selection="$(python3 scripts/verify_release_provenance.py carrier-pr-selection \
-            --event-sha "$GITHUB_SHA" \
+            --event-sha "$EVENT_SHA" \
             --pull-requests "$carrier_input_dir/pull-requests.json")"
           printf '%s\n' "$selection" > "$carrier_input_dir/selection.json"
           selection_status="$(jq -er '.status' <<<"$selection")"
@@ -108,22 +152,39 @@ jobs:
               jq -n \
                 --arg event_name "$GITHUB_EVENT_NAME" \
                 --arg event_ref "$GITHUB_REF" \
-                --arg event_sha "$GITHUB_SHA" \
+                --arg event_sha "$EVENT_SHA" \
+                --arg source_checkout_sha "$SOURCE_CHECKOUT_SHA" \
+                --arg replay_mode "$REPLAY_MODE" \
+                --arg dry_run "$DRY_RUN" \
+                --arg normalized_mode "$NORMALIZED_MODE" \
                 --argjson selection "$selection" \
                 "{
                   status: \"skipped\",
                   reason: \$selection.reason,
+                  replay: (\$replay_mode == \"true\"),
+                  mode: {
+                    dry_run: (\$dry_run == \"true\"),
+                    normalized: \$normalized_mode,
+                    replay: (\$replay_mode == \"true\")
+                  },
+                  source_checkout_sha: \$source_checkout_sha,
                   event: {
                     name: \$event_name,
                     ref: \$event_ref,
                     sha: \$event_sha
                   },
+                  replay_event_sha: (if \$replay_mode == \"true\" then \$event_sha else null end),
                   matching_release_pr_count: \$selection.matching_release_pr_count,
                   mutations: {
                     carrier_validation: \"not-run\",
                     canonical_tag_ref: \"not-started\",
                     version_pr_label: \"not-started\",
                     release_on_tag_workflow: \"not-dispatched\",
+                    release_asset_upload: \"not-started\",
+                    cargo_publication: \"not-started\",
+                    npm_publication: \"not-started\",
+                    oci_publication: \"not-started\",
+                    attestation: \"not-started\",
                     publication: \"not-started\"
                   }
                 }" > carrier-record.json
@@ -132,10 +193,19 @@ jobs:
               {
                 printf '%s\n' '## Release carrier skipped'
                 printf -- '- status: skipped\n'
-                printf -- '- reason: no matching merged Release Please PR for GITHUB_SHA\n'
-                printf -- '- event: %s on %s at %s\n' "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$GITHUB_SHA"
+                printf -- '- reason: no matching merged Release Please PR for effective event SHA\n'
+                printf -- '- replay: %s\n' "$REPLAY_MODE"
+                printf -- '- source checkout SHA: %s\n' "$SOURCE_CHECKOUT_SHA"
+                printf -- '- effective event SHA: %s\n' "$EVENT_SHA"
+                printf -- '- dry-run: %s\n' "$DRY_RUN"
+                if [[ "$REPLAY_MODE" == "true" ]]; then
+                  printf -- '- replay event SHA: %s\n' "$EVENT_SHA"
+                else
+                  printf '%s\n' '- replay event SHA: none'
+                fi
+                printf -- '- event: %s on %s at %s\n' "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$EVENT_SHA"
                 printf -- '- record: carrier-record.json\n'
-                printf '%s\n' '- mutations: validation, tag, label, release, upload, and publication paths were not run'
+                printf '%s\n' '- mutations: validation, tag, label, release, upload, publication, and attestation paths were not run'
               } >> "$GITHUB_STEP_SUMMARY"
               cat carrier-record.json
               exit 0
@@ -158,18 +228,59 @@ jobs:
       - name: Validate the merged tree and version PR
         id: carrier
         if: steps.collect.outputs.status == 'matched'
+        env:
+          EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
+          SOURCE_CHECKOUT_SHA: ${{ steps.mode.outputs.source_checkout_sha }}
+          REPLAY_MODE: ${{ steps.mode.outputs.replay }}
+          DRY_RUN: ${{ steps.mode.outputs.dry_run }}
+          NORMALIZED_MODE: ${{ steps.mode.outputs.mode }}
         shell: bash
         run: |
           set -euo pipefail
           record="$(python3 scripts/verify_release_provenance.py carrier \
             --event-name "$GITHUB_EVENT_NAME" \
             --ref "$GITHUB_REF" \
-            --event-sha "$GITHUB_SHA" \
+            --event-sha "$EVENT_SHA" \
             --pull-requests "$RUNNER_TEMP/codegauge-carrier/pull-requests.json" \
             --pull-request-files "$RUNNER_TEMP/codegauge-carrier/files.json" \
             --root "$GITHUB_WORKSPACE" \
             --require-clean)"
-          printf '%s\n' "$record" > carrier-record.json
+          jq -n \
+            --arg event_name "$GITHUB_EVENT_NAME" \
+            --arg event_ref "$GITHUB_REF" \
+            --arg event_sha "$EVENT_SHA" \
+            --arg source_checkout_sha "$SOURCE_CHECKOUT_SHA" \
+            --arg replay_mode "$REPLAY_MODE" \
+            --arg dry_run "$DRY_RUN" \
+            --arg normalized_mode "$NORMALIZED_MODE" \
+            --argjson carrier "$record" \
+            '$carrier + {
+                replay: ($replay_mode == "true"),
+                mode: {
+                  dry_run: ($dry_run == "true"),
+                  normalized: $normalized_mode,
+                  replay: ($replay_mode == "true")
+                },
+                source_checkout_sha: $source_checkout_sha,
+                event: {
+                  name: $event_name,
+                  ref: $event_ref,
+                  sha: $event_sha
+                },
+                replay_event_sha: (if $replay_mode == "true" then $event_sha else null end),
+                mutations: {
+                  carrier_validation: "passed",
+                  canonical_tag_ref: "not-started",
+                  version_pr_label: "not-started",
+                  release_on_tag_workflow: "not-dispatched",
+                  release_asset_upload: "not-started",
+                  cargo_publication: "not-started",
+                  npm_publication: "not-started",
+                  oci_publication: "not-started",
+                  attestation: "not-started",
+                  publication: "not-started"
+                }
+              }' > carrier-record.json
           jq -er '.tag, .merge_sha, .version_pr_number' carrier-record.json
           printf 'tag=%s\n' "$(jq -er '.tag' carrier-record.json)" >> "$GITHUB_OUTPUT"
 
@@ -178,6 +289,10 @@ jobs:
         if: steps.collect.outputs.status == 'matched'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
+          SOURCE_CHECKOUT_SHA: ${{ steps.mode.outputs.source_checkout_sha }}
+          REPLAY_MODE: ${{ steps.mode.outputs.replay }}
+          DRY_RUN: ${{ steps.mode.outputs.dry_run }}
           NORMALIZED_MODE: ${{ steps.mode.outputs.mode }}
         shell: bash
         run: |
@@ -220,7 +335,7 @@ jobs:
           plan_args=(
             carrier-tag-plan
             --version "$version"
-            --expected-sha "$GITHUB_SHA"
+            --expected-sha "$EVENT_SHA"
           )
           if [[ -n "$existing_type" ]]; then
             plan_args+=(--existing-type "$existing_type" --existing-sha "$existing_sha")
@@ -233,7 +348,10 @@ jobs:
           jq -n \
             --arg event_name "$GITHUB_EVENT_NAME" \
             --arg event_ref "$GITHUB_REF" \
-            --arg event_sha "$GITHUB_SHA" \
+            --arg event_sha "$EVENT_SHA" \
+            --arg source_checkout_sha "$SOURCE_CHECKOUT_SHA" \
+            --arg replay_mode "$REPLAY_MODE" \
+            --arg dry_run "$DRY_RUN" \
             --arg normalized_mode "$NORMALIZED_MODE" \
             --arg existing_type "$existing_type" \
             --arg existing_sha "$existing_sha" \
@@ -247,9 +365,13 @@ jobs:
                 ref: $event_ref,
                 sha: $event_sha
               },
+              replay: ($replay_mode == "true"),
+              source_checkout_sha: $source_checkout_sha,
+              replay_event_sha: (if $replay_mode == "true" then $event_sha else null end),
               mode: {
-                dry_run: ($normalized_mode == "dry-run"),
-                normalized: $normalized_mode
+                dry_run: ($dry_run == "true"),
+                normalized: $normalized_mode,
+                replay: ($replay_mode == "true")
               },
               carrier: $carrier,
               validation: {
@@ -272,6 +394,11 @@ jobs:
                 canonical_tag_ref: (if $normalized_mode == "dry-run" then "skipped" else "pending" end),
                 version_pr_label: (if $normalized_mode == "dry-run" then "skipped" else "pending" end),
                 release_on_tag_workflow: "not-dispatched",
+                release_asset_upload: "not-started",
+                cargo_publication: "not-started",
+                npm_publication: "not-started",
+                oci_publication: "not-started",
+                attestation: "not-started",
                 publication: "not-started"
               }
             }' > carrier-plan.json
@@ -281,6 +408,15 @@ jobs:
             printf '%s\n' '## Canonical release carrier plan'
             printf -- '- record: carrier-plan.json\n'
             printf -- '- mode: %s\n' "$NORMALIZED_MODE"
+            printf -- '- replay: %s\n' "$REPLAY_MODE"
+            printf -- '- source checkout SHA: %s\n' "$SOURCE_CHECKOUT_SHA"
+            printf -- '- effective event SHA: %s\n' "$EVENT_SHA"
+            printf -- '- dry-run: %s\n' "$DRY_RUN"
+            if [[ "$REPLAY_MODE" == "true" ]]; then
+              printf -- '- replay event SHA: %s\n' "$EVENT_SHA"
+            else
+              printf '%s\n' '- replay event SHA: none'
+            fi
             printf '%s\n' '' '```json'
             jq . carrier-plan.json
             printf '%s\n' '```'
@@ -296,12 +432,29 @@ jobs:
           test "$(jq -er '.mutations.canonical_tag_ref' carrier-plan.json)" = "skipped"
           test "$(jq -er '.mutations.version_pr_label' carrier-plan.json)" = "skipped"
           test "$(jq -er '.mutations.release_on_tag_workflow' carrier-plan.json)" = "not-dispatched"
+          test "$(jq -er '.mutations.release_asset_upload' carrier-plan.json)" = "not-started"
+          test "$(jq -er '.mutations.cargo_publication' carrier-plan.json)" = "not-started"
+          test "$(jq -er '.mutations.npm_publication' carrier-plan.json)" = "not-started"
+          test "$(jq -er '.mutations.oci_publication' carrier-plan.json)" = "not-started"
+          test "$(jq -er '.mutations.attestation' carrier-plan.json)" = "not-started"
           test "$(jq -er '.mutations.publication' carrier-plan.json)" = "not-started"
+          test "$(jq -er '.tag_plan.sha' carrier-plan.json)" = "$(jq -er '.event.sha' carrier-plan.json)"
+          if [[ "$(jq -r '
+            (.mode.replay // false) as $replay
+            | if ($replay | type) == "boolean"
+              then ($replay | tostring)
+              else error("mode.replay must be a boolean")
+              end
+          ' carrier-plan.json)" == "true" ]]; then
+            test "$(jq -er '.mode.dry_run' carrier-plan.json)" = "true"
+            test "$(jq -er '.replay_event_sha' carrier-plan.json)" = "$(jq -er '.event.sha' carrier-plan.json)"
+          fi
 
       - name: Compare and create one immutable lightweight tag
-        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'
+        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -316,8 +469,8 @@ jobs:
           test "$action" = "create"
           if gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
             --raw-field "ref=refs/tags/$tag" \
-            --raw-field "sha=$GITHUB_SHA" >/dev/null; then
-            echo "created canonical tag $tag at $GITHUB_SHA"
+            --raw-field "sha=$EVENT_SHA" >/dev/null; then
+            echo "created canonical tag $tag at $EVENT_SHA"
             exit 0
           fi
 
@@ -326,13 +479,13 @@ jobs:
           retry_ref="$(gh api "$ref_path")"
           retry_plan="$(python3 scripts/verify_release_provenance.py carrier-tag-plan \
             --version "$version" \
-            --expected-sha "$GITHUB_SHA" \
+            --expected-sha "$EVENT_SHA" \
             --existing-type "$(jq -er '.object.type' <<<"$retry_ref")" \
             --existing-sha "$(jq -er '.object.sha' <<<"$retry_ref")")"
           test "$(jq -er '.action' <<<"$retry_plan")" = "noop"
 
       - name: Mark the carried version PR as tagged
-        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false'
+        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         shell: bash

@@ -1,0 +1,10 @@
+   Packaging codegauge-provider-jacoco v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-provider-jacoco)
+warning: ignoring test `jacoco` as `tests/jacoco.rs` is not included in the published package
+    Updating crates.io index
+error: failed to prepare local package for uploading
+
+Caused by:
+  no matching package named `codegauge-application` found
+  location searched: crates.io index
+  required by package `codegauge-provider-jacoco v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-provider-jacoco)`
+EXIT_STATUS=101

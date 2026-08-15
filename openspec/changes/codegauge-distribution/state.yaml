@@ -1,6 +1,6 @@
 change: codegauge-distribution
 title: "CI/CD and distribution through Cargo, npm, Docker, and release artifacts"
-current_phase: verify
+current_phase: qa
 completed:
   - init
   - explore
@@ -10,7 +10,8 @@ completed:
   - tasks
   - apply
   - verify
-next: qa
+  - qa
+next: archive
 updated: "2026-08-15"
 
 baseline:
@@ -20,12 +21,10 @@ baseline:
   commit: 6477eb1
 
 summary: |
-  Fresh technical verification passed the hosted GitHub PR-files hunk-only patch parser correction
-  from run #31878496886. Local evidence covers the exact 32-path Release Please 17.6.0 changeset,
-  private four-pin exception, generated-file validation, full unified diffs, hunk-only patches for
-  every content-bearing changed file, no-match no-op, dry-run/live gates, synchronized workspace
-  tests, and the no-publication boundary. Independent QA and the separately authorized hosted rerun
-  remain downstream gates; no hosted success or external write is claimed.
+  Independent QA reran the current fix/release-carrier-replay local acceptance capabilities. Stage A/B,
+  no-op, dry-run guard, replay validation, parser/content, Cargo locked behavior, npm, archive, and local
+  OCI checks passed; hosted replay, tag delivery, publication, native targets, registry package order,
+  attestation, and rollback remain blocked under the no-write boundary.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -36,27 +35,16 @@ decision:
   private_conformance_exception: "four exact dependency .version JSONPaths only; package version remains 0.1.0 and publish=false"
 
 blocked:
-  - Hosted PR #59 failed cargo metadata --locked because private conformance dependency pins remained ^0.1.0
-  - Hosted run #31878496886 found the parser rejected GitHub PR-files hunk-only patch context for .release-please-manifest.json
-  - Prior Phase 9 verification found a synchronized-tree conformance golden/version failure (remediated locally in apply)
-  - Prior Phase 9 verification found filename-only acceptance of a mutated approved generated file (remediated locally in apply)
-  - Independent `sdd-qa` acceptance rerun is pending
-  - Corrected private-pin behavior has no hosted verification; do not claim PR #59-equivalent success
-  - The hunk-only patch parser fix has no hosted verification; do not claim run #31878496886-equivalent success
-  - Hosted Release Please/tag carrier/release workflow rehearsal remains unexecuted
-  - Temporary carrier rehearsal guard is implemented locally but requires protected hosted observation
-  - Carrier no-match correlation fix is locally verified but not yet hosted-verified; this is separate from the new conformance-pin blocker
-  - PAT scope/masking/ref authorization, branch protection, tag delivery, and workflow dispatch recovery remain unconfirmed
-  - R-F6 tasks 4.2/7.4/8.4 hosted no-publication rehearsals and task 4.3 QA remain downstream gates
-  - no v0.1.0 release/tag or GitHub Release exists
-  - Cargo/npm/GitHub Release/GHCR publication and attestation not authorized/executed
-  - native evidence for seven non-host targets unavailable
-  - QA P1 acceptance blockers remain; archive is gated until hosted/native evidence or an explicit
-    policy exception is approved
+  - Hosted Stage-A/version-PR, ordinary-main carrier, and historical replay runs remain unexecuted
+  - Canonical tag delivery, downstream release provenance, publication, and attestation remain unobserved
+  - Seven non-host archive targets have no executable native evidence
+  - Dependent Cargo package verification cannot resolve synchronized crates from the pre-publication crates.io index
+  - Hosted security isolation, failure injection, and rollback remain untested
+  - No tag, release, registry publication, upload, variable mutation, credential use, or live carrier run is authorized in this QA
 
 qa:
   verdict: BLOCKED
   report: openspec/changes/codegauge-distribution/qa-report.md
-  local_acceptance: parser fix and local quality checks pass; independent acceptance and hosted evidence remain pending
-  critical_or_p0_findings: none observed after the generated-version/updater boundary remediation
-  open_p1_findings: hosted lifecycle/provenance, publication/attestation, and native target evidence
+  local_acceptance: local executable capabilities passed; static-only checks are not recorded as QA passes; hosted/provider acceptance remains blocked
+  critical_or_p0_findings: none observed
+  open_p1_findings: hosted lifecycle/replay/tag delivery, publication/attestation, native targets, and dependent Cargo registry verification

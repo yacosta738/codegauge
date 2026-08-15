@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "source_revision": "6b65654977f7b41ee9a964f9089a6629fd521d4e",
+  "rust_toolchain": "1.97.1",
+  "target": "x86_64-unknown-linux-gnu",
+  "archive": "codegauge-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+  "binary_evidence": {
+    "target": "x86_64-unknown-linux-gnu",
+    "mode": "cross-target",
+    "execution": "not-run"
+  },
+  "sha256": "3443f76800d231a7ff8ff09d2c41443386f48c72a4fe9823fa3d690973b7899d"
+}

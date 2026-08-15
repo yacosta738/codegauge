@@ -254,6 +254,61 @@ MUST fail closed before mutation.
 - WHEN the carrier resolves its mode
 - THEN it fails closed before any tag or label mutation
 
+### Requirement: Historical carrier replay is dry-run-only
+
+The carrier MAY expose an optional `replay_sha` input for a protected recovery/rehearsal, but it
+MUST accept a non-empty value only for `workflow_dispatch` on `refs/heads/main` with `dry_run=true`.
+The value MUST be exactly a lowercase 40-hex Git SHA. Push events, live dispatches, malformed SHAs,
+and non-main refs MUST fail closed before PR-file collection or any mutation. An absent replay value
+MUST preserve ordinary current-main dispatch behavior.
+
+Replay MUST keep the checkout and all source/tree validation at the current selected `main` revision.
+It MUST select one explicit normalized `EVENT_SHA`: the validated `replay_sha` for GitHub commit/PR
+lookup, carrier event validation, and canonical tag-plan identity, or the current event SHA when no
+replay is supplied. No later command MAY fall back to `GITHUB_SHA` for those historical-event uses.
+The resolver, carrier record, and workflow summary MUST emit a total boolean `replay` field; an absent
+replay value MUST normalize to `false` rather than make the optional input mandatory. When replay is
+`true`, the record and summary MUST identify both the current source checkout SHA and the historical
+replay event SHA. When replay is `false`, the replay event SHA MUST be explicitly null/none. Any
+present replay field with a non-boolean value MUST fail closed.
+
+Replay MUST run the same exact PR correlation and Stage-B validation boundaries as the normal carrier,
+including exactly-one Release Please PR, complete patch/content metadata, version/graph/provenance,
+private four-pin, idempotency, and conflict checks. It MUST stop before canonical tag-ref creation,
+Release Please label mutation, tag-workflow dispatch, release-asset upload, Cargo/npm/OCI publication,
+or attestation. Live mode MUST reject replay input and preserve the normal push variable/default path.
+
+The replay record and workflow summary MUST identify replay mode, source checkout SHA, replay event SHA,
+dry-run state, and every mutation as `skipped`, `not-started`, or `not-dispatched`, without emitting
+credentials. This capability is a dry-run-only recovery/rehearsal guard; it MUST NOT be described as
+production replay, a live release path, or hosted-passed evidence.
+
+#### Scenario: Authorized manual replay of the hosted merge
+
+- GIVEN current `main` contains the corrected parser and `workflow_dispatch` runs on `refs/heads/main`
+- AND `dry_run=true` and `replay_sha=fcc91b4850480945ae484c3ebdba18f8a4e38270`
+- WHEN the carrier resolves its event identity
+- THEN the source checkout remains current `main` while `EVENT_SHA` equals the historical merge SHA
+- AND GitHub commit/PR lookup, exactly-one PR correlation, carrier validation, and tag planning use
+  that effective event SHA
+- AND the record/summary identify the source checkout, replay event, dry-run, and no-write mutation
+  statuses
+- AND no tag, label, release, upload, registry publication, or attestation action starts
+
+#### Scenario: Replay is rejected outside manual dry-run
+
+- GIVEN `replay_sha` is non-empty
+- WHEN the event is a push, a live dispatch, a malformed/non-40-hex SHA, or a non-main ref
+- THEN the carrier fails closed before PR-file collection and performs no tag, label, release, upload,
+  publication, or attestation mutation
+
+#### Scenario: Missing replay remains ordinary dispatch
+
+- GIVEN `workflow_dispatch` runs on `refs/heads/main` with no `replay_sha`
+- WHEN the carrier resolves its event identity
+- THEN `EVENT_SHA` equals the current selected main event SHA and the existing manual dry-run/live
+  behavior remains unchanged
+
 ### Requirement: Approved archive matrix and checksums
 
 The release MUST use the approved complete viable target matrix of eight archives: Linux GNU and
