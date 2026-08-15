@@ -151,6 +151,21 @@ Release Please changelog additions.
 - AND a missing patch, inconsistent counts, malformed/truncated hunk, or unexpected second file
   section fails closed before tag, label, release, upload, or publication mutation
 
+#### Scenario: Private conformance hunk-only patch omits optional trailing context
+
+- GIVEN `GET /pulls/59/files` returns a filename-bound private-manifest patch beginning
+  `@@ -10,10 +10,10 @@ publish = false`
+- AND its hunk contains the description, `[dependencies]`, exactly four old/new dependency pairs,
+  a blank line, `[dev-dependencies]`, and `schemars.workspace = true`
+- AND GitHub omits the following `serde_json.workspace = true` context line while the hunk's declared
+  and actual old/new counts remain `10/10`
+- WHEN Stage-B validates the entry with API metadata of four additions, four deletions, and eight
+  changes
+- THEN Stage-B accepts the patch because the exact four approved dependency version replacements and
+  all declared/actual counts are complete
+- AND it continues to reject dependency-key/path/version drift, package metadata changes, formatting
+  or comment mutations, missing/truncated hunks, and every other unapproved private mutation
+
 ### Requirement: Linked versions must not depend on tag naming
 
 The release architecture MUST prove that every intended runtime Cargo crate, the npm wrapper, and all

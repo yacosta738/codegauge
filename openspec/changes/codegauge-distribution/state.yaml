@@ -21,10 +21,12 @@ baseline:
   commit: 6477eb1
 
 summary: |
-  Independent QA reran the current fix/release-carrier-replay local acceptance capabilities. Stage A/B,
-  no-op, dry-run guard, replay validation, parser/content, Cargo locked behavior, npm, archive, and local
-  OCI checks passed; hosted replay, tag delivery, publication, native targets, registry package order,
-  attestation, and rollback remain blocked under the no-write boundary.
+  Independent QA re-ran the focused local acceptance capabilities on
+  fix/release-carrier-private-patch-context after the Phase 12 correction. The exact PR #59 private
+  hunk-only patch, fail-closed parser/private mutation matrix, Release Please 17.6.0 harness, carrier
+  modes/replay, and fake-GitHub dry-run no-write plan passed locally. Hosted replay, tag delivery,
+  publication, native targets, registry package order, attestation, and rollback remain blocked under
+  the explicit no-write/no-secret boundary.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -35,7 +37,11 @@ decision:
   private_conformance_exception: "four exact dependency .version JSONPaths only; package version remains 0.1.0 and publish=false"
 
 blocked:
-  - Hosted Stage-A/version-PR, ordinary-main carrier, and historical replay runs remain unexecuted
+  - "Hosted run 31886141725 remains a failure observation for the valid PR #59 hunk-only private patch;
+    no hosted replay success is claimed"
+  - The separately authorized protected hosted replay and downstream acceptance remain required
+  - "Corrected hosted Stage-A/version-PR rerun, ordinary-main carrier, and historical replay runs remain
+    unexecuted; the original PR #59 Stage-A observation is failure evidence for this boundary"
   - Canonical tag delivery, downstream release provenance, publication, and attestation remain unobserved
   - Seven non-host archive targets have no executable native evidence
   - Dependent Cargo package verification cannot resolve synchronized crates from the pre-publication crates.io index
@@ -45,6 +51,6 @@ blocked:
 qa:
   verdict: BLOCKED
   report: openspec/changes/codegauge-distribution/qa-report.md
-  local_acceptance: local executable capabilities passed; static-only checks are not recorded as QA passes; hosted/provider acceptance remains blocked
+  local_acceptance: local executable capabilities re-ran and passed; static-only checks are not recorded as QA passes; hosted/provider acceptance remains blocked
   critical_or_p0_findings: none observed
-  open_p1_findings: hosted lifecycle/replay/tag delivery, publication/attestation, native targets, and dependent Cargo registry verification
+  open_p1_findings: hosted lifecycle/replay/tag delivery, publication/attestation, native targets, dependent Cargo registry verification, and rollback/failure-injection

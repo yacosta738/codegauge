@@ -1693,3 +1693,92 @@ reported only; no implementation fix was made in verification.
 Technical verification is **PASS WITH WARNINGS**. No local defect remains; hosted replay and independent
 acceptance are the remaining downstream boundary. No hosted write, credential, tag, release, publication,
 upload, attestation, variable change, merge, push, or commit occurred.
+
+## Phase 12 apply — private conformance PR-files hunk context — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the focused Stage-B private hunk-context
+  regression on `fix/release-carrier-private-patch-context`.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`; trunk/base and parent
+  branch: `origin/main`; position: private conformance hunk-only context correction after the Phase 11
+  replay/fixture repair. No Stack metadata.
+- Hosted run `31886141725` and the real PR `#59` files API response are recorded as failure evidence:
+  the valid hunk-only private manifest patch was rejected before tag planning because the validator
+  required a context line GitHub omitted.
+- Scope was limited to `tests/release_carrier_tests.py`,
+  `scripts/verify_release_provenance.py`, and the related OpenSpec handoff. No workflow, release,
+  tag, publication, credential, repository-variable, hosted dispatch, or parent-repository mutation
+  occurred.
+
+### Completed work
+
+- [x] 12.1 **RED** — Added `private_conformance_api_hunk_only_patch()` and an executable regression
+  for the exact PR `#59` API shape: filename-bound hunk-only patch, header
+  `@@ -10,10 +10,10 @@ publish = false`, complete `10/10` hunk counts, four additions, four deletions, eight
+  changes, the four dependency replacements, and no `serde_json.workspace = true` context. Before
+  the production change, the focused suite failed with
+  `ProvenanceError: private conformance diff patch is truncated`.
+- [x] 12.2 **GREEN** — Removed only `serde_json.workspace = true` from the private required-context
+  allowlist. The parser still enforces hunk declared/actual counts and API additions/deletions/
+  changes; the private validator still enforces exactly four dependency keys, old version validity,
+  synchronized new versions, dependency paths, private package identity, and all other fail-closed
+  boundaries.
+- [x] 12.3 **REFACTOR/LOCAL VERIFY** — Focused carrier/provenance/static/mode/runtime suites and the
+  complete relevant local Cargo, npm, OCI, workflow, package, compile, and whitespace checks passed.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** after adding the exact hunk-only fixture/test and before changing production code,
+   `python3 tests/release_carrier_tests.py` failed at the new regression with
+   `private conformance diff patch is truncated`. This reproduces the hosted run's false rejection.
+2. **GREEN:** after removing only the over-specific trailing-context requirement,
+   `python3 tests/release_carrier_tests.py` passed; the fixture still proves the `10/10` hunk and
+   `4/4/8` API counts before entering the private validator.
+3. **REFACTOR:** no parser or dependency-mutation logic was broadened; existing full-diff,
+   hunk-only, count, content, private mutation, replay, no-match, and no-publication checks remained
+   green.
+
+### Local verification evidence
+
+- `python3 tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`,
+  `tests/release_carrier_mode_tests.py`, `tests/release_provenance_tests.py`,
+  `tests/release_please_runtime_tests.py`, `tests/distribution_checks.py`,
+  `tests/bootstrap_checks.py`, and `tests/readme_checks.py` — PASS.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` —
+  PASS.
+- `cargo +1.97.1 metadata --locked --format-version 1`, workspace tests (31 passed), check, fmt,
+  locked Clippy, and five workflow-equivalent locked runtime package checks with local dependency
+  patches — PASS.
+- npm wrapper typecheck/tests (6 passed) and wrapper plus six platform `npm pack --dry-run` checks —
+  PASS.
+- All four OCI regression layers, `actionlint`, `shellcheck scripts/build_oci_release.sh`, Dockerfile
+  `buildx --check`, and `git diff --check` — PASS.
+- No hosted replay, workflow dispatch, GitHub API mutation, tag, label, release, upload, attestation,
+  registry publication, credential use, repository-variable change, merge, push, or commit occurred.
+
+### Handoff
+
+- Fresh `sdd-verify` is the next technical gate and must re-run the corrected private hunk-only
+  boundary before any QA or hosted rehearsal.
+- The hosted run `31886141725` remains a failure observation; this apply slice does not claim hosted
+  replay success, operator acceptance, publication safety, or downstream release acceptance.
+- Independent `sdd-qa` and a separately authorized protected hosted replay remain unchecked.
+
+## Phase 12 fresh verification handoff — 2026-08-15
+
+- [x] Fresh `sdd-verify` ran on `fix/release-carrier-private-patch-context` and passed with **PASS WITH
+  WARNINGS**. The exact PR `#59` API hunk-only fixture reproduces the pre-fix
+  `private conformance diff patch is truncated` result against the validator at `HEAD`, then passes
+  with the one-line context allowlist correction.
+- [x] Runtime evidence confirms complete declared/actual hunk counts, `4/4/8` API counts, exactly four
+  approved dependency keys, valid old versions, synchronized new versions, private identity, and
+  fail-closed truncation/unapproved mutation behavior. The exact Release Please `17.6.0`, Cargo, npm,
+  OCI, workflow, shell, package, compile, CLI, and whitespace checks also passed.
+- [x] Phase 12 task `12.4` is complete. `tasks.md` task `12.5` remains unchecked: hosted replay/
+  validation is separately authorized work and is not claimed as successful.
+- No hosted replay, dispatch, API mutation, tag, label, release, upload, registry publication,
+  attestation, credential use, repository-variable change, merge, push, or commit occurred.
+
+The next phase is independent `sdd-qa`; this apply-progress handoff does not make an operator or
+product acceptance claim.

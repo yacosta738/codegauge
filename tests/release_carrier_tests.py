@@ -85,6 +85,32 @@ def private_conformance_patch(
     return "\n".join(lines) + "\n"
 
 
+def private_conformance_api_hunk_only_patch(*, version: str = VERSION) -> str:
+    """Reproduce the hunk-only patch returned for the real PR #59 files API entry."""
+
+    lines = [
+        "@@ -10,10 +10,10 @@ publish = false",
+        ' description = "Private cross-crate CodeGauge conformance suite"',
+        " ",
+        " [dependencies]",
+    ]
+    for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
+        lines.extend(
+            [
+                f'-{dependency} = {{ version = "0.1.0", path = "../{dependency}" }}',
+                f'+{dependency} = {{ version = "{version}", path = "../{dependency}" }}',
+            ]
+        )
+    lines.extend(
+        [
+            " ",
+            " [dev-dependencies]",
+            " schemars.workspace = true",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def private_conformance_entry(
     *,
     patch: str | None = None,
@@ -559,8 +585,31 @@ def test_manual_replay_event_selection() -> None:
     assert replay["source_sha"] == CURRENT_MAIN_SHA
 
 
+def test_private_conformance_api_hunk_only_patch() -> None:
+    """Accept the exact complete hunk-only private patch returned by GitHub."""
+
+    entry = private_conformance_entry(
+        patch=private_conformance_api_hunk_only_patch(),
+        additions=4,
+        deletions=4,
+        changes=8,
+    )
+    patch = entry["patch"]
+    assert isinstance(patch, str)
+    assert patch.startswith("@@ -10,10 +10,10 @@ publish = false\n")
+    assert " serde_json.workspace = true" not in patch
+    added, deleted, patch_lines = _patch_change_lines(
+        entry,
+        path=PRIVATE_CONFORMANCE_PATH,
+    )
+    assert len(added) == len(deleted) == 4
+    assert patch_lines[0] == "@@ -10,10 +10,10 @@ publish = false"
+    validate_stage_a_diff([*CORE_STAGE_A_DIFF, entry], version=VERSION)
+
+
 def main() -> int:
     test_manual_replay_event_selection()
+    test_private_conformance_api_hunk_only_patch()
     fixture = copy_release_tree()
     try:
         record = validate_carrier_event(

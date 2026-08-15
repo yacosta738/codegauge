@@ -321,3 +321,57 @@ publication write was performed.
 Technical verification is **PASS WITH WARNINGS**. No local implementation defect remains; the hosted
 replay is the only remaining blocker for this Phase 11 slice. Hand off to `sdd-qa` for independent
 acceptance. No hosted success, publication, or operator acceptance is claimed.
+
+## Phase 12: Private conformance PR-files hunk-context correction
+
+### Layer boundary
+
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Trunk/base: `origin/main`; parent branch: `origin/main`; branch:
+  `fix/release-carrier-private-patch-context`; position: focused Stage-B private hunk-context
+  regression after the Phase 11 replay/fixture repair. No Stack metadata.
+- Hosted run `31886141725` and the real PR `#59` files API response are the authoritative failure
+  evidence for this slice. The run failed on a valid private hunk-only patch; no hosted replay success
+  is claimed.
+- Scope is limited to the exact carrier regression fixture, the private context allowlist, and honest
+  OpenSpec handoff updates. No workflow, release, tag, publication, credential, variable, or hosted
+  state mutation is permitted.
+
+- [x] 12.1 **RED** — Add the exact PR `#59` API-shaped private hunk-only fixture with
+  `@@ -10,10 +10,10 @@ publish = false`, four additions/deletions, eight changes, no
+  `serde_json.workspace = true` context, and prove the current validator raises
+  `private conformance diff patch is truncated`.
+- [x] 12.2 **GREEN** — Remove only the over-specific `serde_json.workspace = true` context requirement;
+  retain hunk declared/actual counts, API counts, exact four dependency replacements, synchronized
+  version matching, private identity, and all other fail-closed checks.
+- [x] 12.3 **REFACTOR/LOCAL VERIFY** — Run the focused carrier/provenance/static/mode/runtime suites
+  and the complete relevant local Cargo, npm, OCI, workflow, package, compile, and diff checks without
+  hosted writes.
+- [x] 12.4 — Fresh `sdd-verify` passed against this corrected local boundary; hand off to independent
+  `sdd-qa`. No operator or acceptance claim is made by verification.
+- [ ] 12.5 — Obtain a separately authorized protected hosted replay/validation run and inspect its
+  no-publication evidence. This task remains pending and is not executed here.
+
+## Phase 12 apply handoff — 2026-08-15
+
+The hosted failure is preserved as failure evidence, not converted into a success claim. The local
+regression now models the exact GitHub PR-files response shape and the validator relaxes only the
+missing trailing context requirement. Fresh `sdd-verify` subsequently passed; the protected hosted
+replay and independent QA remain separate, unchecked work.
+
+## Phase 12 verification handoff — 2026-08-15
+
+- [x] Task `12.4` — Fresh `sdd-verify` passed on
+  `fix/release-carrier-private-patch-context`. The exact PR `#59` API hunk-only fixture reproduces the
+  pre-fix `private conformance diff patch is truncated` rejection and passes after the one-line context
+  allowlist correction. Complete hunk/API counts, the exact four approved keys, old/new versions,
+  private identity, truncation, and unapproved-mutation boundaries remain covered by passing runtime
+  tests.
+- [x] The complete relevant local Release Please `17.6.0`, carrier/provenance, Cargo, npm, OCI,
+  workflow, shell, package, compile, CLI, and whitespace checks passed without hosted writes.
+- [ ] Task `12.5` — Protected hosted replay/validation remains pending and must not be represented as
+  successful. Independent `sdd-qa` is the next phase and owns acceptance evidence.
+
+Technical verdict: **PASS WITH WARNINGS**. Hosted run `31886141725` remains the authoritative pre-fix
+failure observation; no hosted replay success, publication, tag, release, or operator acceptance is
+claimed.

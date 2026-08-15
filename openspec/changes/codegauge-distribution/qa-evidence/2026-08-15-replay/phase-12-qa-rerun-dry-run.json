@@ -1,0 +1,32 @@
+{
+  "checkout_sha": "cdd91baf9cbd0fb416ecfe67977310253d9b7534",
+  "plan_exit_status": 0,
+  "guard_exit_status": 0,
+  "gh_calls": [
+    "api repos/yacosta738/codegauge/git/ref/tags/0.2.0",
+    "api repos/yacosta738/codegauge/releases/tags/v0.2.0"
+  ],
+  "write_method_calls": [],
+  "tag_plan": {
+    "action": "create",
+    "sha": "cdd91baf9cbd0fb416ecfe67977310253d9b7534",
+    "tag": "v0.2.0",
+    "version": "0.2.0"
+  },
+  "mode": {
+    "dry_run": true,
+    "normalized": "dry-run",
+    "replay": false
+  },
+  "mutations": {
+    "canonical_tag_ref": "skipped",
+    "version_pr_label": "skipped",
+    "release_on_tag_workflow": "not-dispatched",
+    "release_asset_upload": "not-started",
+    "cargo_publication": "not-started",
+    "npm_publication": "not-started",
+    "oci_publication": "not-started",
+    "attestation": "not-started",
+    "publication": "not-started"
+  }
+}
