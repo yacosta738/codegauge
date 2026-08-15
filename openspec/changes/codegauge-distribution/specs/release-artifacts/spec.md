@@ -45,7 +45,7 @@ GitHub release; exactly one approved runtime component MUST create the unprefixe
 - THEN the root has no Cargo/npm package identity and its skipped release cannot create a fake root
   package or a duplicate tag
 
-### Requirement: Private workspace members stay outside Stage-A updates
+### Requirement: Private workspace members stay outside the Stage-A candidate graph
 
 Stage-A Release Please configuration MUST use an explicit list of the five approved runtime Cargo
 packages when the repository workspace also contains a private conformance member. It MUST NOT use
@@ -53,9 +53,10 @@ the Release Please 17.6.0 `cargo-workspace` plugin for this graph because the ex
 (`build/src/plugins/cargo-workspace.js`, lines 45–84 and 138–193; `workspace.d.ts`, lines 11–16)
 scans every declared workspace member and exposes no supported member-exclusion option. The private
 `crates/codegauge-conformance/Cargo.toml` MUST remain a Cargo workspace member for builds/tests,
-MUST remain `publish = false`, and MUST be absent from the effective Stage-A update set and linked
-component set. The non-Cargo root metadata carrier MAY own explicit runtime Cargo lock/dependency
-version selectors, but those selectors MUST exclude the private member.
+MUST remain `publish = false`, and MUST be absent from the effective candidate and linked-component
+sets. The non-Cargo root metadata carrier MAY own that existing manifest as a narrowly scoped
+dependency-pin update, but it MUST NOT own the private package version, changelog, release metadata,
+or any other private path.
 
 #### Scenario: Exact v17.6.0 private-candidate boundary
 
@@ -63,16 +64,86 @@ version selectors, but those selectors MUST exclude the private member.
   `codegauge-conformance`
 - WHEN the exact Release Please 17.6.0 Manifest/plugin chain runs against a read-only fake SCM
 - THEN it MUST create one synchronized PR with all five runtime Cargo candidates, the root metadata
-  carrier, the linked versions map, and six npm optional dependency rewrites, with zero release/tag
-  calls, and MUST NOT propose `crates/codegauge-conformance/Cargo.toml`
-- AND a mutation containing that private manifest MUST be rejected by the unchanged Stage-B exact
-  diff allowlist
+  carrier, the linked versions map, six npm optional dependency rewrites, and one root-owned
+  `crates/codegauge-conformance/Cargo.toml` dependency update, with zero release/tag calls
+- AND the private manifest MUST NOT be a candidate or linked component, and its package version and
+  `publish = false` state MUST remain unchanged
+
+### Requirement: Hosted conformance dependency alignment is a root-carrier exception
+
+The surviving Java root metadata carrier MUST own exactly these four TOML JSONPath updates in
+`/crates/codegauge-conformance/Cargo.toml`, with every new value equal to the synchronized public
+runtime version:
+
+```text
+$.dependencies["codegauge-application"].version
+$.dependencies["codegauge-core"].version
+$.dependencies["codegauge-model"].version
+$.dependencies["codegauge-provider-jacoco"].version
+```
+
+The carrier MUST NOT update `[package].version`, `publish`, package identity, changelog, release
+metadata, or any other file under `crates/codegauge-conformance/`. This exception exists because
+hosted PR `#59` synchronized the five public runtime Cargo/npm surfaces to `0.2.0` with no release or
+tag calls, then failed `cargo metadata --locked` because these private path pins remained `^0.1.0`.
+
+#### Scenario: Hosted PR #59 exposes stale private pins
+
+- GIVEN a merged Stage-A version PR synchronizes public runtime packages to `0.2.0`
+- AND `codegauge-conformance` still requires the public path dependencies at `^0.1.0`
+- WHEN CI runs `cargo metadata --locked`
+- THEN the quality gate fails before Stage-B can create a tag, and the failure identifies private
+  dependency alignment as the missing boundary
+
+#### Scenario: Corrected private dependency update
+
+- GIVEN the root carrier proposes the private manifest path
+- WHEN the complete before/after content differs only at the four listed dependency `.version`
+  fields and each new value is the synchronized runtime version
+- THEN Stage-B accepts the path, `cargo metadata --locked` is eligible to pass, and the private
+  package version remains its private/non-release value
+
+#### Scenario: Private manifest mutation outside the exception
+
+- GIVEN the Stage-A diff contains the private manifest
+- WHEN it changes package version, `publish`, dependency keys/paths/features, comments/formatting,
+  a changelog, or any other private/unapproved path
+- THEN Stage-B fails closed before tag, label, release, upload, or publication mutation
+
+### Requirement: Root carrier content matches its configured updater
+
+Stage-A's effective root carrier MUST use the Release Please 17.6.0 updater appropriate to each
+file. `/tests/golden/valid-methods.json` MUST use the typed JSON path `$.tool.version`. README and
+`crates/codegauge-model/tests/contracts.rs` MAY use the generic updater only on exact
+`x-release-please-version` marker lines; unrelated semver text MUST remain unmarked. The CLI
+integration fixture has no release-version marker and MUST NOT be changed by the root generic
+updater. Stage-B MUST retain complete file patch/content metadata and reject filename-only, wrong
+version, arbitrary-content, unapproved-marker, malformed, missing, or truncated updates for every
+approved root/candidate/generated path. The twelve generated changelogs are permitted only as
+complete Release Please changelog additions.
+
+#### Scenario: Synchronized golden and contract fixtures
+
+- GIVEN the effective Stage-A update set synchronizes the public runtime to `0.2.0`
+- WHEN the typed and annotated root updaters run
+- THEN the golden's `tool.version` and both model contract fixture tool versions become `0.2.0`
+- AND the README's four intended release-version lines become `0.2.0`
+- AND no unrelated semver text is replaced
+
+#### Scenario: Content-mutated approved carrier file
+
+- GIVEN a merged Stage-A PR lists an approved golden, README, contract, candidate, or generated path
+- WHEN its complete patch contains `9.9.9`, arbitrary content, an unapproved marker, or missing/
+  truncated patch data
+- THEN Stage-B fails closed before tag, label, release, upload, or publication mutation
 
 ### Requirement: Linked versions must not depend on tag naming
 
 The release architecture MUST prove that every intended runtime Cargo crate, the npm wrapper, and all
 six npm platform packages resolve to one version and that the wrapper's `optionalDependencies` are
-rewritten from that synchronized versions map. Under the exact Release Please 17.6.0 source,
+rewritten from that synchronized versions map. The private conformance crate is not part of that
+linked version map; its four path dependency pins are updated by the root carrier to consume the
+same runtime version. Under the exact Release Please 17.6.0 source,
 `include-component-in-tag: false` returns an empty strategy component and
 `linked-versions` skips empty components. Therefore the release flow MUST either use a supported
 Release Please implementation whose linked lookup is independent of tag naming, or separate the

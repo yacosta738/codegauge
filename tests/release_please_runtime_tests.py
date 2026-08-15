@@ -12,10 +12,120 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "tests" / "release_please_runtime_harness.mjs"
+PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
+PRIVATE_DEPENDENCIES = (
+    "codegauge-application",
+    "codegauge-core",
+    "codegauge-model",
+    "codegauge-provider-jacoco",
+)
 
 sys.path.insert(0, str(ROOT))
 
 from scripts.verify_release_provenance import ProvenanceError, validate_stage_a_diff  # noqa: E402
+
+
+def private_patch(extra_changes: str = "") -> str:
+    lines = [
+        "diff --git a/crates/codegauge-conformance/Cargo.toml b/crates/codegauge-conformance/Cargo.toml",
+        "index 1111111..2222222 100644",
+        "--- a/crates/codegauge-conformance/Cargo.toml",
+        "+++ b/crates/codegauge-conformance/Cargo.toml",
+        "@@ -10,11 +10,11 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
+        ' description = "Private cross-crate CodeGauge conformance suite"',
+        " ",
+        " [dependencies]",
+    ]
+    for dependency in PRIVATE_DEPENDENCIES:
+        lines.extend(
+            [
+                f'-{dependency} = {{ version = "0.1.0", path = "../{dependency}" }}',
+                f'+{dependency} = {{ version = "0.2.0", path = "../{dependency}" }}',
+            ]
+        )
+    lines.extend(
+        [
+            " ",
+            " [dev-dependencies]",
+            " schemars.workspace = true",
+            " serde_json.workspace = true",
+        ]
+    )
+    if extra_changes:
+        lines.extend(extra_changes.splitlines())
+    return "\n".join(lines) + "\n"
+
+
+def private_entry(patch: str | None = None, *, additions: int = 4, deletions: int = 4):
+    entry = {
+        "filename": PRIVATE_CONFORMANCE_PATH,
+        "status": "modified",
+        "additions": additions,
+        "deletions": deletions,
+        "changes": additions + deletions,
+    }
+    if patch is not None:
+        entry["patch"] = patch
+    return entry
+
+
+def content_entry(path: str, pairs: list[tuple[str, str]], *, context: tuple[str, ...] = ()):
+    lines = [
+        f"diff --git a/{path} b/{path}",
+        f"--- a/{path}",
+        f"+++ b/{path}",
+        f"@@ -1,{len(pairs)} +1,{len(pairs)} @@",
+        *context,
+    ]
+    lines.extend(line for old, new in pairs for line in (f"-{old}", f"+{new}"))
+    return {
+        "filename": path,
+        "status": "modified",
+        "additions": len(pairs),
+        "deletions": len(pairs),
+        "changes": len(pairs) * 2,
+        "patch": "\n".join(lines) + "\n",
+    }
+
+
+def stage_a_prefix() -> list[dict[str, object]]:
+    crates = (
+        "codegauge-model",
+        "codegauge-core",
+        "codegauge-application",
+        "codegauge-provider-jacoco",
+        "codegauge-cli",
+    )
+    manifest = json.loads(
+        (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+    )
+    manifest_pairs = [
+        (f'  "{path}": "{old}",', f'  "{path}": "0.2.0",')
+        for path, old in manifest.items()
+    ]
+    base_package = json.loads(
+        (ROOT / "npm" / "codegauge" / "package.json").read_text(encoding="utf-8")
+    )
+    npm_pairs = [
+        (f'  "version": "{base_package["version"]}",', '  "version": "0.2.0",')
+    ] + [
+        (f'    "{dependency}": "{old}",', f'    "{dependency}": "0.2.0",')
+        for dependency, old in base_package["optionalDependencies"].items()
+    ]
+    return [
+        content_entry(
+            "Cargo.toml",
+            [('version = "0.1.0"', 'version = "0.2.0"')],
+            context=(" [workspace.package]",),
+        ),
+        content_entry(
+            "Cargo.lock",
+            [('version = "0.1.0"', 'version = "0.2.0"')] * len(crates),
+            context=tuple(f' name = "{crate}"' for crate in crates),
+        ),
+        content_entry(".release-please-manifest.json", manifest_pairs),
+        content_entry("npm/codegauge/package.json", npm_pairs),
+    ]
 
 
 def find_exact_package() -> Path | None:
@@ -70,18 +180,53 @@ def main() -> int:
     try:
         validate_stage_a_diff(
             [
-                "Cargo.toml",
-                "Cargo.lock",
-                ".release-please-manifest.json",
-                "npm/codegauge/package.json",
-                "crates/codegauge-conformance/Cargo.toml",
-            ]
+                *stage_a_prefix(),
+                private_entry(private_patch()),
+            ],
+            version="0.2.0",
         )
     except ProvenanceError:
-        print("PRIVATE CANDIDATE MUTATION: REJECTED")
-    else:
-        print("PRIVATE CANDIDATE MUTATION: ACCEPTED")
+        print("PRIVATE DEPENDENCY PIN UPDATE: REJECTED")
         return 1
+    else:
+        print("PRIVATE DEPENDENCY PIN UPDATE: ACCEPTED")
+
+    mutations = (
+        (
+            "package-version",
+            private_entry(
+                private_patch('@@ -1,3 +1,3 @@\n-version = "0.1.0"\n+version = "0.2.0"'),
+                additions=5,
+                deletions=5,
+            ),
+        ),
+        (
+            "publish-flag",
+            private_entry(
+                private_patch("@@ -7,1 +7,1 @@\n-publish = false\n+publish = true"),
+                additions=5,
+                deletions=5,
+            ),
+        ),
+        (
+            "unrelated-private-path",
+            {"filename": "crates/codegauge-conformance/CHANGELOG.md", "patch": "@@"},
+        ),
+    )
+    for mutation_name, mutation in mutations:
+        try:
+            validate_stage_a_diff(
+                [
+                    *stage_a_prefix(),
+                    mutation,
+                ],
+                version="0.2.0",
+            )
+        except ProvenanceError:
+            print(f"PRIVATE MUTATION {mutation_name}: REJECTED")
+        else:
+            print(f"PRIVATE MUTATION {mutation_name}: ACCEPTED")
+            return 1
     return 0
 
 

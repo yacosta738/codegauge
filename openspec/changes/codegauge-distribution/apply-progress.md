@@ -982,6 +982,48 @@ credential injection, or hosted write was performed.
 - Hosted PAT scope/masking/ref authorization, branch protection, tag delivery, publication,
   attestation, rollback/failure injection, and native non-host target evidence remain unverified.
 
+## Hosted conformance dependency-resolution failure — 2026-08-15
+
+### Evidence and boundary correction
+
+- Hosted PR `#59` is the first real Stage-A observation: the five public runtime Cargo packages and
+  npm packages synchronized to `0.2.0`; Stage A made no release or tag calls.
+- The merged PR then failed CI at `cargo metadata --locked` because
+  `crates/codegauge-conformance/Cargo.toml` still required
+  `codegauge-application`, `codegauge-core`, `codegauge-model`, and
+  `codegauge-provider-jacoco` at `^0.1.0` while the workspace contained `0.2.0`.
+- This invalidates the earlier exclusion-only expectation that the private manifest must be absent
+  from the effective Stage-A update set. It does not invalidate the private candidate/release/tag
+  boundary.
+
+### Corrected minimal exception
+
+- The Java `codegauge-root` metadata carrier must own the existing private manifest path through
+  exactly four TOML JSONPaths: `$.dependencies["codegauge-application"].version`,
+  `$.dependencies["codegauge-core"].version`, `$.dependencies["codegauge-model"].version`, and
+  `$.dependencies["codegauge-provider-jacoco"].version`.
+- The update value is the synchronized public runtime version only. The private
+  `[package].version` remains `0.1.0`; `publish = false`, the private `Cargo.lock` package version,
+  no conformance changelog, no release metadata, no linked component, and no private release/tag
+  candidate remain mandatory.
+- Stage-B must receive complete PR patch or verified before/after content. It may allow the private
+  path only when the semantic and textual change set contains exactly those four dependency-version
+  replacements. Package metadata/version, dependency keys/paths/features, comments/formatting,
+  changelog, missing/truncated patch, or any other path must fail closed before tag/label/release/
+  upload/publication mutation.
+- The source-faithful v17.6.0 harness and carrier tests must expect one root-owned private update,
+  32 effective Stage-A paths, four pins at the public version, six npm optional rewrites, one PR,
+  and zero release/tag calls. `cargo metadata --locked` is the required convergence gate.
+
+### Pending work and safety status
+
+- [ ] Implement the Phase 9 RED/GREEN/REFACTOR tasks in `tasks.md`; no source or workflow fix was
+  made in this entry.
+- [ ] Re-run local verification, then obtain a separately authorized protected hosted rehearsal.
+- The corrected boundary is designed but neither implemented nor hosted-verified. No commit, push,
+  merge, tag, release, publication, credential use, upload, attestation, or parent-repository
+  mutation was performed.
+
 ## Carrier event-correlation defect remediation — 2026-08-15
 
 ### Layer and scope
@@ -1083,3 +1125,181 @@ credential injection, or hosted write was performed.
   unverified or prohibited.
 - Independent `sdd-qa` remains the next phase and owns acceptance; no user/operator acceptance is
   claimed by this technical verification.
+
+## Phase 9 apply — hosted conformance dependency-pin exception — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; assigned slice is the approved private conformance dependency-pin
+  exception exposed by hosted PR `#59`.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Layer boundary: `trunk=origin/main`, `parent_branch=origin/main`, `base=origin/main`,
+  `branch=fix/release-carrier-skip-unmatched`, `position=Phase 9 private pin exception`; no Stack
+  metadata, branch creation, commit, push, merge, tag, release, publication, credential, or
+  parent-repository mutation was performed.
+- The private conformance package remains a workspace/build-test member at version `0.1.0` with
+  `publish = false`; only its four runtime dependency version selectors converge to the synchronized
+  public version.
+
+### Completed tasks
+
+- [x] 9.1 — The exact v17.6.0 fake-SCM harness now applies the source-faithful `mergeUpdates` and
+  missing-file filter, asserts 32 effective paths including one root-carrier conformance manifest,
+  six npm optional pin rewrites, one synchronized PR, and zero release/tag calls.
+- [x] 9.2 — The harness verifies the private updater changes exactly the four approved dependency
+  version lines while preserving the private package version, `publish = false`, and Cargo.lock
+  conformance version; the four exact TOML JSONPaths are checked in provenance/distribution tests.
+- [x] 9.3 — Carrier fixtures accept a complete four-line private patch and reject private package
+  version/publish, dependency path, formatting/comment, truncated/missing patch, changelog, and other
+  private-path mutations.
+- [x] 9.4 — The Java root carrier owns the four conformance TOML entries, and the carrier workflow
+  retains file status, addition/deletion/change counts, and unified patch content instead of only
+  filenames.
+- [x] 9.5 — `validate_stage_a_diff()` now fails closed unless the private file has exactly four
+  complete dependency-version replacements whose new values equal the validated runtime version;
+  private identity and synchronized-tree pin checks remain enforced.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** before the implementation changes, `release_carrier_tests.py` rejected the new positive
+   private manifest entry as unapproved, `release_provenance_tests.py` rejected the missing root
+   carrier paths, `distribution_checks.py` reported missing private selectors and patch metadata, and
+   the exact runtime harness reported no private updater.
+2. **GREEN:** after adding the four root-carrier entries, content-aware validator, workflow metadata
+   retention, and fixture updates, the carrier, provenance, distribution, static, and exact
+   `release-please@17.6.0` runtime suites passed. The runtime result records one private merged update,
+   32 effective paths, six npm rewrites, one PR, and zero release/tag calls.
+3. **REFACTOR:** the validator centralizes the private manifest path/dependency contract, validates
+   unified patch metadata and changed-line sets, preserves the non-release/private identity, and the
+   fake SCM now mirrors v17.6.0 `GitHub.buildChangeSet` filtering without any hosted API.
+
+### Handoff and remaining gates
+
+- [ ] Task 9.6 — Fresh `sdd-verify` must rerun the corrected boundary and full conformance matrix.
+- [ ] Task 9.7 — A separately authorized protected hosted rerun must prove PR `#59`-equivalent
+  metadata succeeds; the existing hosted PR `#59` evidence remains a failure until that new run.
+- QA remains `BLOCKED`; this apply slice provides local implementation/test evidence only and makes no
+  user/operator acceptance claim.
+- No hosted writes occurred in this phase: no GitHub API mutation, workflow dispatch, repository
+  variable change, tag, label, release, upload, attestation, registry publication, credential use,
+  merge, push, or commit was performed.
+
+## Phase 9 verification rerun — 2026-08-15
+
+### Execution
+
+- [x] Re-read the proposal, all five delta specs, design, tasks, current implementation diff, state,
+  QA handoff, and prior apply evidence before judging the Phase 9 boundary.
+- [x] Ran the exact installed `release-please@17.6.0` fake-SCM chain. It produced 32 effective paths,
+  one root-carrier private manifest update with exactly four dependency-version line replacements,
+  synchronized public Cargo/npm/lock values, six optional pin rewrites, one PR, and zero release/tag
+  calls. The private package remained `0.1.0`, `publish = false`, and outside candidate/linked sets.
+- [x] Focused private patch/content, unapproved npm, missing-root, malformed-SemVer, dry-run, and
+  ordinary-main no-match tests passed. Current-tree Rust/Python/npm/OCI/workflow/package and diff
+  checks also passed; synchronized-fixture `cargo metadata --locked` passed with public packages at
+  `0.2.0` and conformance at `0.1.0`.
+
+### Local defects found
+
+- [ ] The synchronized effective-tree `cargo test --workspace --locked` probe fails in
+  `codegauge-conformance` (`golden_order_summary_digest_and_numbers_are_stable_except_timestamp`):
+  the generated binary reports tool version `0.2.0`, while `tests/golden/valid-methods.json` remains
+  at `0.1.0`. The root generic extra-file updater is a no-op for that file because it has no
+  Release Please version marker.
+- [ ] Stage-B accepts a content-mutated approved generated file (`tests/golden/valid-methods.json`)
+  because content validation is restricted to the private conformance manifest; the direct carrier
+  probe returned `generated-file mutation: ACCEPTED`.
+
+### Handoff
+
+- Technical verification result: **FAIL**. These are local defects, not hosted-only limitations; no
+  fix was made in this verify phase.
+- Hosted Stage-A/merged-main/tag rehearsal, publication, attestation, rollback/failure injection,
+  and native non-host evidence remain unrun or prohibited and cannot upgrade the verdict.
+- No commit, push, merge, repository-variable change, tag, label, release, upload, attestation,
+  registry publication, credential injection, or hosted write occurred.
+
+## Phase 9 local CRITICAL defect remediation apply — 2026-08-15
+
+### Layer and scope
+
+- Change: `codegauge-distribution`; branch: `fix/release-carrier-skip-unmatched`.
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`; trunk/integration base:
+  `origin/main`; parent branch: `origin/main`; position: local synchronized-tree and Stage-B content
+  boundary repair. The checkout was already an intentionally dirty remediation baseline; no branch,
+  commit, push, merge, Stack metadata, parent-repository, hosted, or release state was created.
+- Scope was limited to the two latest local CRITICAL findings: the stale conformance golden after
+  effective Stage-A synchronization and filename-only acceptance of approved carrier content.
+
+### Completed tasks
+
+- [x] 9.8 — Changed the root golden carrier to Release Please 17.6.0 typed JSON
+  `$.tool.version`; added exactly four README and two model-contract `x-release-please-version`
+  markers; left the CLI fixture unmarked. The exact runtime harness still observes 32 effective
+  paths, six optional npm pin rewrites, one PR, and zero Stage-A release/tag calls.
+- [x] 9.9 — Added complete patch/count/content validation for approved typed JSON/TOML/npm files,
+  annotated generic lines, twelve generated changelogs, and the four private TOML pins. Stage-B
+  rejects wrong versions, arbitrary content, unapproved markers, filename-only entries, duplicate
+  paths, and missing/truncated patches before mutation.
+- [x] 9.10 — Added synchronized copied-tree assertions for the golden runtime version and complete
+  `cargo test --workspace --locked`, plus positive and negative carrier fixtures for the golden,
+  README, contracts, generated content, annotations, and metadata boundaries.
+
+### TDD RED → GREEN → REFACTOR evidence
+
+1. **RED:** before the implementation changes, the new synchronized fixture assertion failed because
+   `tests/golden/valid-methods.json` still reported `0.1.0`; the exact runtime harness omitted the
+   expected effective README path; and the new carrier mutation fixtures exposed filename-only
+   acceptance. The focused commands exited nonzero at those assertions.
+2. **GREEN:** after the typed JSON config, exact generic markers, complete fixture synchronization,
+   and content-aware validator were implemented, the exact `release-please@17.6.0` harness passed
+   with 32 paths, four private pins, six npm rewrites, one PR, and zero release/tag calls. The copied
+   synchronized tree passed metadata and `cargo test --workspace --locked`; all carrier mutation
+   negatives failed closed.
+3. **REFACTOR:** centralized patch metadata parsing, version-token/annotation checks, typed JSON,
+   manifest, TOML, npm, changelog, and private-pin validators; generalized duplicate/content gates;
+   and added static config assertions. Focused suites remained green.
+
+### Local verification evidence
+
+- `python3 tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`,
+  `tests/release_provenance_tests.py`, `tests/distribution_checks.py`, `tests/bootstrap_checks.py`,
+  `tests/readme_checks.py`, and exact `tests/release_please_runtime_tests.py` — PASS.
+- `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` — PASS.
+- `cargo metadata --locked`, `cargo test --workspace --locked`, `cargo check --workspace --all-targets
+  --locked`, `cargo fmt --all -- --check`, and locked Clippy `-D warnings` — PASS.
+- Five runtime `cargo package --locked --allow-dirty` checks with local dependency patch configuration — PASS.
+- npm wrapper typecheck/tests (6 tests) and wrapper plus six platform `npm pack --dry-run` checks — PASS.
+- All four OCI regression layers, `actionlint`, `shellcheck scripts/build_oci_release.sh`, Dockerfile
+  `docker buildx build --check --progress=plain .`, and `git diff --check` — PASS.
+- No hosted writes occurred: no GitHub API mutation, workflow dispatch, repository-variable change,
+  tag, label, release, upload, attestation, registry publication, credential use, merge, push, or
+  commit. Fresh `sdd-verify`, independent QA, and protected hosted rehearsal remain downstream.
+
+## Fresh sdd-verify — generated-version/updater boundary — 2026-08-15
+
+### Verification result
+
+- [x] Read the proposal, all five delta specs, design, tasks, current diff, implementation, state,
+  QA handoff, and configuration before judging the remediation.
+- [x] Exact Release Please `17.6.0` fake-SCM execution produced the exact 32-path effective changeset,
+  release version `0.2.0`, one private conformance manifest update, exactly four private dependency
+  pin edits, six npm optional pin rewrites, one synchronized PR, and zero Stage-A release/tag calls.
+- [x] The synchronized copied tree updated `tests/golden/valid-methods.json` through `$.tool.version`,
+  the four README marker lines and two model-contract marker lines, public Cargo/npm/lock versions,
+  and the four private pins; `cargo test --workspace --locked` passed while conformance remained
+  `0.1.0` and `publish = false`.
+- [x] Stage-B accepted legitimate typed/annotated/TOML/npm/changelog/private updates and rejected
+  wrong-version, arbitrary, unannotated, malformed, filename-only, duplicate, missing, and
+  truncated mutations.
+- [x] Current-tree Cargo, Python, npm, OCI, workflow, shell, package, and whitespace checks passed.
+- [x] Exact workflow mode/no-match probes passed for manual and automatic dry-run/live behavior,
+  invalid-mode fail-closed handling, and the successful no-match record without a diff fetch.
+- [x] No commit, push, merge, repository-variable change, tag, label, release, upload, publication,
+  attestation, credential injection, or hosted write was performed.
+
+### Handoff
+
+- Technical verdict: **PASS WITH WARNINGS**; no local implementation defect remains.
+- Hosted Release Please merge/carrier/tag rehearsal and independent `sdd-qa` remain pending or
+  prohibited under the no-write boundary. This verification does not claim operator acceptance.

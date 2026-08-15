@@ -62,8 +62,32 @@
           "path": "/crates/codegauge-cli/Cargo.toml",
           "jsonpath": "$.dependencies[\"codegauge-provider-jacoco\"].version"
         },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-conformance/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-application\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-conformance/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-conformance/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-conformance/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-provider-jacoco\"].version"
+        },
         { "type": "generic", "path": "/README.md" },
-        { "type": "generic", "path": "/tests/golden/valid-methods.json" },
+        {
+          "type": "json",
+          "path": "/tests/golden/valid-methods.json",
+          "jsonpath": "$.tool.version"
+        },
         { "type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs" },
         { "type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs" }
       ]

@@ -66,6 +66,8 @@ def run_checks() -> list[str]:
     if collection_marker in carrier and files_marker in carrier:
         if carrier.index(collection_marker) > carrier.index(files_marker):
             errors.append("carrier must classify the event before fetching Release Please diff files")
+    if "map({filename: .filename, status: .status, additions: .additions, deletions: .deletions, changes: .changes, patch: .patch})" not in carrier:
+        errors.append("carrier must retain complete PR file patch metadata for private diff validation")
     if "canonical_tag_ref" not in carrier or "not-started" not in carrier:
         errors.append("no-match records must explicitly prove tag/publication paths did not start")
     if "carrier_validation:" not in carrier or "not-run" not in carrier:
