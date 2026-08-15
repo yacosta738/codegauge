@@ -153,7 +153,7 @@ jobs:
           gh api --paginate --slurp \
             "repos/${GITHUB_REPOSITORY}/pulls/${release_pr_number}/files" \
             -H 'Accept: application/vnd.github+json' \
-            | jq 'add | map(.filename)' > "$carrier_input_dir/files.json"
+            | jq -e 'add | map({filename: .filename, status: .status, additions: .additions, deletions: .deletions, changes: .changes, patch: .patch})' > "$carrier_input_dir/files.json"
 
       - name: Validate the merged tree and version PR
         id: carrier

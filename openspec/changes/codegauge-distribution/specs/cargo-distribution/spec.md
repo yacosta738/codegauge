@@ -40,6 +40,37 @@ contracts.
 - WHEN the source installation completes
 - THEN `codegauge version`, `profiles`, and analysis behavior match the released contracts
 
+### Requirement: Private conformance dependency alignment
+
+The private `codegauge-conformance` crate MUST remain a workspace/build-test member with its own
+private package version and `publish = false`. When the public runtime graph advances to `X.Y.Z`,
+its four path dependency `.version` fields for application, core, model, and provider-jacoco MUST
+also resolve to `X.Y.Z` before the merged tree reaches Stage-B. The root metadata carrier owns those
+four pin updates; it MUST NOT synchronize the private `[package].version` or publish the crate.
+
+#### Scenario: Stale private pins block the locked graph
+
+- GIVEN public runtime manifests and `Cargo.lock` resolve to `0.2.0`
+- AND `crates/codegauge-conformance/Cargo.toml` still requires its four path dependencies at
+  `^0.1.0`
+- WHEN `cargo metadata --locked` runs on the merged tree
+- THEN the quality gate fails before any canonical tag or distribution publisher is enabled
+
+#### Scenario: Corrected private pins preserve non-publishability
+
+- GIVEN the root carrier changes only the four private dependency version fields to `0.2.0`
+- WHEN `cargo metadata --locked` and the workspace tests run
+- THEN the graph resolves, the conformance package remains `0.1.0` and `publish = false`, and no
+  Cargo publication candidate is created for it
+
+#### Scenario: Synchronized effective tree runs the complete workspace suite
+
+- GIVEN the effective Stage-A updates set the public runtime and the four private dependency pins to
+  `0.2.0`
+- AND the root typed/annotated carriers update the golden and contract tool-version expectations
+- WHEN `cargo test --workspace --locked` runs on the synchronized tree
+- THEN every workspace test passes while the conformance package remains private at version `0.1.0`
+
 ### Requirement: RFC-0001 compatibility boundary
 
 Distribution work MUST NOT alter the RFC-0001 engine algorithms, profile or schema identifiers,
