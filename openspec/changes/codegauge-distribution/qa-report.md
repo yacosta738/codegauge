@@ -6,17 +6,127 @@
 |---|---|
 | Change | `codegauge-distribution` (R-F6) |
 | Mode | OpenSpec |
-| Phase | `sdd-qa` — Phase 14 independent acceptance rerun |
+| Phase | `sdd-qa` — Phase 15 hosted-evidence acceptance update |
 | Date | 2026-08-15 |
-| Target branch | `fix/release-carrier-private-patch-context` |
+| Target branch | `chore/release-record-hosted-replay` |
 | Target checkout | `/Users/acosta/Dev/agent-swarm/codegauge` |
-| Target HEAD | `aa27efe0f6ce10707abd1c19f5b020a4db8dfa46` plus the intentional dirty remediation/QA-artifact diff |
+| Target HEAD | `8d1773413bbaa63661588b369d1c12bab2e2856e` |
 | Final QA verdict | `BLOCKED` |
 
-This is independent acceptance QA for observable local behavior. It does not claim hosted, operator,
-registry, or product acceptance.
+This is independent acceptance QA for observable local and explicitly evidenced hosted behavior. It does
+not claim full operator, registry, publication, or product acceptance.
 
-## Latest authoritative Phase 14 independent acceptance QA — 2026-08-15
+## Latest authoritative Phase 15 hosted-evidence acceptance update — 2026-08-15
+
+### Identity and technical-verification handoff
+
+- Change: `codegauge-distribution` (R-F6), OpenSpec mode, branch
+  `chore/release-record-hosted-replay`.
+- Target: `/Users/acosta/Dev/agent-swarm/codegauge`, corrected `main` checkout
+  `HEAD=8d1773413bbaa63661588b369d1c12bab2e2856e`.
+- Technical handoff: `verify-report.md` supplies **PASS WITH WARNINGS** local verification for the
+  corrected private-hunk and npm-formatting parser boundaries. It remains technical evidence only;
+  this update records the new hosted acceptance evidence.
+- Required artifacts read: proposal, all five delta specs, design, tasks, verify report, prior QA
+  report, `state.yaml`, and `openspec/config.yaml`.
+- New concise evidence: `qa-evidence/2026-08-15-replay/phase-15-hosted-replay.json`.
+
+### Target, environment, permissions, and limitations
+
+- Host: macOS arm64; this change has no application-under-test, browser, HTTP API, data-store,
+  locale, or persistence surface.
+- Corrected hosted push run `31891322236` completed `SUCCESS` as a no-op at the corrected main SHA.
+- Corrected hosted replay run `31891343893` was a successful `workflow_dispatch` on `main` with
+  `replay_sha=fcc91b4850480945ae484c3ebdba18f8a4e38270` and `dry_run=true`; its validation and plan
+  steps passed, while tag and label mutations were skipped.
+- The replay plan records `replay=true`, `source_checkout_sha=8d1773413...`, the historical event SHA,
+  `canonical_tag_ref=skipped`, `version_pr_label=skipped`, release workflow `not-dispatched`, and
+  upload/publication/attestation `not-started`. It contains no credential values.
+- Read-only GitHub inspection found no GitHub releases and no `v0.2.0` tag; local canonical tags are
+  also absent. `RELEASE_CARRIER_DRY_RUN=true` remains active.
+- QA did not dispatch a workflow, change variables or permissions, create tags/releases, publish,
+  upload, attest, inject credentials, or run the live carrier. The hosted runs are observed evidence,
+  not QA-created mutations.
+
+### Capability inventory
+
+| Capability | Availability | Selection | Rationale / disposition |
+|---|---|---|---|
+| Hosted ordinary-main carrier run | available | selected | Read-only observation of successful no-op run `31891322236`. |
+| Hosted historical replay/dry-run | available | selected | Read-only observation of successful run `31891343893` with the approved replay SHA. |
+| Hosted carrier plan/summary evidence | available | selected | Machine-readable plan facts prove current source SHA, replay SHA, validation, and skipped/not-started mutations. |
+| Corrected private hunk-only parser | available | selected | The hosted replay reached and passed merged-tree/version-PR validation on corrected main. |
+| Corrected npm hunk-only formatting parser | available | selected | The hosted replay reached and passed the same corrected Stage-B validation boundary for PR `#59`. |
+| Existing local executable QA harnesses | available | selected | Prior independent local evidence remains the carry-forward baseline for Cargo, npm, OCI, archives, and parser negatives. |
+| Read-only GitHub metadata | available | selected | Run status, conclusion, SHA, tag, and release state were queried without mutation. |
+| Workflow/actionlint/ShellCheck/Dockerfile diagnostics | available | selected as diagnostics | Static-only checks remain `NOT TESTED` in the scenario matrix, even when clean. |
+| Live tag/release/publication providers | available in principle | rejected | Explicit no-live-write boundary; no tag, release, registry, upload, or attestation action was authorized. |
+| Native non-host targets | unavailable | rejected | No executable native/cross-target matrix was supplied. |
+| Failure injection, rollback, and runtime secret-isolation rehearsal | unavailable | rejected | Requires protected provider state, credentials, and mutation. |
+| Browser/accessibility/responsive/locale/API/data/persistence | unavailable | rejected | No corresponding product surface exists for this distribution/CLI/workflow change. |
+
+### Incremental scenario matrix
+
+| ID | Category | Scenario | Result | Evidence or reason |
+|---|---|---|---|---|
+| QA-P15-01 | hosted happy path/state transition | A corrected-main push with no matching Release Please carrier event completes as an auditable no-op without entering validation or mutation. | PASS | Run `31891322236` completed `SUCCESS`/no-op at `8d1773413...`; carrier validation, plan, tag, and label steps were skipped. |
+| QA-P15-02 | hosted replay/state identity | Manual replay selects historical event `fcc91b4850480945ae484c3ebdba18f8a4e38270` while checking out current corrected main `8d1773413...`. | PASS | Run `31891343893`, `workflow_dispatch`, `refs/heads/main`, `headSha=8d1773413...`; carrier plan records `replay=true`, both SHAs, and `dry_run=true`. |
+| QA-P15-03 | hosted parser boundary | The corrected private conformance hunk-only and base npm hunk-only formatting boundaries accept the real PR `#59` replay input. | PASS | Run `31891343893` passed merged-tree/version-PR validation on the corrected parser/npm commits; no pre-fix rejection occurred. |
+| QA-P15-04 | hosted dry-run/no-write | Replay validates and computes the canonical `v0.2.0` plan without creating a tag, changing the carried PR label, dispatching downstream release, uploading, publishing, or attesting. | PASS | Replay validation and plan steps passed; `canonical_tag_ref` and `version_pr_label` are `skipped`, release workflow is `not-dispatched`, and upload/publication/attestation are `not-started`. |
+| QA-P15-05 | hosted state boundary | Canonical live tag delivery and the downstream tag-triggered release workflow are observed. | BLOCKED | `RELEASE_CARRIER_DRY_RUN=true` remains active; no `v0.2.0` tag or GitHub Release exists, by design. |
+| QA-P15-06 | registry/publication | Cargo registry, npm, GitHub Release, GHCR, and dependent Cargo registry verification complete. | BLOCKED | Publication/uploads and registry credentials remain prohibited; synchronized runtime crates are not available in the public index. |
+| QA-P15-07 | native target | All eight archive targets have executable native/cross-target runtime evidence. | BLOCKED | Only prior structural archive evidence exists; seven non-host target executions remain unrun. |
+| QA-P15-08 | security | Hosted secret isolation, attestation, and credential-bearing promotion behavior are observed at runtime. | BLOCKED | The replay plan is credential-free, but protected secret isolation and attestation require a separate hosted/provider rehearsal. |
+| QA-P15-09 | interrupted/rollback | Failure injection stops later channels and produces provider-backed recovery/rollback evidence. | BLOCKED | Disposable publication state and mutation were not authorized. |
+| QA-P15-10 | workflow/security diagnostic | Immutable pins, permissions, actionlint, ShellCheck, and Dockerfile checks are acceptance behavior. | NOT TESTED | These remain static diagnostics; policy forbids recording static inspection as QA `PASS`. |
+| QA-P15-11 | browser/accessibility/locale/persistence | Browser, accessibility, responsive, internationalization, API, data, or persistence behavior is exercised. | NOT TESTED | Not applicable: no such product surface exists. |
+
+The prior Phase 14 executable local matrix remains the carry-forward evidence for the corrected local
+parser/content boundaries, Release Please `17.6.0` harness, Cargo, npm, OCI, archive, package, and
+negative behavior. No new local failure contradicts that evidence; this update upgrades only the
+hosted no-op/replay/dry-run and corrected parser/npm capabilities supported by the two hosted runs.
+
+### Untested and blocked scope
+
+| Scope | Result | Rerun prerequisite |
+|---|---|---|
+| Corrected Stage-A/version-PR creation and zero-artifact lifecycle on corrected main | BLOCKED | Separately authorized protected Stage-A run; inspect the actual PR and zero release/tag calls. |
+| Canonical live tag delivery and downstream release workflow | BLOCKED | Authorized live carrier event with `RELEASE_CARRIER_DRY_RUN=false`/unset and downstream run at the validated SHA. |
+| Cargo/npm/GitHub Release/GHCR publication and dependent Cargo registry graph | BLOCKED | Approved release window, provider-safe namespace, scoped credentials, and staged/published synchronized crates. |
+| Native evidence for seven non-host archives | BLOCKED | Native/cross-target runner matrix with executable evidence per declared target. |
+| Attestation and hosted secret isolation | BLOCKED | Protected provider-backed execution with observable redacted logs and job permissions. |
+| Failure injection and rollback | BLOCKED | Disposable provider-backed rehearsal recording stop order and recovery actions. |
+| Workflow static diagnostics as runtime acceptance | NOT TESTED | A runtime scenario that exercises the protected workflow; static checks alone cannot change this result. |
+| Browser/accessibility/responsive/locale/persistence | NOT TESTED | No rerun unless the change gains a corresponding product surface. |
+
+### Findings
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| QA-P15-001 | P1 | Corrected Stage-A/version-PR creation was not re-executed; the new evidence is a carrier replay of the already merged PR, not a new Stage-A run. | Open — acceptance blocker; protected Stage-A rehearsal required. |
+| QA-P15-002 | P1 | Canonical live tag delivery and downstream release provenance remain unobserved because dry-run mode is still active. | Open — acceptance blocker; live carrier and downstream run required. |
+| QA-P15-003 | P1 | Cargo/npm/GitHub Release/GHCR publication, final OCI state, and dependent Cargo registry verification remain unavailable. | Open — acceptance blocker; approved registry/provider rehearsal required. |
+| QA-P15-004 | P1 | Seven non-host archive targets lack executable native evidence. | Open — target matrix evidence required. |
+| QA-P15-005 | P1 | Hosted secret isolation, attestation, failure propagation, and rollback are not observed. | Open — disposable protected rehearsal required. |
+| QA-P15-006 | P2 | Static workflow/security diagnostics cannot be promoted to acceptance results. | Open warning — no executable defect observed. |
+
+No `FAIL` result and no `CRITICAL`/P0 implementation finding was observed. The new hosted replay and
+push no-op are successful observable behaviors; the remaining P1 findings are acceptance blockers
+caused by deliberately unrun live/provider/native scopes.
+
+### Phase 15 verdict and implementation handoff
+
+**Verdict: `BLOCKED`.** The corrected hosted replay, dry-run no-write boundary, ordinary-main no-op,
+and corrected private/npm patch parser paths now have hosted success evidence. Acceptance remains
+blocked by the deliberately unobserved live tag/downstream flow, Stage-A rerun, publication and
+dependent registry graph, native targets, attestation/secret isolation, failure injection, and
+rollback.
+
+QA did not change source or workflows, variables, credentials, tags, releases, registries, or the
+live carrier. `sdd-archive` must remain gated; this is a production distribution change, not a
+documentation/config-only exception, and no product or release acceptance is claimed.
+
+## Historical Phase 14 independent acceptance QA — 2026-08-15
 
 ### Identity and technical-verification handoff
 

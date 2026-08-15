@@ -21,13 +21,14 @@ baseline:
   commit: 6477eb1
 
 summary: |
-  Independent Phase 14 acceptance QA re-ran the exact read-only PR #59 files API list (31 files), the
-  seven-pair base npm formatting boundary, fail-closed npm/private mutation matrix, Release Please
-  17.6.0 harness, carrier/replay/mode, dry-run no-write, Cargo, npm, OCI, archive, package, and local
-  workflow capabilities. All executable local scenarios passed or rejected as expected. Hosted runs
-  31886141725 and 31888439750 remain pre-fix failures only; corrected hosted replay, downstream tag
-  delivery, native targets, registry/publication, attestation, failure injection, rollback, and
-  dependent Cargo registry verification remain blocked.
+  Phase 15 acceptance QA incorporated read-only hosted evidence after corrected main
+  8d1773413bbaa63661588b369d1c12bab2e2856e. Push run 31891322236 completed as a successful no-op;
+  replay run 31891343893 completed successfully with workflow_dispatch, replay SHA
+  fcc91b4850480945ae484c3ebdba18f8a4e38270, dry_run=true, all validation/plan steps passed, and all
+  tag/label/downstream/publication mutations skipped or not-started. This upgrades hosted ordinary
+  no-op/replay/dry-run plus corrected private/npm parser acceptance only. Canonical live tag delivery,
+  downstream release, Stage-A rerun, native targets, registry/publication, attestation, failure
+  injection, rollback, dependent Cargo registry verification, and secret isolation remain blocked.
 
 decision:
   r_f6: option-1-two-stage-version-pr-and-post-merge-tag-carrier
@@ -38,22 +39,20 @@ decision:
   private_conformance_exception: "four exact dependency .version JSONPaths only; package version remains 0.1.0 and publish=false"
 
 blocked:
-  - "Hosted run 31888439750 remains the pre-fix failure observation for the valid PR #59 npm hunk-only
-    base-package patch; no corrected hosted replay success is claimed"
-  - "Hosted run 31886141725 remains a separate pre-fix failure observation for the valid private
-    conformance hunk-only patch"
-  - The separately authorized protected hosted replay and downstream acceptance remain required
-  - "Corrected hosted Stage-A/version-PR rerun, ordinary-main carrier, and historical replay runs remain
-    unexecuted; the original PR #59 Stage-A observation is failure evidence for this boundary"
+  - "Hosted runs 31886141725 and 31888439750 remain historical pre-fix failures; corrected replay
+    validation is now observed in run 31891343893"
+  - "Corrected hosted Stage-A/version-PR creation and zero-artifact lifecycle were not rerun; the new
+    evidence is a carrier replay of the already merged PR"
   - Canonical tag delivery, downstream release provenance, publication, and attestation remain unobserved
   - Seven non-host archive targets have no executable native evidence
   - Dependent Cargo package verification cannot resolve synchronized crates from the pre-publication crates.io index
   - Hosted security isolation, failure injection, and rollback remain untested
-  - No tag, release, registry publication, upload, variable mutation, credential use, or live carrier run is authorized in this QA
+  - "No tag, release, registry publication, upload, variable mutation, credential use, or live carrier
+    run was authorized in this QA; RELEASE_CARRIER_DRY_RUN=true remains active"
 
 qa:
   verdict: BLOCKED
   report: openspec/changes/codegauge-distribution/qa-report.md
-  local_acceptance: Phase 14 sdd-qa reran executable local acceptance; exact PR #59/API/npm/private/carry/replay/dry-run/Cargo/npm/OCI/package capabilities passed, while static-only diagnostics remain NOT TESTED and hosted/provider acceptance remains BLOCKED
+  local_acceptance: Phase 14 executable local acceptance remains the carry-forward baseline; Phase 15 added hosted successful ordinary-main no-op, corrected replay/parser/npm validation, and dry-run no-write evidence while static-only diagnostics remain NOT TESTED
   critical_or_p0_findings: none observed
-  open_p1_findings: corrected hosted replay, downstream tag delivery, registry/publication, attestation, native targets, dependent Cargo registry verification, hosted security/failure injection, and rollback
+  open_p1_findings: corrected Stage-A/version-PR rerun, canonical live tag/downstream delivery, registry/publication, attestation, native targets, dependent Cargo registry verification, hosted security isolation, failure injection, and rollback
