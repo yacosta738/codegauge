@@ -1,0 +1,43 @@
+=== cargo package codegauge-model ===
+   Packaging codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-model)
+warning: ignoring test `contracts` as `tests/contracts.rs` is not included in the published package
+warning: ignoring test `schemas` as `tests/schemas.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 26.8KiB (9.3KiB compressed)
+   Verifying codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-model)
+   Compiling codegauge-model v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-model-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.09s
+=== cargo package codegauge-core ===
+   Packaging codegauge-core v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-core)
+warning: ignoring test `crap` as `tests/crap.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 18.8KiB (7.6KiB compressed)
+   Verifying codegauge-core v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-core)
+   Compiling codegauge-core v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-core-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.04s
+=== cargo package codegauge-application ===
+   Packaging codegauge-application v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-application)
+warning: ignoring test `application` as `tests/application.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 33.2KiB (12.0KiB compressed)
+   Verifying codegauge-application v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-application)
+   Compiling codegauge-application v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-application-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.21s
+=== cargo package codegauge-provider-jacoco ===
+   Packaging codegauge-provider-jacoco v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-provider-jacoco)
+warning: ignoring test `jacoco` as `tests/jacoco.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 33.8KiB (11.7KiB compressed)
+   Verifying codegauge-provider-jacoco v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-provider-jacoco)
+   Compiling codegauge-provider-jacoco v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-provider-jacoco-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.18s
+=== cargo package codegauge-cli ===
+   Packaging codegauge-cli v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-cli)
+warning: ignoring test `cli` as `tests/cli.rs` is not included in the published package
+    Updating crates.io index
+    Packaged 7 files, 24.9KiB (9.3KiB compressed)
+   Verifying codegauge-cli v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/crates/codegauge-cli)
+   Compiling codegauge-cli v0.2.0 (/Users/acosta/Dev/agent-swarm/codegauge/target/package/codegauge-cli-0.2.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.27s
+PACKAGE_ORDER=codegauge-model,codegauge-core,codegauge-application,codegauge-provider-jacoco,codegauge-cli
+EXIT_STATUS=0

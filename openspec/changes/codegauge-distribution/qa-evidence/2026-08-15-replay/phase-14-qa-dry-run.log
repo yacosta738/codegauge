@@ -1,0 +1,88 @@
+PLAN_EXIT_STATUS=0
+{
+  "event": {
+    "name": "workflow_dispatch",
+    "ref": "refs/heads/main",
+    "sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46"
+  },
+  "replay": false,
+  "source_checkout_sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46",
+  "replay_event_sha": null,
+  "mode": {
+    "dry_run": true,
+    "normalized": "dry-run",
+    "replay": false
+  },
+  "carrier": {
+    "version": "0.2.0",
+    "tag": "v0.2.0",
+    "merge_sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46",
+    "version_pr_number": 59,
+    "replay": false,
+    "mode": {
+      "dry_run": true,
+      "normalized": "dry-run",
+      "replay": false
+    },
+    "source_checkout_sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46",
+    "event": {
+      "name": "workflow_dispatch",
+      "ref": "refs/heads/main",
+      "sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46"
+    },
+    "replay_event_sha": null,
+    "mutations": {
+      "carrier_validation": "passed"
+    }
+  },
+  "validation": {
+    "merged_release_please_pr": "passed",
+    "merged_tree": "passed",
+    "stage_a_diff": "passed",
+    "version": "passed",
+    "provenance": "passed",
+    "lockfile": "passed",
+    "metadata": "passed",
+    "changed_file_count": 31
+  },
+  "tag_plan": {
+    "action": "create",
+    "sha": "aa27efe0f6ce10707abd1c19f5b020a4db8dfa46",
+    "tag": "v0.2.0",
+    "version": "0.2.0"
+  },
+  "existing_ref": null,
+  "existing_release": false,
+  "mutations": {
+    "canonical_tag_ref": "skipped",
+    "version_pr_label": "skipped",
+    "release_on_tag_workflow": "not-dispatched",
+    "release_asset_upload": "not-started",
+    "cargo_publication": "not-started",
+    "npm_publication": "not-started",
+    "oci_publication": "not-started",
+    "attestation": "not-started",
+    "publication": "not-started"
+  }
+}
+CONFIRM_EXIT_STATUS=0
+{
+  "status": "PASS",
+  "changed_file_count": 31,
+  "fake_gh_calls": [
+    "api repos/yacosta738/codegauge/git/ref/tags/0.2.0",
+    "api repos/yacosta738/codegauge/releases/tags/v0.2.0"
+  ],
+  "mutations": {
+    "canonical_tag_ref": "skipped",
+    "version_pr_label": "skipped",
+    "release_on_tag_workflow": "not-dispatched",
+    "release_asset_upload": "not-started",
+    "cargo_publication": "not-started",
+    "npm_publication": "not-started",
+    "oci_publication": "not-started",
+    "attestation": "not-started",
+    "publication": "not-started"
+  }
+}
+EXIT_STATUS=0

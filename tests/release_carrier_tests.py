@@ -311,6 +311,46 @@ def valid_changelog_entry(path: str = GENERATED_CHANGELOG_PATH) -> dict[str, obj
     )
 
 
+def release_please_npm_base_api_patch(*, version: str = VERSION) -> str:
+    """Reproduce the complete hunk-only base-package patch returned by PR #59."""
+
+    return "\n".join(
+        [
+            "@@ -1,20 +1,22 @@",
+            " {",
+            '   "name": "@yacosta738/codegauge",',
+            '-  "version": "0.1.0",',
+            f'+  "version": "{version}",',
+            '   "description": "CodeGauge deterministic JaCoCo evidence CLI wrapper",',
+            '   "license": "MIT",',
+            '   "repository": "yacosta738/codegauge",',
+            '   "bin": {',
+            '     "codegauge": "dist/index.js"',
+            "   },",
+            '-  "files": ["dist/index.js"],',
+            '+  "files": [',
+            '+    "dist/index.js"',
+            '+  ],',
+            '   "optionalDependencies": {',
+            '-    "@yacosta738/codegauge-linux-x64-gnu": "0.1.0",',
+            '-    "@yacosta738/codegauge-linux-arm64-gnu": "0.1.0",',
+            '-    "@yacosta738/codegauge-darwin-x64": "0.1.0",',
+            '-    "@yacosta738/codegauge-darwin-arm64": "0.1.0",',
+            '-    "@yacosta738/codegauge-win32-x64-msvc": "0.1.0",',
+            '-    "@yacosta738/codegauge-win32-arm64-msvc": "0.1.0"',
+            f'+    "@yacosta738/codegauge-linux-x64-gnu": "{version}",',
+            f'+    "@yacosta738/codegauge-linux-arm64-gnu": "{version}",',
+            f'+    "@yacosta738/codegauge-darwin-x64": "{version}",',
+            f'+    "@yacosta738/codegauge-darwin-arm64": "{version}",',
+            f'+    "@yacosta738/codegauge-win32-x64-msvc": "{version}",',
+            f'+    "@yacosta738/codegauge-win32-arm64-msvc": "{version}"',
+            "   },",
+            '   "scripts": {',
+            '     "build": "tsc --outDir dist --rootDir src",',
+        ]
+    ) + "\n"
+
+
 def valid_npm_entry(path: str = "npm/codegauge/package.json") -> dict[str, object]:
     package = json.loads((ROOT / path).read_text(encoding="utf-8"))
     pairs = [(f'  "version": "0.1.0",', f'  "version": "{VERSION}",')]
@@ -607,9 +647,22 @@ def test_private_conformance_api_hunk_only_patch() -> None:
     validate_stage_a_diff([*CORE_STAGE_A_DIFF, entry], version=VERSION)
 
 
+def test_release_please_npm_base_api_hunk_only_patch() -> None:
+    """Accept the complete formatting rewrite emitted by the real PR #59 files API."""
+
+    entry = carrier_content_entry(
+        "npm/codegauge/package.json",
+        release_please_npm_base_api_patch(),
+        additions=10,
+        deletions=8,
+    )
+    validate_stage_a_diff([*CORE_STAGE_A_DIFF[:3], entry], version=VERSION)
+
+
 def main() -> int:
     test_manual_replay_event_selection()
     test_private_conformance_api_hunk_only_patch()
+    test_release_please_npm_base_api_hunk_only_patch()
     fixture = copy_release_tree()
     try:
         record = validate_carrier_event(

@@ -37,6 +37,22 @@ changes, exact four dependency-key/version/path replacements, synchronized-versi
 package identity, and every other fail-closed boundary remain unchanged. This local correction is not
 hosted replay evidence; fresh technical verification is required before any protected rehearsal.
 
+## Second hosted replay regression — npm hunk formatting boundary — 2026-08-15
+
+Hosted run `31888439750` is the second pre-fix failure observation for the same real PR `#59` files
+API boundary. The read-only API entry for `npm/codegauge/package.json` contains seven approved version
+pairs (`version` plus six `optionalDependencies`) and Release Please's deterministic rewrite of the
+`files` array from one compact line to exactly three lines: `files` opening, `dist/index.js`, and the
+closing bracket. That entry declares ten additions and eight deletions.
+
+The old validator counted every added/deleted line as a version pair, so it rejected this valid entry
+for having ten/eight package edits instead of seven/seven. The narrow correction partitions approved
+version-key lines from non-version formatting lines, permits only that exact base-package `files`
+rewrite, and keeps all other formatting, unapproved keys, arbitrary base edits, and every platform
+package formatting edit fail-closed. This is local regression evidence only: run `31888439750` remains
+failure evidence and no hosted replay success, publication, tag, release, or operator acceptance is
+claimed.
+
 ## Manual historical replay guard
 
 The carrier has a deliberately narrow recovery/rehearsal path for an already merged `main` event.

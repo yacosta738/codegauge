@@ -375,3 +375,38 @@ replay and independent QA remain separate, unchecked work.
 Technical verdict: **PASS WITH WARNINGS**. Hosted run `31886141725` remains the authoritative pre-fix
 failure observation; no hosted replay success, publication, tag, release, or operator acceptance is
 claimed.
+
+## Phase 13: Second hosted replay regression — npm base hunk formatting — 2026-08-15
+
+### Layer boundary
+
+- Delivery strategy: `auto-chain`; chain strategy: `feature-branch-chain`.
+- Branch: `fix/release-carrier-private-patch-context`; scope is the Stage-B npm hunk-only validator and
+  its exact PR `#59` regression fixture. No workflow, release, tag, publication, credential, variable,
+  hosted-state, merge, push, or parent-repository mutation is permitted.
+- Hosted run `31888439750` is preserved as pre-fix failure evidence. The corrected local behavior is not
+  hosted replay evidence and must not be described as a hosted success.
+
+- [x] 13.1 **RED** — Add the exact real PR `#59` `npm/codegauge/package.json` hunk-only fixture with
+  seven approved version pairs, the deterministic `files` compact-to-three-line rewrite, and `10/8/18`
+  API counts; reproduce the old validator's unexpected-version-edit rejection.
+- [x] 13.2 **GREEN** — Partition approved version-key lines from formatting lines and permit only the exact
+  base-package `files` rewrite; preserve strict rejection for platform formatting and arbitrary base edits.
+- [x] 13.3 **REFACTOR/LOCAL VERIFY** — Re-run carrier/private/parser negatives, the exact real PR `#59`
+  API file list, Release Please `17.6.0`, Cargo, npm, OCI, workflow, shell, package, compile, and
+  whitespace checks without hosted writes.
+- [x] 13.4 — Fresh `sdd-verify` completed locally with **PASS WITH WARNINGS**; hand off to independent
+  `sdd-qa` without claiming hosted replay or publication success.
+- [ ] 13.5 — Run the separately authorized protected hosted replay/validation and inspect its
+  no-publication record. This task remains pending and is not executed here.
+
+## Phase 13 verification handoff — 2026-08-15
+
+- [x] The exact read-only PR `#59` files API list contains 31 entries and now passes
+  `validate_stage_a_diff(..., version="0.2.0")`; the base npm entry is `10` additions/`8` deletions.
+- [x] Read-only execution of the pre-fix validator rejects the same list at
+  `npm/codegauge/package.json contains an unexpected number of package version edits`.
+- [x] The focused hunk-only npm fixture, carrier/private/parser negatives, exact Release Please
+  `17.6.0` runtime, and complete requested local quality/package checks pass.
+- [ ] Hosted run `31888439750` remains the pre-fix failure observation. No corrected hosted replay,
+  tag, release, publication, or operator acceptance is claimed; `sdd-qa` owns the next acceptance gate.

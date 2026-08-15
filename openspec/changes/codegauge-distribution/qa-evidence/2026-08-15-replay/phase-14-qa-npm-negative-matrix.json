@@ -1,0 +1,61 @@
+{
+  "matrix": [
+    {
+      "case": "exact-real-pr-59-api-list",
+      "expected": "ACCEPTED",
+      "observed": "ACCEPTED",
+      "detail": "validator returned normally"
+    },
+    {
+      "case": "arbitrary-base-formatting",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/codegauge/package.json contains an unapproved package formatting mutation"
+    },
+    {
+      "case": "unapproved-base-key",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/codegauge/package.json contains an unapproved package formatting mutation"
+    },
+    {
+      "case": "duplicate-version-key",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/codegauge/package.json contains an unapproved package mutation"
+    },
+    {
+      "case": "wrong-version",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/codegauge/package.json contains an unapproved package mutation"
+    },
+    {
+      "case": "truncated-base-hunk",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/codegauge/package.json diff hunk is truncated or has inconsistent counts"
+    },
+    {
+      "case": "platform-formatting-allowance",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "npm/packages/codegauge-linux-x64-gnu/package.json contains an unapproved package formatting mutation"
+    },
+    {
+      "case": "private-unapproved-feature-mutation",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "private conformance diff contains an unapproved mutation for codegauge-model"
+    },
+    {
+      "case": "private-wrong-version-mutation",
+      "expected": "REJECTED",
+      "observed": "REJECTED",
+      "detail": "private conformance diff contains an unapproved mutation for codegauge-model"
+    }
+  ],
+  "case_count": 9,
+  "status": "PASS"
+}
+EXIT_STATUS=0
