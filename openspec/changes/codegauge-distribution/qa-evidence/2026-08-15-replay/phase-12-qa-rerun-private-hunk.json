@@ -1,0 +1,24 @@
+{
+  "checkout": "cdd91baf9cbd0fb416ecfe67977310253d9b7534",
+  "source": "real-PR-59-files-api-shaped-fixture",
+  "filename": "crates/codegauge-conformance/Cargo.toml",
+  "hunk_header": "@@ -10,10 +10,10 @@ publish = false",
+  "declared": {
+    "additions": 4,
+    "deletions": 4,
+    "changes": 8
+  },
+  "actual": {
+    "additions": 4,
+    "deletions": 4
+  },
+  "trailing_context_included": false,
+  "approved_dependencies": [
+    "codegauge-application",
+    "codegauge-core",
+    "codegauge-model",
+    "codegauge-provider-jacoco"
+  ],
+  "validation_result": "accepted",
+  "focused_suite": "RELEASE CARRIER TESTS: PASS"
+}

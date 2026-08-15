@@ -1284,7 +1284,6 @@ def _validate_private_conformance_patch(
         " [dependencies]",
         " [dev-dependencies]",
         " schemars.workspace = true",
-        " serde_json.workspace = true",
     }
     if not required_context <= set(patch_lines):
         raise ProvenanceError("private conformance diff patch is truncated")

@@ -21,6 +21,22 @@ when either a complete single-file unified diff or a GitHub PR-files API hunk-on
 validated entry supplies the filename) proves exactly those four replacements; missing, truncated,
 malformed, or multi-file patch data fails closed.
 
+## Hosted PR-files hunk context correction — 2026-08-15
+
+Hosted run `31886141725` and the read-only PR `#59` files API response exposed a narrower parser
+boundary defect. The private manifest entry is a valid filename-bound hunk-only patch with header
+`@@ -10,10 +10,10 @@ publish = false`; its body contains the description, `[dependencies]`, the four old/new
+dependency replacements, a blank line, `[dev-dependencies]`, and `schemars.workspace = true`. GitHub
+does not include the following `serde_json.workspace = true` line in that hunk. The hunk's declared and
+actual counts are complete (`10/10`), and the API metadata remains exactly four additions, four
+deletions, and eight changes.
+
+The minimal correction is to remove only the over-specific `serde_json.workspace = true` requirement
+from the private textual-context allowlist. Hunk declared/actual counts, API additions/deletions/
+changes, exact four dependency-key/version/path replacements, synchronized-version matching, private
+package identity, and every other fail-closed boundary remain unchanged. This local correction is not
+hosted replay evidence; fresh technical verification is required before any protected rehearsal.
+
 ## Manual historical replay guard
 
 The carrier has a deliberately narrow recovery/rehearsal path for an already merged `main` event.
@@ -103,7 +119,9 @@ Release Please 17.6.0
 | `tests/release_please_runtime_tests.py`, `tests/release_carrier_tests.py`, `tests/release_carrier_static_tests.py`, `tests/release_provenance_tests.py`, `tests/distribution_checks_e3a.py` | Modified | Cover synchronized-tree tests, positive/negative content-aware carrier boundaries, replay SHA selection, and mutation-free workflow wiring. |
 | `openspec/changes/codegauge-distribution/**` | Modify now | Record the hosted failure, corrected contract, pending tasks, and blocked state. |
 
-No application/workflow implementation or release, tag, or registry state changes in this update.
+The Phase 12 correction changes only the Stage-B validator/test boundary and OpenSpec handoff
+artifacts. It makes no application/workflow behavior, release, tag, registry, credential, or hosted
+state change.
 
 ## Interfaces / Contracts
 

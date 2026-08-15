@@ -1,8 +1,28 @@
 # Verification Report
 
-> The latest technical verification verdict is **PASS WITH WARNINGS** in **Final local SDD verification
-> — Phase 11 replay and fixture repair — 2026-08-15** near the end of this file. Earlier sections are
-> retained as superseded audit history.
+> The Phase 11 **PASS WITH WARNINGS** verdict and the Phase 12 apply handoff below are retained as audit
+> history. The latest authoritative Phase 12 fresh `sdd-verify` section is near the end of this file.
+
+## Apply handoff — Phase 12 private conformance hunk context — 2026-08-15
+
+Hosted run `31886141725` and the real PR `#59` files API response exposed a valid filename-bound
+hunk-only patch for `crates/codegauge-conformance/Cargo.toml`:
+`@@ -10,10 +10,10 @@ publish = false`, complete `10/10` hunk counts, four additions, four deletions, and
+eight changes. Its context contains the description, `[dependencies]`, the four old/new dependency
+lines, a blank line, `[dev-dependencies]`, and `schemars.workspace = true`; GitHub omits the following
+`serde_json.workspace = true` context line. The prior validator therefore raised
+`private conformance diff patch is truncated` even though `_parse_patch_hunks()` found complete counts.
+
+The apply slice added an exact regression fixture/test and removed only the over-specific
+`serde_json.workspace = true` required-context check. Hunk declared/actual counts, API metadata
+counts, exact four dependency-key/path/version replacements, synchronized-version matching, private
+package identity, and all other fail-closed validation remain enforced.
+
+Local focused and relevant Cargo/npm/OCI/workflow/package/compile/whitespace checks passed after the
+fix. This is an apply handoff, not a verification result: hosted run `31886141725` remains failure
+evidence, no hosted replay success is claimed, and fresh `sdd-verify` is the next gate before
+independent QA or any separately authorized protected hosted rehearsal. No hosted or publication
+write occurred.
 
 **Change**: `codegauge-distribution`
 
@@ -2795,3 +2815,155 @@ tests, carrier/replay/patch/content/private/generated/version/no-match/dry-run/l
 workflow safety boundaries. No local defect remains. The only remaining blocker for this slice is the
 separately authorized hosted replay and downstream acceptance evidence; hand off explicitly to
 **`sdd-qa`**. No hosted success, publication, or operator acceptance is claimed.
+
+## Authoritative fresh sdd-verify — Phase 12 private PR-files hunk context — 2026-08-15
+
+This section supersedes the Phase 12 apply handoff at the start of this file and is authoritative for
+the current checkout. Verification was local and read-only. It proves technical conformance only and
+does not claim hosted, operator, or product acceptance.
+
+### Identity, scope, and safety
+
+| Field | Value |
+|---|---|
+| Change / mode | `codegauge-distribution` / OpenSpec |
+| Checkout | `/Users/acosta/Dev/agent-swarm/codegauge` |
+| Branch / HEAD | `fix/release-carrier-private-patch-context` / `cdd91baf9cbd0fb416ecfe67977310253d9b7534` plus the intentional dirty diff |
+| Release Please | Exact installed `17.6.0` |
+| Synchronized version | `0.2.0` |
+| Toolchain | Rust/Cargo `1.97.1`, Python `3.14.7`, Node `24.19.0`, npm `11.17.0` |
+| Strict TDD | Configured true; RED/GREEN/REFACTOR evidence is recorded, but the installed strict verifier module is absent and dirty-worktree commit ordering is not independently provable |
+| Safety boundary | No commit, push, merge, variable, tag, label, release, upload, publication, attestation, credential, dispatch, or hosted write |
+
+### Completeness
+
+| Scope | Result |
+|---|---|
+| Phase 12 local tasks `12.1`–`12.4` | Complete and locally verified |
+| Phase 12 protected hosted task `12.5` | Pending; intentionally not run |
+| Local CRITICAL findings | 0 |
+| Coverage | Unavailable; `openspec/config.yaml` declares no coverage tool or threshold |
+| Technical verdict | **PASS WITH WARNINGS** |
+
+### Specification compliance matrix
+
+| Specification requirement/scenario | Covering executable evidence | Result |
+|---|---|---|
+| Hosted run `31886141725` records the valid PR `#59` failure | OpenSpec failure record plus exact old-validator replay; the omitted `serde_json.workspace = true` context caused `private conformance diff patch is truncated` | ✅ Failure preserved honestly |
+| Exact PR `#59` API hunk-only fixture is accepted after the correction | `test_private_conformance_api_hunk_only_patch`; header `@@ -10,10 +10,10 @@ publish = false`, complete `10/10` hunk, `4/4/8` API counts, no `serde_json` context | ✅ LOCAL |
+| Pre-fix behavior rejects that same valid fixture | Read-only execution of `HEAD:scripts/verify_release_provenance.py` against the exact fixture returned `private conformance diff patch is truncated` | ✅ Conceptual RED reproduced |
+| Complete declared and actual hunk counts remain required | Parser positive plus declared-count, body-truncation, API-addition, API-deletion, and API-change-count negatives | ✅ LOCAL |
+| Private exception changes exactly four approved dependency `.version` fields | Positive fixture and exact dependency-key set validation for application, core, model, and provider-jacoco | ✅ LOCAL |
+| Old/new versions and synchronized target remain strict | Positive `0.1.0 -> 0.2.0` fixture plus old-equals-new and wrong-new-version negatives | ✅ LOCAL |
+| Truncation and unapproved private mutations fail closed | Nine-case private boundary matrix plus existing package/publish/name/path/key/feature/comment/truncation tests | ✅ LOCAL |
+| Exact Release Please 17.6.0 Stage-A graph remains intact | Read-only fake-SCM runtime: 32 paths, one private update with four edits, six npm pins, one PR, zero release/tag calls | ✅ LOCAL |
+| Synchronized Cargo tree and private identity remain valid | Locked copied-tree workspace test and current Cargo metadata; conformance remains `0.1.0` and `publish = false` | ✅ LOCAL |
+| Cargo, npm, OCI, workflow, shell, package, and whitespace gates | Fresh command matrix below | ✅ LOCAL |
+| Protected hosted replay and acceptance | Not executed under the explicit no-write/no-secret boundary | ⚠️ PENDING; no hosted success claimed |
+
+### Exact hunk regression evidence
+
+The checked-in `private_conformance_api_hunk_only_patch()` fixture is filename-bound and contains no
+`diff --git`, `---`, or `+++` headers. Its hunk declares ten old and ten new lines, its body supplies
+those complete counts, and its API metadata declares four additions, four deletions, and eight changes.
+The current validator accepted it. A read-only load of the pre-fix validator from `HEAD` rejected the
+same entry because it required the context line GitHub omitted. A second executable matrix accepted the
+positive and rejected nine focused negatives: declared hunk mismatch, actual truncation, additions
+mismatch, deletions mismatch, changes mismatch, unapproved key, unapproved path, old version equal to
+the target, and new-version drift.
+
+The production diff is intentionally one-line narrow: `_validate_private_conformance_patch()` no
+longer requires `serde_json.workspace = true`. Hunk parsing, declared/actual counts, API counts,
+exact four dependency keys, dependency paths, valid old versions, synchronized new versions, private
+package identity, and all other fail-closed boundaries remain enforced.
+
+### Build, test, package, and static evidence
+
+| Command/check | Result |
+|---|---|
+| `python3 tests/release_carrier_tests.py` | **PASS** |
+| `python3 tests/release_carrier_static_tests.py` | **PASS** |
+| `python3 tests/release_carrier_mode_tests.py` | **PASS** |
+| `python3 tests/release_provenance_tests.py` | **PASS** |
+| `python3 tests/release_please_runtime_tests.py` | **PASS**; exact `17.6.0`, 32 paths, four private edits, six npm pins, one PR, zero release/tag calls |
+| `python3 tests/distribution_checks.py` | **PASS** |
+| `python3 tests/bootstrap_checks.py` and `python3 tests/readme_checks.py` | **PASS** |
+| Four `tests/oci_distribution_*.py` regression layers | **PASS** |
+| `python3 -m compileall -q scripts tests` and `python3 scripts/generate_npm_packages.py --check` | **PASS** |
+| `cargo +1.97.1 metadata --locked --format-version 1` | **PASS**; private conformance `0.1.0`, non-publishable |
+| `cargo +1.97.1 test --workspace --locked` | **PASS**; 31 passed, 0 failed, 0 skipped |
+| `cargo +1.97.1 test -p codegauge-cli --test cli --locked` | **PASS**; 3 passed |
+| `cargo +1.97.1 check --workspace --locked` | **PASS** |
+| `cargo +1.97.1 fmt --all -- --check` | **PASS** |
+| `cargo +1.97.1 clippy --workspace --all-targets --locked -- -D warnings` | **PASS** |
+| Five workflow-equivalent locked `cargo package` checks with local dependency patches | **PASS**; no publication |
+| CLI `version` / `profiles` contract | **PASS**; `codegauge 0.2.0` / `java-jacoco-v1` |
+| npm typecheck and tests | **PASS**; 6 tests passed |
+| Wrapper plus six platform `npm pack --dry-run` checks | **PASS**; 7 packages |
+| `actionlint .github/workflows/*.yml` | **PASS** |
+| `shellcheck scripts/build_oci_release.sh` | **PASS** |
+| `docker buildx build --check --progress=plain .` | **PASS**; no warnings |
+| `git diff --check` | **PASS** |
+
+### Correctness
+
+| Contract | Status | Evidence |
+|---|---|---|
+| Valid PR-files hunk-only patch passes without trailing optional context | ✅ | Exact PR `#59` fixture and current validator |
+| Pre-fix false rejection is reproduced, not rewritten as hosted success | ✅ | Old validator execution and preserved run `31886141725` failure record |
+| Hunk and API counts are independently strict | ✅ | Parser count checks plus focused negative matrix |
+| Four private pins are the complete approved mutation set | ✅ | Exact key/path/version positive and mutation negatives |
+| Private package remains version `0.1.0`, `publish = false`, and non-release | ✅ | Copied-tree metadata and private mutation tests |
+| Stage-A 17.6.0 no-release/no-tag boundary remains intact | ✅ local | Fake-SCM counters and runtime assertions |
+| Existing replay/no-match/dry-run/live and no-publication boundaries remain intact | ✅ local | Carrier mode/static/runtime suites and full local matrix |
+| Hosted replay, tag delivery, publication, and acceptance | ⚠️ | Not executed or authorized; downstream QA/hosted task remains pending |
+
+### Design coherence
+
+| Design decision | Result | Evidence |
+|---|---|---|
+| Remove only the over-specific private trailing-context requirement | ✅ | Production diff removes exactly one required-context entry |
+| Keep the root-carrier four-pin exception narrow | ✅ | Exact four selectors and content-aware private validator remain unchanged |
+| Keep Stage A release/tag-free and Stage B canonical-tag-owned | ✅ local | Runtime zero-call counters and workflow/static checks |
+| Keep hosted replay separate from local verification | ✅ | Run `31886141725` remains failure evidence; no replay was dispatched |
+
+### Issues
+
+#### CRITICAL
+
+None.
+
+#### WARNING
+
+1. The separately authorized protected hosted replay/validation for the corrected PR `#59` boundary was
+   not run. Hosted run `31886141725` remains a failure observation, not a passing replay, and no hosted
+   tag, release, publication, or downstream acceptance is claimed.
+2. Independent `sdd-qa` remains required for hosted/provider/native-target, publication, attestation,
+   failure-injection, rollback, and operator-acceptance scenarios. This report is technical only.
+3. Strict TDD is configured and apply-progress records RED/GREEN/REFACTOR, but the worktree is dirty and
+   the installed `strict-tdd-verify.md` module is unavailable, so commit-order proof is not possible.
+
+#### SUGGESTION
+
+1. Retain the exact hunk-only fixture and focused negative matrix when the separately authorized hosted
+   replay is performed; remove temporary replay plumbing afterward if it is no longer needed.
+
+### Verdict table
+
+| Finding | Judge A | Judge B | Severity | Status |
+|---------|---------|---------|----------|--------|
+| Pre-fix validator rejects the exact PR `#59` hunk-only fixture | ✅ old source execution | ✅ exact fixture omits required context | SUGGESTION | Confirmed historical RED |
+| Current validator accepts the exact hunk-only fixture | ✅ carrier runtime | ✅ direct positive count/key matrix | SUGGESTION | Confirmed locally |
+| Declared/actual hunk and API counts fail closed | ✅ parser implementation | ✅ nine focused negatives | SUGGESTION | Confirmed locally |
+| Exactly four approved private dependency mutations remain required | ✅ validator/source | ✅ positive plus mutation matrix | SUGGESTION | Confirmed locally |
+| Exact Release Please 17.6.0 graph and zero Stage-A release/tag calls | ✅ fake-SCM runtime | ✅ path/counter assertions | SUGGESTION | Confirmed locally |
+| Cargo/npm/OCI/workflow/package/whitespace checks | ✅ executable command matrix | ✅ static/package diagnostics | SUGGESTION | Confirmed locally |
+| Hosted replay and independent acceptance | ✅ no-write policy boundary | ❌ not executed or authorized | WARNING | Remaining external gate |
+
+### Final verdict
+
+**PASS WITH WARNINGS** — the exact PR `#59` hunk-only regression reproduces the pre-fix rejection and
+passes with the one-line correction; private counts, four-key/version/identity boundaries, truncation
+and mutation negatives, the exact Release Please `17.6.0` runtime, and all requested local Cargo/npm/
+OCI/workflow/shell/package/whitespace checks pass. Hosted run `31886141725` remains failure evidence;
+no hosted replay success or acceptance is claimed. Hand off explicitly to **`sdd-qa`**.
