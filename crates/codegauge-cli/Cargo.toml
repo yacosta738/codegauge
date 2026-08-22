@@ -1,6 +1,6 @@
 [package]
 name = "codegauge-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -14,9 +14,9 @@ name = "codegauge"
 path = "src/main.rs"
 
 [dependencies]
-codegauge-application = { version = "0.2.0", path = "../codegauge-application" }
-codegauge-model = { version = "0.2.0", path = "../codegauge-model" }
-codegauge-provider-jacoco = { version = "0.2.0", path = "../codegauge-provider-jacoco" }
+codegauge-application = { version = "0.3.0", path = "../codegauge-application" }
+codegauge-model = { version = "0.3.0", path = "../codegauge-model" }
+codegauge-provider-jacoco = { version = "0.3.0", path = "../codegauge-provider-jacoco" }
 clap.workspace = true
 
 [dev-dependencies]
