@@ -29,8 +29,10 @@ def run_checks() -> list[str]:
             if not SHA_REF.fullmatch(match.group(0).rstrip()):
                 errors.append(f"{path.name} has an unpinned action: {match.group(0)}")
 
-    if "branches: [main]" not in release_please or "skip-github-release: true" not in release_please:
-        errors.append("Stage A must run on main and pass the supported release-please skip input")
+    if "branches: [main]" not in release_please or "skip-github-release: true" in release_please:
+        errors.append("Release Please must run on main and own the canonical GitHub Release")
+    if "contents: write" not in release_please:
+        errors.append("Release Please must have contents: write for canonical tag/release ownership")
     if '"include-component-in-tag": true' not in release_config:
         errors.append("Stage A must enable component-tagged linked version lookup")
     if "secrets.RELEASE_PLEASE_TOKEN ||" in release_please or "github.token" in release_please:
@@ -42,6 +44,38 @@ def run_checks() -> list[str]:
         for marker in ("gh release", "npm publish", "cargo publish", "release_created")
     ):
         errors.append("Stage A contains a publication or release-output side effect")
+
+    # Release Please is the sole canonical tag/release owner.
+    carrier_mutation_markers = (
+        '--method POST',
+        'refs/tags/',
+        'git tag',
+        'git push',
+        'gh release create',
+        'gh release edit',
+        'gh release delete',
+        'gh release upload',
+        'autorelease: tagged',
+        '--method PUT',
+        '--method DELETE',
+        'github.token',
+        'GITHUB_TOKEN',
+    )
+    for marker in carrier_mutation_markers:
+        if marker in carrier:
+            errors.append(f"carrier must remain read-only and never mutate releases: {marker}")
+
+    for marker in (
+        'gh release create',
+        'gh release edit',
+        'gh release delete',
+        'github.token',
+    ):
+        if marker in publish:
+            errors.append(f"release-publish must not use release mutation or fallback credentials: {marker}")
+    for marker in ('gh release view', 'gh release upload', '${GITHUB_REPOSITORY}', 'secrets.RELEASE_PLEASE_TOKEN'):
+        if marker not in publish:
+            errors.append(f"release-publish must verify/upload with explicit scope and token: {marker}")
 
     if "push:" not in carrier or "branches: [main]" not in carrier:
         errors.append("carrier must be restricted to trusted main pushes")
@@ -76,8 +110,8 @@ def run_checks() -> list[str]:
         errors.append("carrier must record a successful no-matching-release skip")
     if 'test "$release_pr_count" -eq 1' in carrier:
         errors.append("carrier must not fail ordinary main pushes with a single-count assertion")
-    if carrier.count("steps.collect.outputs.status == 'matched'") < 5:
-        errors.append("validation and every mutation path must require one matching Release Please PR")
+    if "steps.collect.outputs.status == 'matched'" not in carrier:
+        errors.append("read-only carrier validation must require one matching Release Please PR")
     collection_marker = "carrier-pr-selection"
     files_marker = 'pulls/${release_pr_number}/files'
     if collection_marker in carrier and files_marker in carrier:
@@ -113,57 +147,27 @@ def run_checks() -> list[str]:
         errors.append("carrier concurrency must be non-canceling and stable")
     if "permissions:\n  contents: read" not in carrier:
         errors.append("carrier must default to read-only GITHUB_TOKEN permissions")
-    if "secrets.RELEASE_PLEASE_TOKEN" not in carrier:
-        errors.append("carrier must use the approved RELEASE_PLEASE_TOKEN")
-    if "github.token" in carrier or "GITHUB_TOKEN" in carrier:
-        errors.append("carrier must not use a GITHUB_TOKEN fallback")
-    if "refs/tags/" not in carrier or "--method POST" not in carrier:
-        errors.append("carrier must create the canonical tag through the Git ref API")
-    if "autorelease: tagged" not in carrier or "--method PUT" not in carrier:
-        errors.append("carrier must close the merged Release Please PR after tag handoff")
-    if any(marker in carrier for marker in ("--method DELETE", "--force", "push --force", "git tag -d")):
-        errors.append("carrier must not delete or force-update tags")
+    if "${GITHUB_REPOSITORY}" not in carrier:
+        errors.append("carrier must use explicit repository scope for read-only API calls")
+    if "gh api" not in carrier:
+        errors.append("carrier must retain read-only GitHub API correlation")
     if "refs/heads/main" not in carrier or "GITHUB_SHA" not in carrier or "git rev-parse HEAD" not in carrier:
         errors.append("carrier must bind validation to the main event SHA")
     for required_event_use in (
         'commits/${EVENT_SHA}/pulls',
         '--event-sha "$EVENT_SHA"',
-        '--expected-sha "$EVENT_SHA"',
-        '--raw-field "sha=$EVENT_SHA"',
     ):
         if required_event_use not in carrier:
             errors.append(f"carrier must use normalized EVENT_SHA for {required_event_use}")
-    if 'commits/${GITHUB_SHA}/pulls' in carrier or '--event-sha "$GITHUB_SHA"' in carrier or '--expected-sha "$GITHUB_SHA"' in carrier:
+    if 'commits/${GITHUB_SHA}/pulls' in carrier or '--event-sha "$GITHUB_SHA"' in carrier:
         errors.append("carrier must not fall back to GITHUB_SHA after event normalization")
-    if "id: plan" not in carrier or "carrier-plan.json" not in carrier:
-        errors.append("carrier must persist a machine-readable canonical tag plan")
     if "GITHUB_STEP_SUMMARY" not in carrier or "mutations" not in carrier:
-        errors.append("carrier dry-run must emit an auditable plan and mutation record")
-    for mutation_field in (
-        "canonical_tag_ref",
-        "version_pr_label",
-        "release_on_tag_workflow",
-        "release_asset_upload",
-        "cargo_publication",
-        "npm_publication",
-        "oci_publication",
-        "attestation",
-        "publication",
-    ):
-        if carrier.count(f"{mutation_field}:") < 2:
-            errors.append(f"carrier records must include mutation status {mutation_field}")
+        errors.append("carrier dry-run must emit an auditable validation record")
     if 'validation: {' not in carrier or 'stage_a_diff: "passed"' not in carrier:
         errors.append("carrier plan must record the validated tree/diff/provenance boundaries")
     if "printf 'tag=%s\\n' \"$(jq -er '.tag' carrier-record.json)\" >> \"$GITHUB_OUTPUT\"" not in carrier:
         errors.append("carrier must write a valid named tag output")
-    live_tag_condition = "- name: Compare and create one immutable lightweight tag\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'"
-    if live_tag_condition not in carrier:
-        errors.append("tag ref mutation must be conditional on live mode")
-    live_label_condition = "- name: Mark the carried version PR as tagged\n        if: steps.collect.outputs.status == 'matched' && steps.mode.outputs.dry_run == 'false' && steps.mode.outputs.replay == 'false'"
-    if live_label_condition not in carrier:
-        errors.append("Release Please label mutation must be conditional on live mode")
-    if "steps.mode.outputs.replay == 'false'" not in carrier:
-        errors.append("tag and label mutations must be explicitly disabled during replay")
+
     if '--replay-sha "${REPLAY_SHA:-}"' not in carrier or '--dry-run "$dry_run"' not in carrier:
         errors.append("carrier must fail closed when replay_sha is outside manual dry-run")
     if "release-on-tag.yml" in carrier or "gh workflow run" in carrier:
@@ -193,8 +197,8 @@ def run_checks() -> list[str]:
         errors.append("reusable release workflow inputs are incomplete")
     if "git merge-base --is-ancestor" not in build:
         errors.append("release preflight must validate main ancestry instead of moving main equality")
-    if "gh release create" not in publish or "gh release view" not in publish:
-        errors.append("post-gate publisher must create or verify the canonical release")
+    if "gh release create" in publish or "gh release view" not in publish:
+        errors.append("post-gate publisher must verify the existing canonical release")
     if "gh release create" in build or "gh release create" in carrier:
         errors.append("release creation must remain outside Stage A and the tag carrier")
 

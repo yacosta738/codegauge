@@ -3134,3 +3134,43 @@ the formatting allowance is exact and not broadened to platform or arbitrary bas
 requested local Release Please `17.6.0`, Cargo, npm, OCI, workflow, shell, package, compile, and
 whitespace checks pass. Hosted run `31888439750` remains pre-fix failure evidence; no hosted replay
 success, publication, tag, release, or operator acceptance is claimed. Hand off explicitly to **`sdd-qa`**.
+
+
+## Phase 10 fresh verification — Release Please owner correction — 2026-08-24
+
+### Status
+
+**PASS WITH WARNINGS** for the local ownership-correction slice. Hosted/live release acceptance remains **NOT TESTED/BLOCKED** and is not claimed.
+
+### Evidence
+
+- `python3 -m py_compile tests/release_carrier_static_tests.py` — PASS
+- `python3 tests/release_carrier_static_tests.py` — PASS (`RELEASE CARRIER STATIC TESTS: PASS`)
+- `git diff --check` — PASS
+- `actionlint` — NOT RUN in this handoff; available locally and should be run before merge.
+- Carrier forbidden-marker scan — PASS: no tag/ref/release/label mutation commands or release fallback token are present in `.github/workflows/release-tag-carrier.yml`.
+- Release Please workflow — PASS: runs on `main`, keeps `contents: write` and `RELEASE_PLEASE_TOKEN`, and no longer sets `skip-github-release`.
+- Publish workflow — PASS locally by static contract: read-only `gh release view` plus exact tag/ref SHA checks, then upload to the existing release with `RELEASE_PLEASE_TOKEN`; no `gh release create` fallback.
+
+### Phase 10 task classification
+
+| Task | Status | Evidence / limitation |
+|---|---|---|
+| 10.1 | PASS | Static ownership assertions and forbidden carrier mutation markers pass. |
+| 10.2 | NOT TESTED in this slice | Existing validator/runtime fixtures are preserved, but this handoff did not rerun the broader fixture suite. |
+| 10.3 | PARTIAL | Existing provenance validator and carrier correlation remain in place; exact hosted Release Please tag/release identity was not exercised. |
+| 10.4 | PASS locally | Carrier is read-only and retains dry-run/replay-safe correlation; hosted dispatch not exercised. |
+| 10.5 | PASS locally | Publish requires existing release and uploads only after verification; hosted release/upload not exercised. |
+| 10.6 | PASS locally | Explicit repository scope and least-privilege carrier/release permissions are statically present; hosted permission behavior not exercised. |
+| 10.7 | PASS locally | Focused static test contract passes; downstream fake-host/runtime harness not rerun in this slice. |
+| 10.8 | PARTIAL | Focused Python, static, and whitespace checks pass; actionlint and full release-please runtime harness remain outstanding. |
+
+### Risks and blockers
+
+1. No hosted dry-run/replay or live release evidence was collected for this corrective slice.
+2. `release-publish.yml` still has unrelated registry authentication using `secrets.GITHUB_TOKEN`; the static test scopes release-credential checks to GitHub Release operations and does not treat that registry credential as a release-owner violation.
+3. Phase 10 task checklist and `state.yaml` still need orchestration updates; do not run `sdd-archive` until hosted QA policy gates and prior unresolved P1 blockers are cleared.
+
+### Next recommended action
+
+Run `actionlint` plus the focused runtime/provenance harness, then delegate `sdd-qa` for an authorized read-only hosted dry-run/replay. Keep live release and archive gated on explicit authorization and clean verification/QA reports.

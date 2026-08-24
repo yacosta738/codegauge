@@ -2,86 +2,54 @@
 
 ## Purpose
 
-Provide deterministic, least-privilege checks that must pass before CodeGauge artifacts or registry
-channels can be published.
+Provide deterministic, least-privilege checks that must pass before CodeGauge distribution or registry publication.
 
 ## Requirements
 
 ### Requirement: Pinned and least-privilege automation
 
-CI MUST use the repository-pinned Rust/Cargo 1.97.1 toolchain and committed `Cargo.lock`. Third-party
-workflow actions MUST use immutable full-SHA references. Pull-request jobs MUST be read-only and MUST
-NOT receive release credentials; write permissions SHALL be scoped to the job that needs them.
+CI MUST use Rust/Cargo 1.97.1, the committed `Cargo.lock`, and immutable full-SHA references for third-party actions. Pull-request jobs MUST be read-only, MUST NOT receive release credentials, and write permissions MUST be scoped to the job that requires them.
 
 #### Scenario: Untrusted pull request
 
-- GIVEN a workflow is triggered by a pull request
+- GIVEN CI is triggered by a pull request
 - WHEN the workflow starts
 - THEN it runs without registry or release credentials and cannot publish artifacts
 
-#### Scenario: Floating workflow dependency
+#### Scenario: Mutable action reference
 
-- GIVEN a workflow action is referenced by a mutable tag
-- WHEN the CI validation runs
-- THEN the validation fails before any distribution job can start
+- GIVEN a workflow action uses a mutable tag or non-immutable reference
+- WHEN workflow validation runs
+- THEN validation fails before any distribution job starts
 
 ### Requirement: Complete quality gate
 
-The required gate MUST run `cargo metadata --locked`, locked workspace tests, format checking,
-Clippy with `-D warnings`, and both Python contract checks. It MUST evaluate the merged Stage-A
-tree after the root carrier's exact private conformance dependency-pin update. A release MUST NOT
-proceed when a gate fails, is skipped, or is replaced by a weaker command.
+The required gate MUST run locked metadata validation, workspace tests, formatting, Clippy with `-D warnings`, and both Python contract checks. A release MUST NOT proceed when a check fails, is skipped, or is replaced by a weaker command.
 
-#### Scenario: All baseline checks pass
+#### Scenario: All checks pass
 
 - GIVEN the pinned toolchain and lockfile are available
 - WHEN every required command succeeds
-- THEN the quality gate is eligible to unlock distribution validation
+- THEN distribution preflight becomes eligible to run
 
-#### Scenario: Existing lint failure
+#### Scenario: Contract or lint failure
 
-- GIVEN Clippy reports the known pre-existing deprecated `quick_xml` call
-- WHEN the gate runs
-- THEN CI reports a blocking failure and does not weaken the lint or silently change engine behavior
+- GIVEN any required Rust or Python check reports a failure
+- WHEN the quality gate completes
+- THEN the gate blocks all later release and publication jobs
 
-#### Scenario: Public version synchronization leaves private pins stale
+### Requirement: Fail-closed distribution preflight
 
-- GIVEN the five public runtime Cargo packages and npm packages are synchronized to `0.2.0`
-- AND the private conformance path dependencies remain at `^0.1.0`
-- WHEN CI runs `cargo metadata --locked`
-- THEN CI reports a blocking dependency-version failure before Stage-B tag, release, upload, or
-  registry mutation
+Before publication, automation MUST validate the approved target matrix, Cargo and npm metadata, package contents, checksums, OCI metadata, and version/source provenance. It MUST retain machine-readable or log evidence identifying the failed check and revision.
 
-#### Scenario: Exact private pin exception is present
+#### Scenario: Incomplete target evidence
 
-- GIVEN the private manifest changes only its four dependency `.version` fields to the synchronized
-  runtime version
-- WHEN the complete quality gate runs
-- THEN locked metadata is eligible to pass while the private package version and non-publishability
-  remain unchanged
+- GIVEN a claimed target lacks a build, package, or checksum result
+- WHEN preflight evaluates the matrix
+- THEN it fails closed and no registry publisher is enabled
 
-#### Scenario: Effective Stage-A tree passes locked tests
+#### Scenario: Preflight failure
 
-- GIVEN the synchronized tree contains the typed golden update and exact README/contract marker
-  replacements in addition to the public and private dependency version updates
-- WHEN CI runs `cargo test --workspace --locked`
-- THEN the conformance golden compares equal to the runtime tool version and the complete workspace
-  suite passes before Stage-B tag or publication mutation
-
-### Requirement: Distribution preflight evidence
-
-Before publication, automation MUST validate the approved target matrix, Cargo/package metadata,
-npm package contents, archive checksums, and OCI metadata. Each validation MUST leave logs or
-machine-readable evidence sufficient to identify the failed channel and revision.
-
-#### Scenario: Incomplete target declaration
-
-- GIVEN a claimed target has no build and checksum evidence
-- WHEN release preflight evaluates the matrix
-- THEN preflight fails and no registry publisher is enabled
-
-#### Scenario: Failed preflight
-
-- GIVEN package validation fails after quality checks pass
+- GIVEN quality checks pass but distribution validation fails
 - WHEN the release graph evaluates dependencies
-- THEN later publication jobs remain blocked and the failure evidence is retained
+- THEN later publishers remain blocked and failure evidence is retained

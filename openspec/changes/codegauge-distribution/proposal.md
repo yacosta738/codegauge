@@ -2,48 +2,36 @@
 
 ## Intent
 
-Make merged `main` ship quality-gated Cargo/source, npm, OCI, and GitHub Release
-distributions. Preserve RFC-0001 engine behavior, schemas, and result/error contracts.
+Enable merged `main` to ship CodeGauge through quality-gated Cargo/source, npm, OCI, and GitHub Release channels. Address the virtual workspace's missing publication metadata, workflows, packages, images, checksums, and version provenance while preserving RFC-0001 behavior, schemas, and result/error contracts.
 
 ## Scope
 
 ### In Scope
-- Pinned CI: Rust 1.97.1, locked tests, fmt, Clippy, Python, and package checks.
-- Cargo strategy, provenance, and package validation.
-- Plain wrapper plus six GNU packages: pins, `os`/`cpu`, argv/stdio/exit passthrough.
-- Eight archives/SHA-256, release-please, two-arch OCI, permissions, rollback.
+- Pinned Rust 1.97.1 CI: locked metadata/tests, format, Clippy, Python contracts, and package checks.
+- Coordinated public Cargo runtime publication with immutable source fallback; keep private conformance unpublished and align only its four runtime dependency pins.
+- Base npm wrapper plus six GNU-target packages with exact `os`/`cpu`, transparent argv/stdio/exit handling, archive extraction, and checksum verification.
+- Eight target archives with SHA-256 sidecars, two-stage Release Please 17.6.0 orchestration, and `linux/amd64`/`arm64` OCI publication with provenance and smoke gates.
+- Least-privilege permissions, fail-closed validation, ordered publication, and recovery evidence.
 
 ### Out of Scope
-- Engine/profile/schema/fixture/golden/JSON/error/exit semantics; crate redesign.
-- Unverified platforms, namespace reservation, credentials, unrelated API/UX.
+- Engine/profile/schema/fixture/golden/JSON/error/exit semantics or crate redesign.
+- Unverified platforms, namespace reservation, live credential provisioning, and unrelated API/UX.
 
 ## Capabilities
 
 ### New Capabilities
-- `ci-quality-gates`: CI.
-- `cargo-distribution`: Cargo/source provenance.
-- `npm-distribution`: Platform resolution.
-- `release-artifacts`: Archives/checksums/releases.
-- `oci-distribution`: OCI image.
+- `ci-quality-gates`: deterministic pre-publication CI and permissions.
+- `cargo-distribution`: Cargo graph, source installation, and provenance.
+- `npm-distribution`: platform resolution and wrapper behavior.
+- `release-artifacts`: archives, checksums, and GitHub Releases.
+- `oci-distribution`: reproducible multi-architecture image publication.
 
 ### Modified Capabilities
-- None; no relevant main specifications exist.
+- None; `openspec/specs/` has no existing main capabilities.
 
 ## Approach
 
-Reuse peer topology with workspace builds and immutable pins; reject floating tags, inert
-dry-runs, checksum omissions, and broad permissions. Publish after quality, target, package,
-checksum, and metadata gates. Approved decisions:
-
-1. **Cargo:** publish the coordinated versioned runtime graph to crates.io, with Git/source install
-   retained as a fallback.
-2. **npm/OCI names:** use `@yacosta738/codegauge` plus same-scope platform packages and
-   `ghcr.io/yacosta738/codegauge`.
-3. **Targets:** cover the complete viable matrix: eight archives, six npm targets, and OCI
-   `linux/amd64`/`arm64`, rejecting any target that cannot produce evidence.
-
-Verify checksums before upload/extraction; stop registries on failure. Slices: A Cargo/version;
-B CI; C npm; D archives/Release; E OCI.
+Preserve the inward-only crate graph and public contracts. Stage A uses Release Please 17.6.0 to create one synchronized component PR with no GitHub release; a root metadata carrier owns repository and contract-file updates without becoming a fake Cargo package. Stage B validates the merged tree, exact private-conformance hunk, version graph, immutable revision, and metadata, then creates the canonical `vX.Y.Z` tag. Quality, target, package, checksum, and metadata gates precede ordered Cargo, archive, npm, and OCI publication. Approved identities are `@yacosta738/codegauge` and `ghcr.io/yacosta738/codegauge`; unsupported targets fail closed.
 
 **Decision needed before apply: No**
 **Chained PRs recommended: Yes**
@@ -53,33 +41,31 @@ B CI; C npm; D archives/Release; E OCI.
 
 | Area | Impact | Description |
 |------|--------|-------------|
-| Cargo manifests/lock | Modified | Versions/packages. |
-| Workflows/release config | New | Gates/publishing/permissions. |
-| `npm/` | New | Wrapper/tests. |
-| Docker/docs | New/Modified | Image/install. |
+| `Cargo.toml`, `crates/*/Cargo.toml` | Modified | Versions, metadata, registry pins, private exception. |
+| `.github/workflows/`, release config | New/Modified | CI, release stages, permissions, gates. |
+| `npm/`, `scripts/`, `tests/` | New/Modified | Wrapper, packages, generators, validators, contracts. |
+| `Dockerfile`, `README.md`, release assets | New/Modified | OCI image, install guidance, archives, provenance. |
 
 ## Risks
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| Cargo crate exposure | High | Complete-graph metadata/package checks, dry-runs, dependency ordering, and immutable releases. |
-| Existing Clippy blocks CI | High | Visible; separate no-semantic prerequisite. |
-| Version/checksum drift | Med | One version and verification gates. |
-| Non-atomic publication | High | Ordered jobs, stop-on-failure, corrected patch/deprecation. |
-| Optional/permission failure | Med | Exact pins, platform errors, job-scoped OIDC. |
+| Incomplete Cargo graph or stale private pins | High | Locked metadata, graph checks, ordered publication, fail-closed validation. |
+| Existing Clippy failure blocks adoption | High | Keep visible as a prerequisite; do not weaken the gate. |
+| Non-atomic cross-channel publication | High | Stop later jobs, preserve evidence, issue corrected releases. |
+| Version, checksum, target, or permission drift | Med | Immutable pins, sidecars, target rejection, job-scoped credentials. |
 
 ## Rollback Plan
 
-Disable triggers; revert slices. After partial publication, stop later jobs, preserve history,
-deprecate/retag bad npm/OCI artifacts, and ship a corrected patch; Cargo versions cannot be deleted.
+Disable release triggers and stop downstream jobs. Revert workflow/configuration slices. Do not delete published Cargo versions; deprecate or supersede incorrect npm packages, OCI tags, or archives, preserve evidence, and issue a corrected patch release.
 
 ## Dependencies
 
-- Configure approved Cargo, npm, OCI, target, protection, and credential settings without committing secrets.
+- Approved Cargo, npm, GHCR, GitHub protection, target-runner, and credential configuration; no secrets committed.
 
 ## Success Criteria
 
-- [ ] Merged-main CI passes locked Rust/Python and distribution gates.
-- [ ] `codegauge version`, manifests, npm, archives, and OCI labels share version/source identity.
-- [ ] Claimed targets run or are rejected with evidence; archives/npm binaries pass SHA-256 checks.
-- [ ] Failures leave logs, no leaked credentials, and a recovery action.
+- [ ] Merged-main CI and distribution gates pass on the pinned toolchain.
+- [ ] CLI output, manifests, npm, archives, and OCI metadata share version/source identity.
+- [ ] Every claimed target has executable/checksum evidence; unsupported targets are rejected.
+- [ ] Failures produce auditable logs without credential leakage and a recovery path.
