@@ -10,10 +10,10 @@ publish = false
 description = "Private cross-crate CodeGauge conformance suite"
 
 [dependencies]
-codegauge-application = { version = "0.2.0", path = "../codegauge-application" }
-codegauge-core = { version = "0.2.0", path = "../codegauge-core" }
-codegauge-model = { version = "0.2.0", path = "../codegauge-model" }
-codegauge-provider-jacoco = { version = "0.2.0", path = "../codegauge-provider-jacoco" }
+codegauge-application = { version = "0.3.0", path = "../codegauge-application" }
+codegauge-core = { version = "0.3.0", path = "../codegauge-core" }
+codegauge-model = { version = "0.3.0", path = "../codegauge-model" }
+codegauge-provider-jacoco = { version = "0.3.0", path = "../codegauge-provider-jacoco" }
 
 [dev-dependencies]
 schemars.workspace = true

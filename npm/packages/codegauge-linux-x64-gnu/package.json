@@ -1,6 +1,6 @@
 {
   "name": "@yacosta738/codegauge-linux-x64-gnu",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CodeGauge executable for Linux x64 GNU",
   "license": "MIT",
   "repository": "yacosta738/codegauge",

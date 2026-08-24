@@ -1,15 +1,15 @@
 {
-  ".": "0.2.0",
-  "crates/codegauge-model": "0.2.0",
-  "crates/codegauge-core": "0.2.0",
-  "crates/codegauge-application": "0.2.0",
-  "crates/codegauge-provider-jacoco": "0.2.0",
-  "crates/codegauge-cli": "0.2.0",
-  "npm/codegauge": "0.2.0",
-  "npm/packages/codegauge-linux-x64-gnu": "0.2.0",
-  "npm/packages/codegauge-linux-arm64-gnu": "0.2.0",
-  "npm/packages/codegauge-darwin-x64": "0.2.0",
-  "npm/packages/codegauge-darwin-arm64": "0.2.0",
-  "npm/packages/codegauge-win32-x64-msvc": "0.2.0",
-  "npm/packages/codegauge-win32-arm64-msvc": "0.2.0"
+  ".": "0.3.0",
+  "crates/codegauge-model": "0.3.0",
+  "crates/codegauge-core": "0.3.0",
+  "crates/codegauge-application": "0.3.0",
+  "crates/codegauge-provider-jacoco": "0.3.0",
+  "crates/codegauge-cli": "0.3.0",
+  "npm/codegauge": "0.3.0",
+  "npm/packages/codegauge-linux-x64-gnu": "0.3.0",
+  "npm/packages/codegauge-linux-arm64-gnu": "0.3.0",
+  "npm/packages/codegauge-darwin-x64": "0.3.0",
+  "npm/packages/codegauge-darwin-arm64": "0.3.0",
+  "npm/packages/codegauge-win32-x64-msvc": "0.3.0",
+  "npm/packages/codegauge-win32-arm64-msvc": "0.3.0"
 }
