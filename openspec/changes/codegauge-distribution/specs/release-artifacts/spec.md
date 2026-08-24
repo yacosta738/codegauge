@@ -1,408 +1,91 @@
-# Release Artifacts and Channels Specification
+# Release Artifacts Specification
 
 ## Purpose
 
-Create traceable GitHub Release artifacts and coordinate Cargo/source, npm, and OCI channels without
-pretending that cross-registry publication is atomic.
+Create traceable GitHub Release artifacts and coordinate Cargo, source, npm, and OCI channels without assuming atomic publication.
 
 ## Requirements
 
 ### Requirement: Immutable version provenance
 
-The release process MUST derive one approved version from release metadata, create the release from
-an immutable Git revision, and propagate that version and source identity to Cargo metadata, the
-`codegauge version` output, npm packages, archives, and OCI metadata. Release-please configuration
-MUST address the actual workspace packages and npm version pins rather than assuming the virtual
-workspace root is publishable. A virtual workspace root MUST NOT be treated as a publishable Cargo
-package by assumption. Publication MUST originate from merged `main` and its immutable release tag,
-not from an unmerged pull request.
+The release MUST derive one approved version and immutable source revision from merged `main`; both MUST reach Cargo metadata, `codegauge version`, npm, archives, and OCI metadata. The virtual root MUST NOT publish; one runtime component MUST create `vX.Y.Z`.
 
 #### Scenario: Provenance mismatch
 
-- GIVEN any channel reports a different version or source revision
-- WHEN release validation compares the artifacts
-- THEN the release is blocked before publication and the mismatching channel is identified
-
-### Requirement: Virtual workspace root release ownership
-
-Release-please configuration MUST give repository-level version and contract-file updates to an
-effective candidate that survives the Release Please 17.6.0 workspace plugins. A virtual Cargo root
-MUST NOT be configured as a Rust package candidate because it has no `[package].name`. A non-Cargo
-metadata candidate MAY carry those updates only when it has no package identity and MUST skip its own
-GitHub release; exactly one approved runtime component MUST create the unprefixed `vX.Y.Z` tag.
-
-#### Scenario: Root updates survive the plugin pipeline
-
-- GIVEN the repository has a virtual Cargo workspace and root-owned extra-files
-- WHEN the Release Please 17.6.0 Cargo, Node, and linked-versions plugins process candidates
-- THEN the root candidate remains effective, owns the root extra-file updates, optional npm pins are
-  rewritten from the linked versions map, and exactly one unprefixed `vX.Y.Z` release operation remains
-
-#### Scenario: Virtual root cannot publish as a fake package
-
-- GIVEN the root candidate is used only to carry repository metadata updates
-- WHEN Release Please prepares GitHub releases and package publication
-- THEN the root has no Cargo/npm package identity and its skipped release cannot create a fake root
-  package or a duplicate tag
-
-### Requirement: Private workspace members stay outside the Stage-A candidate graph
-
-Stage-A Release Please configuration MUST use an explicit list of the five approved runtime Cargo
-packages when the repository workspace also contains a private conformance member. It MUST NOT use
-the Release Please 17.6.0 `cargo-workspace` plugin for this graph because the exact packaged source
-(`build/src/plugins/cargo-workspace.js`, lines 45–84 and 138–193; `workspace.d.ts`, lines 11–16)
-scans every declared workspace member and exposes no supported member-exclusion option. The private
-`crates/codegauge-conformance/Cargo.toml` MUST remain a Cargo workspace member for builds/tests,
-MUST remain `publish = false`, and MUST be absent from the effective candidate and linked-component
-sets. The non-Cargo root metadata carrier MAY own that existing manifest as a narrowly scoped
-dependency-pin update, but it MUST NOT own the private package version, changelog, release metadata,
-or any other private path.
-
-#### Scenario: Exact v17.6.0 private-candidate boundary
-
-- GIVEN the root Cargo workspace declares five runtime crates and private
-  `codegauge-conformance`
-- WHEN the exact Release Please 17.6.0 Manifest/plugin chain runs against a read-only fake SCM
-- THEN it MUST create one synchronized PR with all five runtime Cargo candidates, the root metadata
-  carrier, the linked versions map, six npm optional dependency rewrites, and one root-owned
-  `crates/codegauge-conformance/Cargo.toml` dependency update, with zero release/tag calls
-- AND the private manifest MUST NOT be a candidate or linked component, and its package version and
-  `publish = false` state MUST remain unchanged
-
-### Requirement: Hosted conformance dependency alignment is a root-carrier exception
-
-The surviving Java root metadata carrier MUST own exactly these four TOML JSONPath updates in
-`/crates/codegauge-conformance/Cargo.toml`, with every new value equal to the synchronized public
-runtime version:
-
-```text
-$.dependencies["codegauge-application"].version
-$.dependencies["codegauge-core"].version
-$.dependencies["codegauge-model"].version
-$.dependencies["codegauge-provider-jacoco"].version
-```
-
-The carrier MUST NOT update `[package].version`, `publish`, package identity, changelog, release
-metadata, or any other file under `crates/codegauge-conformance/`. This exception exists because
-hosted PR `#59` synchronized the five public runtime Cargo/npm surfaces to `0.2.0` with no release or
-tag calls, then failed `cargo metadata --locked` because these private path pins remained `^0.1.0`.
-
-#### Scenario: Hosted PR #59 exposes stale private pins
-
-- GIVEN a merged Stage-A version PR synchronizes public runtime packages to `0.2.0`
-- AND `codegauge-conformance` still requires the public path dependencies at `^0.1.0`
-- WHEN CI runs `cargo metadata --locked`
-- THEN the quality gate fails before Stage-B can create a tag, and the failure identifies private
-  dependency alignment as the missing boundary
-
-#### Scenario: Corrected private dependency update
-
-- GIVEN the root carrier proposes the private manifest path
-- WHEN the complete before/after content differs only at the four listed dependency `.version`
-  fields and each new value is the synchronized runtime version
-- THEN Stage-B accepts the path, `cargo metadata --locked` is eligible to pass, and the private
-  package version remains its private/non-release value
-
-#### Scenario: Private manifest mutation outside the exception
-
-- GIVEN the Stage-A diff contains the private manifest
-- WHEN it changes package version, `publish`, dependency keys/paths/features, comments/formatting,
-  a changelog, or any other private/unapproved path
-- THEN Stage-B fails closed before tag, label, release, upload, or publication mutation
-
-### Requirement: Root carrier content matches its configured updater
-
-Stage-A's effective root carrier MUST use the Release Please 17.6.0 updater appropriate to each
-file. `/tests/golden/valid-methods.json` MUST use the typed JSON path `$.tool.version`. README and
-`crates/codegauge-model/tests/contracts.rs` MAY use the generic updater only on exact
-`x-release-please-version` marker lines; unrelated semver text MUST remain unmarked. The CLI
-integration fixture has no release-version marker and MUST NOT be changed by the root generic
-updater. Stage-B MUST retain complete file patch/content metadata and accept exactly one of these
-patch forms: a complete single-file unified diff with matching file headers, or a GitHub PR-files API
-hunk-only patch whose validated entry supplies the filename. Either form MUST contain complete hunk
-headers/body lines and hunk counts consistent with the API additions/deletions/changes metadata; an
-unexpected file section MUST fail closed. Filename-only, wrong-version, arbitrary-content,
-unapproved-marker, malformed, missing, or truncated updates MUST fail closed for every approved
-root/candidate/generated path. The twelve generated changelogs are permitted only as complete
-Release Please changelog additions.
-
-#### Scenario: Synchronized golden and contract fixtures
-
-- GIVEN the effective Stage-A update set synchronizes the public runtime to `0.2.0`
-- WHEN the typed and annotated root updaters run
-- THEN the golden's `tool.version` and both model contract fixture tool versions become `0.2.0`
-- AND the README's four intended release-version lines become `0.2.0`
-- AND no unrelated semver text is replaced
-
-#### Scenario: Content-mutated approved carrier file
-
-- GIVEN a merged Stage-A PR lists an approved golden, README, contract, candidate, or generated path
-- WHEN its complete patch contains `9.9.9`, arbitrary content, an unapproved marker, or missing/
-  truncated patch data
-- THEN Stage-B fails closed before tag, label, release, upload, or publication mutation
-
-#### Scenario: GitHub PR-files API hunk-only patch
-
-- GIVEN `GET /pulls/{number}/files` returns a validated `.release-please-manifest.json` entry whose
-  `patch` begins with `@@` and contains no `diff --git`, `---`, or `+++` file headers
-- WHEN the hunk body and declared hunk/additions/deletions/changes counts describe exactly the
-  approved manifest version replacements
-- THEN Stage-B accepts the entry using its validated `filename`
-- AND a missing patch, inconsistent counts, malformed/truncated hunk, or unexpected second file
-  section fails closed before tag, label, release, upload, or publication mutation
-
-#### Scenario: Private conformance hunk-only patch omits optional trailing context
-
-- GIVEN `GET /pulls/59/files` returns a filename-bound private-manifest patch beginning
-  `@@ -10,10 +10,10 @@ publish = false`
-- AND its hunk contains the description, `[dependencies]`, exactly four old/new dependency pairs,
-  a blank line, `[dev-dependencies]`, and `schemars.workspace = true`
-- AND GitHub omits the following `serde_json.workspace = true` context line while the hunk's declared
-  and actual old/new counts remain `10/10`
-- WHEN Stage-B validates the entry with API metadata of four additions, four deletions, and eight
-  changes
-- THEN Stage-B accepts the patch because the exact four approved dependency version replacements and
-  all declared/actual counts are complete
-- AND it continues to reject dependency-key/path/version drift, package metadata changes, formatting
-  or comment mutations, missing/truncated hunks, and every other unapproved private mutation
-
-### Requirement: npm version lines and deterministic formatting remain narrowly bounded
-
-For an approved npm `package.json` patch, Stage-B MUST validate the `version` and approved optional
-dependency replacements independently from non-version lines. It MAY accept the exact Release Please
-formatting rewrite of the base package's `files` array from `  "files": ["dist/index.js"],` to the
-three-line form containing only the opening array, `dist/index.js`, and the closing bracket. No npm
-platform package MAY receive a formatting allowance, and arbitrary base-package formatting or
-unapproved-key edits MUST fail closed.
-
-#### Scenario: Real PR #59 base npm hunk-only rewrite
-
-- GIVEN `GET /pulls/59/files` returns the real `npm/codegauge/package.json` hunk with seven approved
-  version pairs and ten additions/eight deletions because of the exact `files` array rewrite
-- WHEN Stage-B validates the filename-bound hunk with synchronized version `0.2.0`
-- THEN it accepts the seven version replacements plus only that exact three-line base formatting
-  rewrite
-
-#### Scenario: npm formatting allowance does not broaden
-
-- GIVEN a platform package contains any formatting line, or the base package contains an altered
-  `files` array, arbitrary formatting, or an unapproved key
-- WHEN Stage-B validates the patch
-- THEN it fails closed before tag, label, release, upload, or publication mutation
-
-### Requirement: Linked versions must not depend on tag naming
-
-The release architecture MUST prove that every intended runtime Cargo crate, the npm wrapper, and all
-six npm platform packages resolve to one version and that the wrapper's `optionalDependencies` are
-rewritten from that synchronized versions map. The private conformance crate is not part of that
-linked version map; its four path dependency pins are updated by the root carrier to consume the
-same runtime version. Under the exact Release Please 17.6.0 source,
-`include-component-in-tag: false` returns an empty strategy component and
-`linked-versions` skips empty components. Therefore the release flow MUST either use a supported
-Release Please implementation whose linked lookup is independent of tag naming, or separate the
-component-tagged version-PR pass from a trusted post-merge carrier that creates exactly one unprefixed
-`vX.Y.Z` tag. A configuration that merely lists component names while the effective strategy component
-is empty is invalid and MUST remain blocked.
-
-#### Scenario: v17.6.0 empty-component gate
-
-- GIVEN the global unprefixed-tag contract is enabled under Release Please 17.6.0
-- WHEN `LinkedVersions.preconfigure()` evaluates the configured strategies
-- THEN the regression MUST observe a synchronized versions map for the full runtime graph, or report
-  the exact architecture blocker instead of claiming that optional dependency synchronization passed
-
-#### Scenario: Synchronized npm optional pins
-
-- GIVEN the linked versions map contains the full runtime graph at version `X.Y.Z`
-- WHEN the v17.6.0 Node workspace/package-json updater processes `npm/codegauge/package.json`
-- THEN every platform entry in `optionalDependencies` is rewritten to its corresponding synchronized
-  platform version, including any supported range prefix, and the final release carrier emits only
-  `vX.Y.Z`
-
-### Requirement: Auditable hosted carrier rehearsal
-
-The Stage-B carrier MUST accept only trusted `push` or `workflow_dispatch` events resolved to
-`refs/heads/main`. A manual dispatch MUST expose a required boolean `dry_run` input. An automatic
-push MUST derive its mode from the explicit repository variable `RELEASE_CARRIER_DRY_RUN`, accepting
-only `true`, `false`, or unset; unset and `false` MUST preserve the live production default and any
-unknown value MUST fail closed. The manual input MUST take precedence for a manual run.
-
-Both modes MUST collect and validate the same merged Release Please version PR, exact Stage-A diff,
-tree/version/provenance/lockfile/metadata boundaries, and canonical `vX.Y.Z` tag plan. Dry-run mode
-MUST emit a credential-free machine-readable carrier plan and workflow-summary record, and MUST NOT
-create or update a Git ref, mutate Release Please labels, dispatch `release-on-tag.yml`, upload a
-release asset, or invoke any registry publisher. Live mode MUST retain the existing tag compare/create,
-race retry, and label handoff behavior.
-
-Before tree or version validation, the carrier MUST correlate merged Release Please PRs to the exact
-trusted event SHA. Zero matching PRs on a trusted `main` push or dispatch MUST be a successful no-op:
-the carrier MUST emit a skipped/no-matching-release record and summary, and MUST NOT run carrier
-validation or any tag, label, release, upload, or publication path. Exactly one matching PR MUST enter
-the full validation flow. More than one matching PR, an invalid PR collection, or malformed PR data
-MUST fail closed before mutation.
-
-#### Scenario: Ordinary main push has no matching Release Please PR
-
-- GIVEN a trusted `push` or `workflow_dispatch` on `refs/heads/main`
-- AND the GitHub pull-request collection contains zero merged Release Please PRs whose
-  `merge_commit_sha` equals `GITHUB_SHA`
-- WHEN the carrier correlates the event before fetching the version-PR diff
-- THEN the workflow exits successfully with `status=skipped` and reason
-  `no-matching-release-please-pr`
-- AND it emits `carrier-record.json` plus a workflow summary proving carrier validation, tag, label,
-  release, upload, and publication paths were not run
-
-#### Scenario: Exactly one Release Please PR matches the event SHA
-
-- GIVEN a trusted `main` event with exactly one merged Release Please PR whose `merge_commit_sha`
-  equals `GITHUB_SHA`
-- WHEN the carrier correlates the pull requests
-- THEN it fetches that PR's diff and continues the existing exact tree, version, provenance, tag-plan,
-  dry-run, live, idempotency, and conflict validation flow
-
-#### Scenario: Multiple matching Release Please PRs or malformed data
-
-- GIVEN a trusted `main` event with more than one matching Release Please PR or malformed GitHub PR
-  collection data
-- WHEN the carrier correlates the pull requests
-- THEN it fails closed before fetching the diff or performing any mutation
-
-#### Scenario: Manual carrier dry-run
-
-- GIVEN `release-tag-carrier.yml` is dispatched on `main` with `dry_run: true`
-- WHEN the carrier collects the merged Release Please PR and validates the merged tree
-- THEN it emits the canonical tag plan and explicit skipped-mutation evidence
-- AND it MUST NOT create a tag, change labels, dispatch the tag workflow, upload, or publish
-
-#### Scenario: Automatic push rehearsal variable
-
-- GIVEN `RELEASE_CARRIER_DRY_RUN` is temporarily set to the exact value `true`
-- WHEN the synchronized Release Please version PR is merged into `main`
-- THEN the automatic carrier performs the same read-only validation and plan generation
-- AND it MUST skip tag-ref and label writes so the merge cannot start the live tag path
-
-#### Scenario: Live default after rehearsal
-
-- GIVEN `RELEASE_CARRIER_DRY_RUN` is absent or set to `false`
-- WHEN a trusted synchronized version PR merge pushes `main`
-- THEN the carrier remains in live mode and preserves the canonical tag compare/create and label handoff
-
-#### Scenario: Invalid rehearsal configuration
-
-- GIVEN the dispatch input or repository variable contains a value other than the accepted booleans
-- WHEN the carrier resolves its mode
-- THEN it fails closed before any tag or label mutation
-
-### Requirement: Historical carrier replay is dry-run-only
-
-The carrier MAY expose an optional `replay_sha` input for a protected recovery/rehearsal, but it
-MUST accept a non-empty value only for `workflow_dispatch` on `refs/heads/main` with `dry_run=true`.
-The value MUST be exactly a lowercase 40-hex Git SHA. Push events, live dispatches, malformed SHAs,
-and non-main refs MUST fail closed before PR-file collection or any mutation. An absent replay value
-MUST preserve ordinary current-main dispatch behavior.
-
-Replay MUST keep the checkout and all source/tree validation at the current selected `main` revision.
-It MUST select one explicit normalized `EVENT_SHA`: the validated `replay_sha` for GitHub commit/PR
-lookup, carrier event validation, and canonical tag-plan identity, or the current event SHA when no
-replay is supplied. No later command MAY fall back to `GITHUB_SHA` for those historical-event uses.
-The resolver, carrier record, and workflow summary MUST emit a total boolean `replay` field; an absent
-replay value MUST normalize to `false` rather than make the optional input mandatory. When replay is
-`true`, the record and summary MUST identify both the current source checkout SHA and the historical
-replay event SHA. When replay is `false`, the replay event SHA MUST be explicitly null/none. Any
-present replay field with a non-boolean value MUST fail closed.
-
-Replay MUST run the same exact PR correlation and Stage-B validation boundaries as the normal carrier,
-including exactly-one Release Please PR, complete patch/content metadata, version/graph/provenance,
-private four-pin, idempotency, and conflict checks. It MUST stop before canonical tag-ref creation,
-Release Please label mutation, tag-workflow dispatch, release-asset upload, Cargo/npm/OCI publication,
-or attestation. Live mode MUST reject replay input and preserve the normal push variable/default path.
-
-The replay record and workflow summary MUST identify replay mode, source checkout SHA, replay event SHA,
-dry-run state, and every mutation as `skipped`, `not-started`, or `not-dispatched`, without emitting
-credentials. This capability is a dry-run-only recovery/rehearsal guard; it MUST NOT be described as
-production replay, a live release path, or hosted-passed evidence.
-
-#### Scenario: Authorized manual replay of the hosted merge
-
-- GIVEN current `main` contains the corrected parser and `workflow_dispatch` runs on `refs/heads/main`
-- AND `dry_run=true` and `replay_sha=fcc91b4850480945ae484c3ebdba18f8a4e38270`
-- WHEN the carrier resolves its event identity
-- THEN the source checkout remains current `main` while `EVENT_SHA` equals the historical merge SHA
-- AND GitHub commit/PR lookup, exactly-one PR correlation, carrier validation, and tag planning use
-  that effective event SHA
-- AND the record/summary identify the source checkout, replay event, dry-run, and no-write mutation
-  statuses
-- AND no tag, label, release, upload, registry publication, or attestation action starts
-
-#### Scenario: Replay is rejected outside manual dry-run
-
-- GIVEN `replay_sha` is non-empty
-- WHEN the event is a push, a live dispatch, a malformed/non-40-hex SHA, or a non-main ref
-- THEN the carrier fails closed before PR-file collection and performs no tag, label, release, upload,
-  publication, or attestation mutation
-
-#### Scenario: Missing replay remains ordinary dispatch
-
-- GIVEN `workflow_dispatch` runs on `refs/heads/main` with no `replay_sha`
-- WHEN the carrier resolves its event identity
-- THEN `EVENT_SHA` equals the current selected main event SHA and the existing manual dry-run/live
-  behavior remains unchanged
-
-### Requirement: Approved archive matrix and checksums
-
-The release MUST use the approved complete viable target matrix of eight archives: Linux GNU and
-musl for x86_64 and aarch64, macOS x64 and arm64, and Windows x64 and arm64. Every approved target
-MUST have the correct platform archive format (`tar.gz` on Unix-like targets and `zip` on Windows),
-a version/target-identifiable name, and a lowercase SHA-256 sidecar. Each sidecar MUST be verified
-before GitHub upload and before any archive extraction for packaging. A target that cannot produce
-reproducible build and runtime evidence MUST be rejected rather than claimed.
+- GIVEN a channel reports a different version or source revision
+- WHEN release validation compares provenance
+- THEN publication is blocked and the mismatching channel is identified
+
+### Requirement: Safe Release Please candidate graph
+
+Stage A MUST include the five public runtime Cargo packages and exclude private conformance. A non-Cargo root carrier MAY own repository metadata and four private dependency-version fields, but MUST NOT change other private content.
+
+#### Scenario: Private member exclusion
+
+- GIVEN the workspace contains five runtime crates and private conformance
+- WHEN Release Please 17.6.0 processes candidates
+- THEN one synchronized version PR excludes conformance as a release candidate and performs no release/tag operation
+
+#### Scenario: Unapproved private mutation
+
+- GIVEN the Stage-A diff changes private package metadata, keys, paths, features, or content outside four approved pins
+- WHEN Stage B validates the diff
+- THEN it fails closed before mutation
+
+### Requirement: Auditable carrier modes
+
+Stage B MUST accept trusted `push` or `workflow_dispatch` on `refs/heads/main`. Manual dispatch MUST require boolean `dry_run`; push mode MUST accept only `true`, `false`, or unset. Both modes MUST validate identically. Dry-run MUST emit credential-free evidence and MUST NOT mutate refs, labels, releases, uploads, or registries.
+
+#### Scenario: No matching Release Please PR
+
+- GIVEN zero merged Release Please PRs match the effective event SHA
+- WHEN correlation runs
+- THEN the carrier exits successfully as skipped and records that mutation paths did not run
+
+#### Scenario: Invalid or multiple matches
+
+- GIVEN PR data is malformed or more than one matching PR exists
+- WHEN correlation runs
+- THEN it fails closed before diff fetch or mutation
+
+#### Scenario: Manual dry-run
+
+- GIVEN main is dispatched with `dry_run=true`
+- WHEN validation completes
+- THEN the canonical tag plan and skipped-mutation evidence are emitted without publication
+
+### Requirement: Dry-run-only historical replay
+
+The carrier MAY accept `replay_sha` only for manual main `dry_run=true`; it MUST be lowercase 40-hex. Replay MUST keep current-main checkout, use that SHA for lookup, emit both SHAs, and stop before mutations. Other contexts MUST fail closed.
+
+#### Scenario: Authorized replay
+
+- GIVEN current main is checked out and a valid replay SHA is supplied in manual dry-run mode
+- WHEN identity resolves
+- THEN lookup uses the replay SHA, source validation uses current main, and every write is skipped
+
+### Requirement: Approved archives and ordered publication
+
+The release MUST produce eight archives: Linux GNU/musl x86_64/aarch64, macOS x64/arm64, and Windows x64/arm64. Unix MUST use `tar.gz`, Windows `zip`, and every archive a lowercase SHA-256 sidecar verified before upload/extraction. Cargo dependencies precede dependents, npm platforms precede the wrapper, and OCI waits for architecture/runtime gates.
 
 #### Scenario: Complete archive release
 
-- GIVEN the complete viable target matrix has been approved
-- WHEN all target builds finish
-- THEN every approved target has one archive and checksum, and each checksum verifies the archive
+- GIVEN all approved targets build successfully
+- WHEN assets are prepared
+- THEN every target has one identifiable archive and verifying checksum
 
-#### Scenario: Missing target evidence
+#### Scenario: Missing target or gate failure
 
-- GIVEN a matrix entry has no archive or sidecar
-- WHEN release assets are prepared
-- THEN the GitHub Release and dependent registry publishers remain blocked
+- GIVEN any target, package, checksum, or metadata gate fails
+- WHEN publication evaluates dependencies
+- THEN later uploads and publishers do not run and evidence is retained
 
-### Requirement: Ordered, gated channel publication
+### Requirement: Secure non-atomic recovery
 
-GitHub Release assets MUST be uploaded only after quality, target, package, checksum, and metadata
-gates pass. If npm is enabled, platform packages MUST publish before the base wrapper. If Cargo
-registry publication is enabled, dependencies MUST publish before dependents. OCI publication MUST
-wait for its architecture and runtime gates.
-
-#### Scenario: Gate failure before upload
-
-- GIVEN a checksum or package gate fails
-- WHEN the release graph reaches publication
-- THEN no later channel publisher runs and the failure remains auditable
-
-### Requirement: Provenance and publication security
-
-Release metadata MUST record the source revision, version, target, and artifact checksums. Publishing
-jobs MUST use only the credentials and permissions they require, use trusted OIDC provenance where
-the registry supports it, and MUST NOT place tokens in artifacts, logs, or repository files.
-
-#### Scenario: Credential exposure check
-
-- GIVEN a release job emits an artifact or log containing a registry token
-- WHEN security validation runs
-- THEN the release fails and the affected publication is not promoted
-
-### Requirement: Non-atomic failure recovery
-
-On any publication failure, the workflow MUST stop later publishers, retain logs and successful
-artifact history, and expose a recovery action. Escaped npm or OCI artifacts MUST be deprecated,
-retagged, or superseded by a corrected patch; Cargo versions already published MUST NOT be treated
-as deletable. Release triggers MAY be disabled while recovery is performed.
+Publishing jobs MUST use least privilege and trusted OIDC where supported; tokens MUST NOT enter artifacts/logs. On failure, later publishers stop, history remains available, and recovery uses deprecation, retagging, superseding releases, or a later Cargo version rather than deletion.
 
 #### Scenario: Partial publication
 
-- GIVEN GitHub assets publish but an npm or OCI publisher fails
+- GIVEN assets publish but npm or OCI publication fails
 - WHEN the failure is recorded
-- THEN later jobs stop, the partial state is documented, and a corrected release path is identified
+- THEN later jobs stop, partial state is documented, and a corrected recovery path is identified

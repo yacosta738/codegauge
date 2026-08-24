@@ -1,4 +1,65 @@
-# Tasks: Authorized R-F6 — two-stage release carrier
+# Tasks: CodeGauge distribution release ownership correction
+
+## Corrective work — Release Please owns tag/release (new apply slice)
+
+The historical tasks below document the already-applied two-stage carrier baseline. They MUST NOT be
+interpreted as the target ownership model for this corrective slice. The following tasks are the
+active implementation boundary and must be completed TDD-first before `sdd-verify`/QA can advance.
+
+### Phase 10 delivery metadata
+
+- delivery_strategy: auto-chain
+- chain_strategy: feature-branch-chain
+- trunk: origin/main
+- parent_branch: origin/main
+- base: origin/main
+- target_branch: fix/release-owner-correction
+- layer_position: Phase 10 release-owner correction (10.1–10.8)
+- integration_tracker_base: origin/main
+- tracker: none
+- assigned_layer_scope: 10.1–10.8
+- line_budget_risk: High
+- user_approval: confirmed in session `agent-swarm-2026-08-24-phase10`
+
+### Phase 10: Release owner correction
+
+- [x] 10.1 **RED** — Add static assertions that `.github/workflows/release-tag-carrier.yml` contains no
+  `POST /git/refs`, `git tag`, `gh release create`, or equivalent tag/release mutation; add assertions
+  that `.github/workflows/release-publish.yml` has no release-creation fallback and that Release Please
+  remains the only workflow with the permissions/token required to create the canonical tag/release.
+- [ ] 10.2 **RED** — Add pure validator fixtures for the real Release Please PR #75 shape: modified existing
+  runtime `CHANGELOG.md` files, complete manifest/version updates, exact version pairs, and allowed root/
+  private-pin changes. Add failures for missing changelog content, extra changelog edits, incomplete
+  manifest updates, wrong tag, missing release, draft/mismatched release, and tag SHA mismatch.
+- [ ] 10.3 **GREEN** — Change `scripts/verify_release_provenance.py` to validate/correlate an existing
+  Release Please tag/release record (`repository`, `tag`, `tag_sha`, `release_id`, `release_tag`, URL,
+  version, and merged-main SHA) and fail closed when any identity is absent or inconsistent.
+- [x] 10.4 **GREEN** — Replace the carrier's tag-creation step with read-only existing-release/tag
+  correlation followed by the narrow downstream dispatch. Remove carrier label mutation unless a
+  separately authorized, non-release write is proven necessary; preserve dry-run/replay no-write mode.
+- [x] 10.5 **GREEN** — Remove release creation from `release-publish.yml`; require the pre-existing Release
+  Please release and upload assets only to that exact release after all build/provenance gates pass.
+- [x] 10.6 **REFACTOR** — Make repository scope and permissions explicit: all APIs target
+  `${GITHUB_REPOSITORY}`; Release Please alone requests release/tag write permissions; carrier uses read
+  lookup plus only the minimum dispatch capability; no parent-repository or `GITHUB_TOKEN` fallback.
+- [x] 10.7 **GREEN** — Update runtime/static tests and fake GitHub CLI fixtures for Release Please-owned
+  tag/release, exact release correlation, carrier no-write behavior, no-op/idempotency, and downstream
+  dispatch inputs.
+- [~] 10.8 **REFACTOR** — Run focused TDD suite, workflow/action security checks, `cargo metadata --locked`,
+  `git diff --check`, and the release-please runtime harness. Record RED → GREEN evidence before verify.
+
+### Phase 11: Corrected hosted verification and QA handoff
+
+- [ ] 11.1 Run an authorized hosted dry-run/replay against the corrected Release Please PR/release shape;
+  prove existing tag/release correlation and that no tag, release, label, upload, registry, or attestation
+  writes occur.
+- [ ] 11.2 Run an authorized live release only when explicitly approved; prove Release Please created the
+  canonical tag/release and the carrier only dispatched publication against that exact identity.
+- [ ] 11.3 Invoke `sdd-verify` and `sdd-qa`; archive remains blocked until reports are PASS/PASS WITH WARNINGS,
+  no unresolved P0/P1/CRITICAL findings remain, and external registry/attestation evidence is available.
+
+## Historical baseline tasks
+
 
 ## Review Workload Forecast
 

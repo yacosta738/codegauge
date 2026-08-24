@@ -2,63 +2,52 @@
 
 ## Purpose
 
-Distribute the CodeGauge executable through a portable npm wrapper while keeping platform selection
-and CLI process behavior transparent.
+Distribute CodeGauge through a portable npm wrapper with deterministic platform selection and transparent CLI behavior.
 
 ## Requirements
 
 ### Requirement: Approved package identity and target set
 
-The approved npm scope and base package are `@yacosta738` and `@yacosta738/codegauge`. Platform
-package names MUST use the same approved scope and the initial target declaration MUST explicitly
-identify the six viable platform packages. No package may be published outside that scope.
+The approved npm scope and base package MUST be `@yacosta738` and `@yacosta738/codegauge`. The six GNU-target platform packages MUST use that scope and be the only eligible platform packages.
 
-#### Scenario: Approved npm ownership
+#### Scenario: Approved ownership
 
-- GIVEN the approved scope and package names are configured
-- WHEN a release reaches the npm publisher
-- THEN only the approved platform packages and `@yacosta738/codegauge` are eligible for publication
+- GIVEN the approved scope, base package, and six platform package names are configured
+- WHEN npm publication is planned
+- THEN only those seven packages are eligible for publication
 
 ### Requirement: Deterministic platform resolution
 
-The base package MUST select exactly one platform package from the approved target matrix using the
-runtime operating-system and CPU values. Each platform package MUST declare matching `os` and `cpu`
-constraints and an exact version pin. Musl or otherwise unapproved targets MUST NOT be claimed by the
-npm channel merely because a release archive exists.
+The base package MUST select exactly one platform package from the approved operating-system/CPU matrix. Each platform package MUST declare matching exact `os`, `cpu`, and version constraints. Unapproved or musl targets MUST fail closed even when an archive exists.
 
 #### Scenario: Supported platform
 
-- GIVEN a supported runtime and its exact optional dependency are installed
+- GIVEN a supported GNU runtime and its exact optional dependency is installed
 - WHEN the wrapper is invoked
-- THEN it resolves the matching executable and does not select a different platform binary
+- THEN it resolves only the matching executable
 
-#### Scenario: Unsupported or missing optional dependency
+#### Scenario: Unsupported or missing package
 
-- GIVEN the runtime is outside the approved matrix or its package is unavailable
+- GIVEN the runtime is outside the matrix or its optional dependency is unavailable
 - WHEN the wrapper is invoked
-- THEN it returns an actionable nonzero error without running an unrelated binary
+- THEN it returns an actionable nonzero error without running another binary
 
 ### Requirement: Transparent CLI process compatibility
 
-The wrapper MUST pass user arguments unchanged, inherit standard input/output/error, and return the
-child process exit status. It MUST NOT rewrite CodeGauge JSON, diagnostics, profile names, or the
-public exit mapping.
+The wrapper MUST pass arguments unchanged, inherit stdin/stdout/stderr, and return the child exit status. It MUST NOT rewrite CodeGauge output, diagnostics, profiles, or exit mapping.
 
-#### Scenario: CLI invocation through npm
+#### Scenario: Invocation through npm
 
-- GIVEN a caller passes an analysis command and its arguments to the base package
-- WHEN the wrapper starts the platform executable
-- THEN arguments and stdio are preserved and the resulting exit status is unchanged
+- GIVEN a caller supplies an analysis command and arguments
+- WHEN the platform executable starts
+- THEN arguments, stdio, and resulting exit status are unchanged
 
-### Requirement: Verified package publication
+### Requirement: Verified ordered publication
 
-Before a platform package is published, its executable MUST be extracted from the matching release
-archive, verified against the archive SHA-256 sidecar, and confirmed executable. Platform packages
-MUST publish before the base wrapper; a version mismatch, checksum failure, or packaging error MUST
-prevent the base package from publishing.
+Before publication, each platform executable MUST be extracted from its matching release archive, verified against the lowercase SHA-256 sidecar, and confirmed executable. Platform packages MUST publish before the base wrapper; any mismatch or packaging error MUST block all npm publication.
 
 #### Scenario: Checksum mismatch
 
-- GIVEN an extracted executable does not match its archive checksum
-- WHEN npm packaging is validated
-- THEN the platform package and base wrapper remain unpublished and the mismatch is logged
+- GIVEN an extracted executable fails archive checksum verification
+- WHEN npm packaging validation runs
+- THEN the platform package and base wrapper remain unpublished and the mismatch is recorded

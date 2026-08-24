@@ -137,6 +137,53 @@ the QA verdict is `BLOCKED`, which would otherwise violate the policy that requi
 and no unresolved `CRITICAL/P0/P1` findings before archive. This section makes the decision explicit so
 it is not silently re-interpreted as acceptance by a future reviewer or session.
 
+## Current continuation review — 2026-08-24
+
+### Hosted/read-only evidence and authorization status
+
+- Hosted/read-only QA is already documented by the Phase 15 evidence record
+  `qa-evidence/2026-08-15-replay/phase-15-hosted-replay.json` and the read-only observations for runs
+  `31891322236` (ordinary-main no-op) and `31891343893` (successful `workflow_dispatch`, replay,
+  `dry_run=true`). Those records prove the no-op, replay identity, parser boundary, validation, and
+  no-write plan behavior only.
+- That evidence is not silently extended to the current Phase 10 release-owner correction checkout:
+  `verify-report.md` classifies the local correction as `PASS WITH WARNINGS` and hosted/live acceptance
+  as `NOT TESTED/BLOCKED`. No new hosted execution was performed in this continuation review.
+- No authorized action is pending for this executor. The previously authorized scope was the protected
+  dry-run rehearsal, and it is complete. No authorization exists here for a Stage-A rerun, live tag or
+  release delivery, registry publication/upload, attestation or secret-bearing execution, native target
+  runs, failure injection, or rollback rehearsal. Those remain rerun prerequisites, not actions taken.
+- This review performed no dispatch, credential-bearing command, provider mutation, source change,
+  commit, push, reset, or stash.
+
+### Explicit P1 acceptance blockers
+
+The six open P1 blocker tracks are:
+
+1. **P1-1 — Corrected Stage-A/version-PR lifecycle:** the corrected Stage-A/version-PR creation and
+   zero-artifact lifecycle were not re-executed.
+2. **P1-2 — Canonical tag and downstream release:** live `vX.Y.Z` tag delivery and downstream release
+   provenance remain unobserved.
+3. **P1-3 — Publication and dependent registry graph:** Cargo, npm, GitHub Release/GHCR publication,
+   final OCI state, and dependent Cargo registry verification remain unavailable.
+4. **P1-4 — Native target coverage:** seven non-host archive targets lack executable native/cross-target
+   evidence.
+5. **P1-5 — Hosted security controls:** hosted secret isolation and attestation remain unobserved.
+6. **P1-6 — Failure and recovery behavior:** failure injection, stop-order propagation, and rollback
+   evidence remain unobserved.
+
+The existing findings table groups P1-5 and P1-6 under `QA-P15-005`; this continuation review makes the
+six policy-relevant P1 tracks explicit without changing their status. `QA-P15-006` remains a P2 warning:
+static workflow/security diagnostics cannot be promoted to acceptance results.
+
+### Archive gate reaffirmation
+
+**QA verdict remains `BLOCKED`.** The change is a production distribution change, not a documentation/config-only
+exception. `sdd-archive` remains blocked because the QA verdict is not policy-allowed and the six P1 tracks
+above remain unresolved; there are no CRITICAL or P0 findings, but that does not waive the P1 gate. The next
+safe step is external operator authorization plus the specified provider/native reruns, not an executor-side
+mutation.
+
 ## Historical Phase 14 independent acceptance QA — 2026-08-15
 
 ### Identity and technical-verification handoff

@@ -165,31 +165,12 @@ jobs:
         run: |
           set -euo pipefail
           find release-out -name '*.sha256' -print0 | xargs -0 -n1 sh -c "cd \"\$(dirname \"\$0\")\" && sha256sum --check \"\$(basename \"\$0\")\""
-      - name: Create or verify canonical GitHub Release after all gates
+      - name: Verify existing canonical GitHub Release after all gates
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           set -euo pipefail
-          release_error="$(mktemp)"
-          trap 'rm -f "$release_error"' EXIT
-          if release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url 2>"$release_error")"; then
-            :
-          elif [[ "$(<"$release_error")" == *"HTTP 404"* ]]; then
-            if ! gh release create "${RELEASE_REF}" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$RELEASE_SHA" \
-              --title "${RELEASE_REF}" \
-              --generate-notes; then
-              # A concurrent publisher may have created it.  Re-read and validate;
-              # any other error remains fail-closed.
-              release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
-            else
-              release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
-            fi
-          else
-            printf '%s\n' "$(<"$release_error")" >&2
-            exit 1
-          fi
+          release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
           test "$(printf '%s' "$release_json" | jq -r .tagName)" = "$RELEASE_REF"
           tag_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_REF#v}")"
           test "$(printf '%s' "$tag_json" | jq -r .object.type)" = "commit"
@@ -199,7 +180,7 @@ jobs:
           fi
       - name: Upload verified assets to the existing release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: gh release upload "${RELEASE_REF}" release-out/* --repo "$GITHUB_REPOSITORY" --clobber
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

@@ -27,7 +27,3 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          # v5.0.0 calls Manifest.createReleases only when this supported input is false.
-          # The linked candidates would otherwise be named component-vX.Y.Z; here they are PR
-          # metadata only, and the trusted carrier is the sole owner of unprefixed vX.Y.Z.
-          skip-github-release: true
