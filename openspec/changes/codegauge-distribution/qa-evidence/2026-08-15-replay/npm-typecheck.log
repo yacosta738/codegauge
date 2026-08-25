@@ -1,5 +1,0 @@
-
-> @yacosta738/codegauge@0.2.0 typecheck
-> tsc --noEmit
-
-EXIT_STATUS=0

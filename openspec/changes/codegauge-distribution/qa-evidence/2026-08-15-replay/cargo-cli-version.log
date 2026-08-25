@@ -1,4 +1,0 @@
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
-     Running `target/debug/codegauge version`
-codegauge 0.2.0
-EXIT_STATUS=0
