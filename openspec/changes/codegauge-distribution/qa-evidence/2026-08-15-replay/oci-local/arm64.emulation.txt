@@ -1,4 +1,0 @@
-aarch64
-platform=linux/arm64
-runtime_mode=qemu
-evidence=platform-run

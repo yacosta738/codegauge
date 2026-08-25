@@ -1,7 +1,0 @@
-{
-  "status": "PASS",
-  "archives_verified": 8,
-  "tamper_rejected": true,
-  "native_execution": "not-run"
-}
-EXIT_STATUS=0
