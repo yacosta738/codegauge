@@ -18,16 +18,19 @@ CRATES = {
     "codegauge-core": {"codegauge-model"},
     "codegauge-application": {"codegauge-model", "codegauge-core"},
     "codegauge-provider-jacoco": {"codegauge-model", "codegauge-application"},
+    "codegauge-provider-typescript": {"codegauge-model", "codegauge-application"},
     "codegauge-cli": {
         "codegauge-model",
         "codegauge-application",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
     },
     "codegauge-conformance": {
         "codegauge-model",
         "codegauge-core",
         "codegauge-application",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
     },
 }
 

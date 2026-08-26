@@ -41,12 +41,16 @@ OTHER_SHA = "b" * 40
 CURRENT_MAIN_SHA = "c" * 40
 REPLAY_SHA = "fcc91b4850480945ae484c3ebdba18f8a4e38270"
 VERSION = "0.2.0"
+CURRENT_VERSION = json.loads(
+    (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+)["."]
 PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
 PRIVATE_CONFORMANCE_DEPENDENCIES = (
     "codegauge-application",
     "codegauge-core",
     "codegauge-model",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
 )
 
 
@@ -60,7 +64,7 @@ def private_conformance_patch(
         "index 1111111..2222222 100644",
         "--- a/crates/codegauge-conformance/Cargo.toml",
         "+++ b/crates/codegauge-conformance/Cargo.toml",
-        "@@ -10,11 +10,11 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
+        "@@ -10,12 +10,12 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
         ' description = "Private cross-crate CodeGauge conformance suite"',
         " ",
         " [dependencies]",
@@ -89,7 +93,7 @@ def private_conformance_api_hunk_only_patch(*, version: str = VERSION) -> str:
     """Reproduce the hunk-only patch returned for the real PR #59 files API entry."""
 
     lines = [
-        "@@ -10,10 +10,10 @@ publish = false",
+        "@@ -10,11 +10,11 @@ publish = false",
         ' description = "Private cross-crate CodeGauge conformance suite"',
         " ",
         " [dependencies]",
@@ -114,9 +118,9 @@ def private_conformance_api_hunk_only_patch(*, version: str = VERSION) -> str:
 def private_conformance_entry(
     *,
     patch: str | None = None,
-    additions: int = 4,
-    deletions: int = 4,
-    changes: int = 8,
+    additions: int = 5,
+    deletions: int = 5,
+    changes: int = 10,
 ) -> dict[str, object]:
     entry: dict[str, object] = {
         "filename": PRIVATE_CONFORMANCE_PATH,
@@ -168,6 +172,7 @@ def line_patch(path: str, old: str, new: str) -> str:
 
 
 GOLDEN_JSON_PATH = "tests/golden/valid-methods.json"
+TYPESCRIPT_GOLDEN_JSON_PATH = "tests/golden/typescript-valid.json"
 README_PATH = "README.md"
 CONTRACTS_PATH = "crates/codegauge-model/tests/contracts.rs"
 GENERATED_CHANGELOG_PATH = "crates/codegauge-model/CHANGELOG.md"
@@ -218,6 +223,7 @@ def valid_lock_entry() -> dict[str, object]:
         "codegauge-core",
         "codegauge-application",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
         "codegauge-cli",
     )
     pairs = [(f'version = "0.1.0"', 'version = "0.2.0"') for _ in crates]
@@ -254,7 +260,11 @@ def valid_release_manifest_hunk_only_entry() -> dict[str, object]:
     manifest = json.loads(
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
     )
-    lines = ["@@ -1,15 +1,15 @@", " {"]
+    hunk_line_count = len(manifest) + 2
+    lines = [
+        f"@@ -1,{hunk_line_count} +1,{hunk_line_count} @@",
+        " {",
+    ]
     for path in manifest:
         lines.extend(
             [
@@ -271,14 +281,17 @@ def valid_release_manifest_hunk_only_entry() -> dict[str, object]:
     )
 
 
-def valid_golden_entry() -> dict[str, object]:
-    path = ROOT / GOLDEN_JSON_PATH
+def valid_golden_entry(path: str = GOLDEN_JSON_PATH) -> dict[str, object]:
+    path = ROOT / path
     before = path.read_text(encoding="utf-8").rstrip("\n")
-    before = before.replace(f'"version":"{VERSION}"', '"version":"0.1.0"', 1)
+    before = before.replace(
+        f'"version":"{CURRENT_VERSION}"', '"version":"0.1.0"', 1
+    )
     after = before.replace('"version":"0.1.0"', f'"version":"{VERSION}"', 1)
+    relative_path = path.relative_to(ROOT).as_posix()
     return carrier_content_entry(
-        GOLDEN_JSON_PATH,
-        patch_with_pairs(GOLDEN_JSON_PATH, [(before, after)]),
+        relative_path,
+        patch_with_pairs(relative_path, [(before, after)]),
     )
 
 
@@ -289,7 +302,10 @@ def valid_annotated_entry(path: str) -> dict[str, object]:
         if "x-release-please-version" in line
     ]
     pairs = [
-        (line.replace(VERSION, "0.1.0", 1), line)
+        (
+            line.replace(CURRENT_VERSION, "0.1.0", 1),
+            line.replace(CURRENT_VERSION, VERSION, 1),
+        )
         for line in before_lines
     ]
     return carrier_content_entry(
@@ -308,6 +324,45 @@ def valid_changelog_entry(path: str = GENERATED_CHANGELOG_PATH) -> dict[str, obj
         status="added",
         additions=len(lines),
         deletions=0,
+    )
+
+
+def modified_generated_changelog_entry(
+    path: str = GENERATED_CHANGELOG_PATH,
+) -> dict[str, object]:
+    """Reproduce a Release Please addition to an existing changelog file."""
+
+    added_lines = (
+        "## [0.2.0](https://github.com/yacosta738/codegauge/compare/codegauge-model-v0.1.0...codegauge-model-v0.2.0) (2026-08-15)",
+        "",
+        "### Features",
+        "",
+        "* chore: synchronized runtime graph",
+    )
+    patch = "\n".join(
+        [
+            "@@ -1,2 +1,7 @@",
+            " # Changelog",
+            " ",
+            *[f"+{line}" for line in added_lines],
+            "",
+        ]
+    )
+    return carrier_content_entry(
+        path,
+        patch,
+        status="modified",
+        additions=len(added_lines),
+        deletions=0,
+    )
+
+
+def test_modified_generated_changelog_patch() -> None:
+    """Accept the hunk-only modified changelog patch returned by GitHub."""
+
+    validate_stage_a_diff(
+        [*CORE_STAGE_A_DIFF, modified_generated_changelog_entry()],
+        version=VERSION,
     )
 
 
@@ -377,6 +432,8 @@ CORE_STAGE_A_DIFF = [
 
 DIFF = [
     *CORE_STAGE_A_DIFF,
+    valid_golden_entry(),
+    valid_golden_entry(TYPESCRIPT_GOLDEN_JSON_PATH),
     PRIVATE_CONFORMANCE_DIFF,
 ]
 
@@ -396,9 +453,11 @@ ROOT_CARRIER_PATHS = (
     "crates/codegauge-core/Cargo.toml",
     "crates/codegauge-application/Cargo.toml",
     "crates/codegauge-provider-jacoco/Cargo.toml",
+    "crates/codegauge-provider-typescript/Cargo.toml",
     "crates/codegauge-cli/Cargo.toml",
     "README.md",
     "tests/golden/valid-methods.json",
+    TYPESCRIPT_GOLDEN_JSON_PATH,
     "crates/codegauge-model/tests/contracts.rs",
     "crates/codegauge-cli/tests/cli.rs",
     PRIVATE_CONFORMANCE_PATH,
@@ -464,21 +523,22 @@ def copy_release_tree() -> Path:
                 "codegauge-core",
                 "codegauge-application",
                 "codegauge-provider-jacoco",
+                "codegauge-provider-typescript",
                 "codegauge-cli",
             ):
                 contents = re.sub(
-                    rf'(name = "{re.escape(crate)}"\nversion = ")0\.1\.0("$)',
+                    rf'(name = "{re.escape(crate)}"\nversion = "){re.escape(CURRENT_VERSION)}("$)',
                     rf"\g<1>{VERSION}\g<2>",
                     contents,
                     flags=re.MULTILINE,
                 )
         else:
-            contents = contents.replace("0.1.0", VERSION)
+            contents = contents.replace(CURRENT_VERSION, VERSION)
         path.write_text(contents, encoding="utf-8")
     for relative_path in (README_PATH, CONTRACTS_PATH):
         path = fixture / relative_path
         lines = [
-            line.replace("0.1.0", VERSION, 1)
+            line.replace(CURRENT_VERSION, VERSION, 1)
             if "x-release-please-version" in line
             else line
             for line in path.read_text(encoding="utf-8").splitlines()
@@ -488,18 +548,23 @@ def copy_release_tree() -> Path:
     private_text = private_manifest.read_text(encoding="utf-8")
     for dependency in PRIVATE_CONFORMANCE_DEPENDENCIES:
         private_text = private_text.replace(
-            f'{dependency} = {{ version = "0.1.0"',
+            f'{dependency} = {{ version = "{CURRENT_VERSION}"',
             f'{dependency} = {{ version = "{VERSION}"',
         )
     private_manifest.write_text(private_text, encoding="utf-8")
-    golden_path = fixture / GOLDEN_JSON_PATH
-    golden_text = golden_path.read_text(encoding="utf-8")
-    golden_path.write_text(
-        golden_text.replace('"version":"0.1.0"', f'"version":"{VERSION}"', 1),
-        encoding="utf-8",
-    )
-    golden = json.loads(golden_path.read_text(encoding="utf-8"))
-    assert golden["tool"]["version"] == VERSION
+    for relative_path in (GOLDEN_JSON_PATH, TYPESCRIPT_GOLDEN_JSON_PATH):
+        golden_path = fixture / relative_path
+        golden_text = golden_path.read_text(encoding="utf-8")
+        golden_path.write_text(
+            golden_text.replace(
+                f'"version":"{CURRENT_VERSION}"',
+                f'"version":"{VERSION}"',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+        assert golden["tool"]["version"] == VERSION
     metadata = subprocess.run(
         [
             "cargo",
@@ -630,20 +695,20 @@ def test_private_conformance_api_hunk_only_patch() -> None:
 
     entry = private_conformance_entry(
         patch=private_conformance_api_hunk_only_patch(),
-        additions=4,
-        deletions=4,
-        changes=8,
+        additions=5,
+        deletions=5,
+        changes=10,
     )
     patch = entry["patch"]
     assert isinstance(patch, str)
-    assert patch.startswith("@@ -10,10 +10,10 @@ publish = false\n")
+    assert patch.startswith("@@ -10,11 +10,11 @@ publish = false\n")
     assert " serde_json.workspace = true" not in patch
     added, deleted, patch_lines = _patch_change_lines(
         entry,
         path=PRIVATE_CONFORMANCE_PATH,
     )
-    assert len(added) == len(deleted) == 4
-    assert patch_lines[0] == "@@ -10,10 +10,10 @@ publish = false"
+    assert len(added) == len(deleted) == 5
+    assert patch_lines[0] == "@@ -10,11 +10,11 @@ publish = false"
     validate_stage_a_diff([*CORE_STAGE_A_DIFF, entry], version=VERSION)
 
 
@@ -662,6 +727,7 @@ def test_release_please_npm_base_api_hunk_only_patch() -> None:
 def main() -> int:
     test_manual_replay_event_selection()
     test_private_conformance_api_hunk_only_patch()
+    test_modified_generated_changelog_patch()
     test_release_please_npm_base_api_hunk_only_patch()
     fixture = copy_release_tree()
     try:
@@ -921,7 +987,19 @@ def main() -> int:
         hunk_only_manifest = valid_release_manifest_hunk_only_entry()
         hunk_only_patch = hunk_only_manifest["patch"]
         assert isinstance(hunk_only_patch, str)
-        assert hunk_only_patch.startswith("@@ -1,15 +1,15 @@\n")
+        manifest_hunk_line_count = (
+            len(
+                json.loads(
+                    (ROOT / ".release-please-manifest.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+            )
+            + 2
+        )
+        assert hunk_only_patch.startswith(
+            f"@@ -1,{manifest_hunk_line_count} +1,{manifest_hunk_line_count} @@\n"
+        )
         assert not any(
             line.startswith(("diff --git ", "--- ", "+++ "))
             for line in hunk_only_patch.splitlines()
@@ -930,8 +1008,11 @@ def main() -> int:
             hunk_only_manifest,
             path=RELEASE_METADATA_PATH,
         )
-        assert len(added) == len(deleted) == 13
-        assert patch_lines[0] == "@@ -1,15 +1,15 @@"
+        manifest_entry_count = manifest_hunk_line_count - 2
+        assert len(added) == len(deleted) == manifest_entry_count
+        assert patch_lines[0] == (
+            f"@@ -1,{manifest_hunk_line_count} +1,{manifest_hunk_line_count} @@"
+        )
         validate_stage_a_diff(
             [
                 CORE_STAGE_A_DIFF[0],
@@ -1006,9 +1087,9 @@ def main() -> int:
         )
         truncated_hunk = dict(hunk_only_manifest)
         truncated_hunk["patch"] = truncated_patch
-        truncated_hunk["additions"] = 12
-        truncated_hunk["deletions"] = 12
-        truncated_hunk["changes"] = 24
+        truncated_hunk["additions"] = manifest_entry_count - 1
+        truncated_hunk["deletions"] = manifest_entry_count - 1
+        truncated_hunk["changes"] = (manifest_entry_count - 1) * 2
         assert_fails(
             lambda: _patch_change_lines(truncated_hunk, path=RELEASE_METADATA_PATH),
             "parser accepted a truncated hunk with matching metadata counts",
@@ -1016,7 +1097,7 @@ def main() -> int:
 
         malformed_hunk = dict(hunk_only_manifest)
         malformed_hunk["patch"] = hunk_only_patch.replace(
-            "@@ -1,15 +1,15 @@\n",
+            f"@@ -1,{manifest_hunk_line_count} +1,{manifest_hunk_line_count} @@\n",
             "",
             1,
         )
@@ -1161,9 +1242,9 @@ def main() -> int:
                     patch=private_conformance_patch(
                         extra_changes='@@ -1 +1 @@\n-version = "0.1.0"\n+version = "0.2.0"'
                     ),
-                    additions=5,
-                    deletions=5,
-                    changes=10,
+                    additions=6,
+                    deletions=6,
+                    changes=12,
                 ),
             ),
             (
@@ -1172,9 +1253,9 @@ def main() -> int:
                     patch=private_conformance_patch(
                         extra_changes="@@ -7 +7 @@\n-publish = false\n+publish = true"
                     ),
-                    additions=5,
-                    deletions=5,
-                    changes=10,
+                    additions=6,
+                    deletions=6,
+                    changes=12,
                 ),
             ),
             (
@@ -1183,9 +1264,9 @@ def main() -> int:
                     patch=private_conformance_patch(
                         extra_changes='@@ -2 +2 @@\n-name = "codegauge-conformance"\n+name = "codegauge-public"'
                     ),
-                    additions=5,
-                    deletions=5,
-                    changes=10,
+                    additions=6,
+                    deletions=6,
+                    changes=12,
                 ),
             ),
             (
@@ -1221,9 +1302,9 @@ def main() -> int:
                     patch=private_conformance_patch(
                         extra_changes="@@ -11,1 +11,2 @@\n [dependencies]\n+# unapproved formatting mutation"
                     ),
-                    additions=5,
-                    deletions=4,
-                    changes=9,
+                    additions=6,
+                    deletions=5,
+                    changes=11,
                 ),
             ),
             (
@@ -1234,9 +1315,9 @@ def main() -> int:
                         '+codegauge-provider-jacoco = { version = "0.2.0", path = "../codegauge-provider-jacoco" }\n',
                         "",
                     ),
-                    additions=3,
-                    deletions=3,
-                    changes=6,
+                    additions=4,
+                    deletions=4,
+                    changes=8,
                 ),
             ),
         ):
@@ -1364,6 +1445,7 @@ def main() -> int:
                     "crates/codegauge-core": VERSION,
                     "crates/codegauge-application": VERSION,
                     "crates/codegauge-provider-jacoco": VERSION,
+                    "crates/codegauge-provider-typescript": VERSION,
                     "crates/codegauge-cli": VERSION,
                     "npm/codegauge": VERSION,
                     "npm/packages/codegauge-linux-x64-gnu": VERSION,

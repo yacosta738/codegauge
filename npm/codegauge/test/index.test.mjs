@@ -70,14 +70,14 @@ test("wrapper preserves arguments, inherited streams, and child exit status", as
   );
   await chmod(binary, 0o755);
   try {
-    const result = spawnSync(process.execPath, [wrapper, "analyze", "--profile", "java-jacoco-v1"], {
+    const result = spawnSync(process.execPath, [wrapper, "analyze", "--profile", "jvm-jacoco-v1"], {
       input: "stdin",
       encoding: "utf8",
       env: { ...process.env, CODEGAUGE_LIBC: "glibc" },
     });
     assert.equal(result.status, 17);
     assert.match(result.stdout, /stdin/);
-    assert.match(result.stdout, /java-jacoco-v1/);
+    assert.match(result.stdout, /jvm-jacoco-v1/);
   } finally {
     await rm(fakePackage, { recursive: true, force: true });
   }

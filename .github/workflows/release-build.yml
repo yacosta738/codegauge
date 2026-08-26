@@ -211,11 +211,16 @@ jobs:
             --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
             --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"' \
             --config 'patch.crates-io.codegauge-application.path="crates/codegauge-application"'
+          cargo package --locked -p codegauge-provider-typescript \
+            --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
+            --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"' \
+            --config 'patch.crates-io.codegauge-application.path="crates/codegauge-application"'
           cargo package --locked -p codegauge-cli \
             --config 'patch.crates-io.codegauge-model.path="crates/codegauge-model"' \
             --config 'patch.crates-io.codegauge-core.path="crates/codegauge-core"' \
             --config 'patch.crates-io.codegauge-application.path="crates/codegauge-application"' \
-            --config 'patch.crates-io.codegauge-provider-jacoco.path="crates/codegauge-provider-jacoco"'
+            --config 'patch.crates-io.codegauge-provider-jacoco.path="crates/codegauge-provider-jacoco"' \
+            --config 'patch.crates-io.codegauge-provider-typescript.path="crates/codegauge-provider-typescript"'
       - name: Record dependency-order publication gate
         run: |
           printf '%s\n' \
@@ -223,6 +228,7 @@ jobs:
             codegauge-core \
             codegauge-application \
             codegauge-provider-jacoco \
+            codegauge-provider-typescript \
             codegauge-cli
 
   npm-preflight:

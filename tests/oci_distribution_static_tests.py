@@ -85,8 +85,8 @@ def test_workflow_asserts_runtime_contract_and_emulation_evidence() -> None:
     assert "id -u" in workflow
     assert " version" in workflow
     assert " profiles" in workflow
-    assert "analyze --profile java-jacoco-v1" in workflow
-    assert "--input /tmp/contract.xml" in workflow
+    assert "analyze --profile jvm-jacoco-v1" in workflow
+    assert "--input coverage=/tmp/contract.xml" in workflow
     assert "--format json" in workflow
     assert "contract-result" not in workflow
 

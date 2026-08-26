@@ -5,16 +5,97 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 
-pub const JAVA_JACOCO_V1: &str = "java-jacoco-v1";
+pub const JVM_JACOCO_V1: &str = "jvm-jacoco-v1";
+pub const TYPESCRIPT_OXC_ISTANBUL_V1: &str = "typescript-oxc-istanbul-v1";
 pub const CRAP_ORIGINAL_V1: &str = "crap-original-v1";
 pub const RESULT_SCHEMA_V1: &str = "codegauge-result/v1";
 pub const ERROR_SCHEMA_V1: &str = "codegauge-error/v1";
 
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Hash, JsonSchema, Ord, PartialEq, PartialOrd, Serialize,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum InputRole {
+    Coverage,
+    Source,
+}
+
+impl InputRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Coverage => "coverage",
+            Self::Source => "source",
+        }
+    }
+}
+
+impl fmt::Display for InputRole {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InputRoleError {
+    role: String,
+}
+
+impl InputRoleError {
+    pub fn role(&self) -> &str {
+        &self.role
+    }
+}
+
+impl fmt::Display for InputRoleError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "unknown input role: {}", self.role)
+    }
+}
+
+impl std::error::Error for InputRoleError {}
+
+impl FromStr for InputRole {
+    type Err = InputRoleError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "coverage" => Ok(Self::Coverage),
+            "source" => Ok(Self::Source),
+            _ => Err(InputRoleError { role: value.into() }),
+        }
+    }
+}
+
+impl TryFrom<&str> for InputRole {
+    type Error = InputRoleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub struct AnalysisInput {
+    pub role: InputRole,
+    pub path: String,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProfileId {
-    JavaJacocoV1,
+    JvmJacocoV1,
+    TypescriptOxcIstanbulV1,
+}
+
+impl ProfileId {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::JvmJacocoV1 => JVM_JACOCO_V1,
+            Self::TypescriptOxcIstanbulV1 => TYPESCRIPT_OXC_ISTANBUL_V1,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -291,11 +372,20 @@ pub struct InputArtifact {
     pub sha256: Sha256Digest,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub struct NamedInputArtifact {
+    pub role: InputRole,
+    pub path: String,
+    pub sha256: Sha256Digest,
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 pub struct Provenance {
     pub provider: String,
     pub semantics: Vec<String>,
     pub input: InputArtifact,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inputs: Vec<NamedInputArtifact>,
     pub analysis_timestamp: String,
 }
 

@@ -1,0 +1,5 @@
+{
+  "scriptId": "1",
+  "url": "file:///valid.ts",
+  "functions": [{"functionName": "outer", "ranges": [], "isBlockCoverage": true}]
+}

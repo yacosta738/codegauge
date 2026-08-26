@@ -5,6 +5,7 @@ members = [
     "crates/codegauge-core",
     "crates/codegauge-application",
     "crates/codegauge-provider-jacoco",
+    "crates/codegauge-provider-typescript",
     "crates/codegauge-cli",
     "crates/codegauge-conformance",
 ]
@@ -24,3 +25,9 @@ serde_json = "=1.0.151"
 quick-xml = { version = "=0.41.0", default-features = false }
 sha2 = { version = "=0.11.0", default-features = false }
 clap = { version = "=4.6.6", default-features = false, features = ["derive", "std"] }
+oxc_allocator = "=0.147.0"
+oxc_ast = "=0.147.0"
+oxc_ast_visit = "=0.147.0"
+oxc_parser = "=0.147.0"
+oxc_span = "=0.147.0"
+oxc_syntax = "=0.147.0"

@@ -17,6 +17,7 @@ path = "src/main.rs"
 codegauge-application = { version = "0.3.0", path = "../codegauge-application" }
 codegauge-model = { version = "0.3.0", path = "../codegauge-model" }
 codegauge-provider-jacoco = { version = "0.3.0", path = "../codegauge-provider-jacoco" }
+codegauge-provider-typescript = { version = "0.3.0", path = "../codegauge-provider-typescript" }
 clap.workspace = true
 
 [dev-dependencies]

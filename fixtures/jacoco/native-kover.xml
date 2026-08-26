@@ -1,0 +1,1 @@
+<report><class name="C"><method name="m" desc="()V"><counter type="INSTRUCTION" missed="0" covered="1"/><counter type="LINE" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/><counter type="CLASS" missed="0" covered="1"/></method></class></report>

@@ -4,6 +4,7 @@
   "crates/codegauge-core": "0.3.0",
   "crates/codegauge-application": "0.3.0",
   "crates/codegauge-provider-jacoco": "0.3.0",
+  "crates/codegauge-provider-typescript": "0.3.0",
   "crates/codegauge-cli": "0.3.0",
   "npm/codegauge": "0.3.0",
   "npm/packages/codegauge-linux-x64-gnu": "0.3.0",

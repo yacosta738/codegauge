@@ -20,7 +20,7 @@
         {
           "type": "toml",
           "path": "/Cargo.lock",
-          "jsonpath": "$.package[?(@.name.value == \"codegauge-model\" || @.name.value == \"codegauge-core\" || @.name.value == \"codegauge-application\" || @.name.value == \"codegauge-provider-jacoco\" || @.name.value == \"codegauge-cli\")].version"
+          "jsonpath": "$.package[?(@.name.value == \"codegauge-model\" || @.name.value == \"codegauge-core\" || @.name.value == \"codegauge-application\" || @.name.value == \"codegauge-provider-jacoco\" || @.name.value == \"codegauge-provider-typescript\" || @.name.value == \"codegauge-cli\")].version"
         },
         {
           "type": "toml",
@@ -49,6 +49,16 @@
         },
         {
           "type": "toml",
+          "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-application\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-model\"].version"
+        },
+        {
+          "type": "toml",
           "path": "/crates/codegauge-cli/Cargo.toml",
           "jsonpath": "$.dependencies[\"codegauge-application\"].version"
         },
@@ -61,6 +71,11 @@
           "type": "toml",
           "path": "/crates/codegauge-cli/Cargo.toml",
           "jsonpath": "$.dependencies[\"codegauge-provider-jacoco\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-cli/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-provider-typescript\"].version"
         },
         {
           "type": "toml",
@@ -82,10 +97,20 @@
           "path": "/crates/codegauge-conformance/Cargo.toml",
           "jsonpath": "$.dependencies[\"codegauge-provider-jacoco\"].version"
         },
+        {
+          "type": "toml",
+          "path": "/crates/codegauge-conformance/Cargo.toml",
+          "jsonpath": "$.dependencies[\"codegauge-provider-typescript\"].version"
+        },
         { "type": "generic", "path": "/README.md" },
         {
           "type": "json",
           "path": "/tests/golden/valid-methods.json",
+          "jsonpath": "$.tool.version"
+        },
+        {
+          "type": "json",
+          "path": "/tests/golden/typescript-valid.json",
           "jsonpath": "$.tool.version"
         },
         { "type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs" },
@@ -96,6 +121,7 @@
     "crates/codegauge-core": { "component": "codegauge-core", "release-type": "rust" },
     "crates/codegauge-application": { "component": "codegauge-application", "release-type": "rust" },
     "crates/codegauge-provider-jacoco": { "component": "codegauge-provider-jacoco", "release-type": "rust" },
+    "crates/codegauge-provider-typescript": { "component": "codegauge-provider-typescript", "release-type": "rust" },
     "crates/codegauge-cli": { "component": "codegauge-cli", "release-type": "rust" },
     "npm/codegauge": {
       "component": "codegauge",
@@ -123,6 +149,7 @@
         "codegauge-core",
         "codegauge-application",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
         "codegauge-cli",
         "codegauge",
         "codegauge-linux-x64-gnu",

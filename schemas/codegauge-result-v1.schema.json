@@ -1,1 +1,133 @@
-{"$defs":{"Analysis":{"type":"object","properties":{"status":{"$ref":"#/$defs/AnalysisStatus"},"symbols":{"type":"integer","format":"uint64","minimum":0}},"required":["status","symbols"]},"AnalysisStatus":{"type":"string","enum":["COMPLETE","PARTIAL"]},"ComplexityMeasurement":{"type":"object","properties":{"metric":{"type":"string"},"provider":{"type":"string"},"semantics":{"type":"string"},"value":{"type":"number","format":"double"}},"required":["value","metric","semantics","provider"]},"CoverageMeasurement":{"type":"object","properties":{"covered":{"type":"integer","format":"uint64","minimum":0},"metric":{"type":"string"},"missed":{"type":"integer","format":"uint64","minimum":0},"provider":{"type":"string"},"ratio":{"type":"number","format":"double"},"semantics":{"type":"string"}},"required":["ratio","covered","missed","metric","semantics","provider"]},"CrapSummary":{"type":"object","properties":{"max":{"type":["number","null"],"format":"double"},"mean":{"type":["number","null"],"format":"double"}}},"DerivedMetrics":{"type":"object","properties":{"crap":{"type":["number","null"],"format":"double"}}},"InputArtifact":{"type":"object","properties":{"path":{"type":"string"},"sha256":{"$ref":"#/$defs/Sha256Digest"}},"required":["path","sha256"]},"ProfileId":{"type":"string","enum":["java-jacoco-v1"]},"Provenance":{"type":"object","properties":{"analysis_timestamp":{"type":"string"},"input":{"$ref":"#/$defs/InputArtifact"},"provider":{"type":"string"},"semantics":{"type":"array","items":{"type":"string"}}},"required":["provider","semantics","input","analysis_timestamp"]},"ResultSchemaId":{"type":"string","enum":["codegauge-result/v1"]},"Sha256Digest":{"type":"string","pattern":"^[0-9a-f]{64}$"},"Summary":{"type":"object","properties":{"crap":{"$ref":"#/$defs/CrapSummary"}},"required":["crap"]},"SymbolIdentity":{"type":"object","properties":{"class_vm":{"type":"string"},"descriptor":{"type":"string"},"id":{"type":"string"},"kind":{"type":"string"},"language":{"type":"string"},"name":{"type":"string"}},"required":["id","language","kind","class_vm","name","descriptor"]},"SymbolResult":{"type":"object","properties":{"complexity":{"anyOf":[{"$ref":"#/$defs/ComplexityMeasurement"},{"type":"null"}]},"coverage":{"anyOf":[{"$ref":"#/$defs/CoverageMeasurement"},{"type":"null"}]},"metrics":{"$ref":"#/$defs/DerivedMetrics"},"symbol":{"$ref":"#/$defs/SymbolIdentity"}},"required":["symbol","metrics"]},"ToolInfo":{"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"}},"required":["name","version"]}},"$id":"codegauge-result/v1","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"analysis":{"$ref":"#/$defs/Analysis"},"profile":{"$ref":"#/$defs/ProfileId"},"provenance":{"$ref":"#/$defs/Provenance"},"schema":{"$ref":"#/$defs/ResultSchemaId"},"summary":{"$ref":"#/$defs/Summary"},"symbols":{"type":"array","items":{"$ref":"#/$defs/SymbolResult"}},"tool":{"$ref":"#/$defs/ToolInfo"}},"required":["schema","tool","profile","analysis","summary","symbols","provenance"],"title":"ResultDocument","type":"object"}
+{
+  "$defs": {
+    "Analysis": {
+      "properties": {
+        "status": {"$ref": "#/$defs/AnalysisStatus"},
+        "symbols": {"format": "uint64", "minimum": 0, "type": "integer"}
+      },
+      "required": ["status", "symbols"],
+      "type": "object"
+    },
+    "AnalysisStatus": {"enum": ["COMPLETE", "PARTIAL"], "type": "string"},
+    "ComplexityMeasurement": {
+      "properties": {
+        "metric": {"type": "string"},
+        "provider": {"type": "string"},
+        "semantics": {"type": "string"},
+        "value": {"format": "double", "type": "number"}
+      },
+      "required": ["value", "metric", "semantics", "provider"],
+      "type": "object"
+    },
+    "CoverageMeasurement": {
+      "properties": {
+        "covered": {"format": "uint64", "minimum": 0, "type": "integer"},
+        "metric": {"type": "string"},
+        "missed": {"format": "uint64", "minimum": 0, "type": "integer"},
+        "provider": {"type": "string"},
+        "ratio": {"format": "double", "type": "number"},
+        "semantics": {"type": "string"}
+      },
+      "required": ["ratio", "covered", "missed", "metric", "semantics", "provider"],
+      "type": "object"
+    },
+    "CrapSummary": {
+      "properties": {
+        "max": {"format": "double", "type": ["number", "null"]},
+        "mean": {"format": "double", "type": ["number", "null"]}
+      },
+      "type": "object"
+    },
+    "DerivedMetrics": {
+      "properties": {"crap": {"format": "double", "type": ["number", "null"]}},
+      "type": "object"
+    },
+    "InputArtifact": {
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"$ref": "#/$defs/Sha256Digest"}
+      },
+      "required": ["path", "sha256"],
+      "type": "object"
+    },
+    "InputRole": {
+      "enum": ["coverage", "source"],
+      "type": "string"
+    },
+    "NamedInputArtifact": {
+      "properties": {
+        "path": {"type": "string"},
+        "role": {"$ref": "#/$defs/InputRole"},
+        "sha256": {"$ref": "#/$defs/Sha256Digest"}
+      },
+      "required": ["role", "path", "sha256"],
+      "type": "object"
+    },
+    "ProfileId": {
+      "enum": ["jvm-jacoco-v1", "typescript-oxc-istanbul-v1"],
+      "type": "string"
+    },
+    "Provenance": {
+      "properties": {
+        "analysis_timestamp": {"type": "string"},
+        "input": {"$ref": "#/$defs/InputArtifact"},
+        "inputs": {
+          "items": {"$ref": "#/$defs/NamedInputArtifact"},
+          "type": "array"
+        },
+        "provider": {"type": "string"},
+        "semantics": {"items": {"type": "string"}, "type": "array"}
+      },
+      "required": ["provider", "semantics", "input", "analysis_timestamp"],
+      "type": "object"
+    },
+    "ResultSchemaId": {"enum": ["codegauge-result/v1"], "type": "string"},
+    "Sha256Digest": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "Summary": {
+      "properties": {"crap": {"$ref": "#/$defs/CrapSummary"}},
+      "required": ["crap"],
+      "type": "object"
+    },
+    "SymbolIdentity": {
+      "properties": {
+        "class_vm": {"type": "string"},
+        "descriptor": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"type": "string"},
+        "language": {"type": "string"},
+        "name": {"type": "string"}
+      },
+      "required": ["id", "language", "kind", "class_vm", "name", "descriptor"],
+      "type": "object"
+    },
+    "SymbolResult": {
+      "properties": {
+        "complexity": {"anyOf": [{"$ref": "#/$defs/ComplexityMeasurement"}, {"type": "null"}]},
+        "coverage": {"anyOf": [{"$ref": "#/$defs/CoverageMeasurement"}, {"type": "null"}]},
+        "metrics": {"$ref": "#/$defs/DerivedMetrics"},
+        "symbol": {"$ref": "#/$defs/SymbolIdentity"}
+      },
+      "required": ["symbol", "metrics"],
+      "type": "object"
+    },
+    "ToolInfo": {
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}},
+      "required": ["name", "version"],
+      "type": "object"
+    }
+  },
+  "$id": "codegauge-result/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "analysis": {"$ref": "#/$defs/Analysis"},
+    "profile": {"$ref": "#/$defs/ProfileId"},
+    "provenance": {"$ref": "#/$defs/Provenance"},
+    "schema": {"$ref": "#/$defs/ResultSchemaId"},
+    "summary": {"$ref": "#/$defs/Summary"},
+    "symbols": {"items": {"$ref": "#/$defs/SymbolResult"}, "type": "array"},
+    "tool": {"$ref": "#/$defs/ToolInfo"}
+  },
+  "required": ["schema", "tool", "profile", "analysis", "summary", "symbols", "provenance"],
+  "title": "ResultDocument",
+  "type": "object"
+}
