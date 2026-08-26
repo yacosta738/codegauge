@@ -20,6 +20,7 @@ RUNTIME_CRATES = (
     "codegauge-core",
     "codegauge-application",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
     "codegauge-cli",
 )
 ALL_CRATES = (*RUNTIME_CRATES, "codegauge-conformance")
@@ -31,16 +32,19 @@ EXPECTED_GRAPH = {
     "codegauge-core": ("codegauge-model",),
     "codegauge-application": ("codegauge-core", "codegauge-model"),
     "codegauge-provider-jacoco": ("codegauge-application", "codegauge-model"),
+    "codegauge-provider-typescript": ("codegauge-application", "codegauge-model"),
     "codegauge-cli": (
         "codegauge-application",
         "codegauge-model",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
     ),
     "codegauge-conformance": (
         "codegauge-application",
         "codegauge-core",
         "codegauge-model",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
     ),
 }
 
@@ -238,22 +242,30 @@ def check_cargo(errors: list[str]) -> None:
             "/crates/codegauge-conformance/Cargo.toml",
             '$.dependencies["codegauge-provider-jacoco"].version',
         ),
+        (
+            "/crates/codegauge-conformance/Cargo.toml",
+            '$.dependencies["codegauge-provider-typescript"].version',
+        ),
     }
     if private_pin_paths != expected_private_pin_paths:
         errors.append(
-            "Stage A root carrier must own exactly the four approved private conformance dependency pins"
+            "Stage A root carrier must own exactly the five approved private conformance dependency pins"
         )
     typed_golden = {
         (extra_file.get("type"), extra_file.get("path"), extra_file.get("jsonpath"))
         for extra_file in extra_files
         if isinstance(extra_file, dict)
-        and extra_file.get("path") == "/tests/golden/valid-methods.json"
+        and extra_file.get("path") in {
+            "/tests/golden/valid-methods.json",
+            "/tests/golden/typescript-valid.json",
+        }
     }
     if typed_golden != {
-        ("json", "/tests/golden/valid-methods.json", "$.tool.version")
+        ("json", "/tests/golden/valid-methods.json", "$.tool.version"),
+        ("json", "/tests/golden/typescript-valid.json", "$.tool.version"),
     }:
         errors.append(
-            "the conformance golden must use the typed $.tool.version updater"
+            "the conformance goldens must use typed $.tool.version updaters"
         )
     readme = read_text(ROOT / "README.md", errors)
     contracts = read_text(
@@ -374,9 +386,16 @@ def check_release_topology(errors: list[str]) -> None:
 
     release_please = require_fragments(
         workflow_dir / "release-please.yml",
-        ("skip-github-release: true", "config-file: release-please-config.json", "manifest-file: .release-please-manifest.json"),
+        (
+            "config-file: release-please-config.json",
+            "manifest-file: .release-please-manifest.json",
+        ),
         errors,
     )
+    if "skip-github-release: true" in release_please:
+        errors.append(
+            "release-please.yml must not inline config-owned skip-github-release"
+        )
     if "uses: ./.github/workflows/release.yml" in release_please or "release_created" in release_please:
         errors.append("Stage A must not couple Release Please to publication outputs")
     tag_caller = require_fragments(

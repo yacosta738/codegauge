@@ -184,14 +184,14 @@ def _run_verifier(
     version_path = root / "version.txt"
     version_path.write_text(version_output or f"codegauge {version}\n", encoding="utf-8")
     profiles_path = root / "profiles.txt"
-    profiles_path.write_text("java-jacoco-v1\n", encoding="utf-8")
+    profiles_path.write_text("jvm-jacoco-v1\ntypescript-oxc-istanbul-v1\n", encoding="utf-8")
     contract_path = root / "contract.json"
     contract_path.write_text(
         json.dumps(
             {
                 "schema": "codegauge-result/v1",
                 "tool": {"name": "codegauge", "version": version},
-                "profile": "java-jacoco-v1",
+                "profile": "jvm-jacoco-v1",
                 "analysis": {"status": "COMPLETE"},
             }
         ),
@@ -278,7 +278,7 @@ def test_verifier_persists_digest_metadata_and_runtime_evidence() -> None:
         assert evidence["runtime"]["mode"] == "native"
         assert evidence["runtime"]["non_root_uid"] == 1000
         assert evidence["runtime"]["version"] == f"codegauge {VERSION}"
-        assert evidence["runtime"]["profiles"] == "java-jacoco-v1"
+        assert evidence["runtime"]["profiles"] == "jvm-jacoco-v1\ntypescript-oxc-istanbul-v1"
 
 
 def run_tests() -> None:

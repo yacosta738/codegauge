@@ -68,7 +68,7 @@ for architecture in amd64 arm64; do
   docker run --rm --platform "linux/${architecture}" \
     --mount "type=bind,src=$(pwd)/${CONTRACT_INPUT},dst=/tmp/contract.xml,readonly" \
     "$STAGING_IMAGE" \
-    analyze --profile java-jacoco-v1 --input /tmp/contract.xml --format json > "$CONTRACT_OUTPUT"
+    analyze --profile jvm-jacoco-v1 --input coverage=/tmp/contract.xml --format json > "$CONTRACT_OUTPUT"
   docker run --rm --platform "linux/${architecture}" \
     --entrypoint /bin/sh "$STAGING_IMAGE" -c 'id -u' > "$NON_ROOT_OUTPUT"
 

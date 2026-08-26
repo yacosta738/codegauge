@@ -1,13 +1,17 @@
 # CodeGauge
 
-CodeGauge `0.3.0` <!-- x-release-please-version --> is a standalone Rust CLI for deterministic JaCoCo evidence and the
-`crap-original-v1` metric. It measures evidence, not policy: a score is never a quality verdict.
+CodeGauge `0.3.0` <!-- x-release-please-version --> is a standalone Rust CLI for deterministic JaCoCo and
+TypeScript Oxc/Istanbul evidence with the `crap-original-v1` metric. It measures evidence, not policy: a score is never
+a quality verdict.
 
 ## Purpose and boundary
 
 - CodeGauge is independent from `agent-harness`; the harness is a future consumer, not a dependency.
-- The `java-jacoco-v1` provider reads an existing JaCoCo XML artifact. It does not run Maven, Gradle,
-  tests, or JaCoCo, install dependencies, access the network, call an LLM, or mutate source.
+- The `jvm-jacoco-v1` provider reads an existing JaCoCo XML artifact. It does not run Maven, Gradle, tests,
+  or JaCoCo, install dependencies, access the network, call an LLM, or mutate source.
+- The `typescript-oxc-istanbul-v1` provider reads an Istanbul-compatible JSON artifact plus explicit TypeScript or
+  TSX source artifacts. Oxc parses source locally; raw V8 coverage is rejected and Vitest must use its Istanbul
+  coverage provider.
 - It does not auto-detect projects, read project configuration, generate reports, apply thresholds, or
   emit `PASS`/`FAIL`. Consumers own policy and workflow decisions.
 
@@ -21,6 +25,7 @@ cargo metadata --locked
 cargo test --workspace --locked
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo check --workspace --locked
 ```
 
 The repository checks also include `python3 tests/bootstrap_checks.py` and
@@ -31,14 +36,17 @@ The repository checks also include `python3 tests/bootstrap_checks.py` and
 The public interface is JSON-only for analysis and requires the exact profile, input, and format:
 
 ```text
-codegauge analyze --profile java-jacoco-v1 --input PATH --format json
+codegauge analyze --profile jvm-jacoco-v1 --input coverage=PATH --format json
+codegauge analyze --profile typescript-oxc-istanbul-v1 --input coverage=PATH --input source=PATH --format json
 codegauge profiles
 codegauge version
 ```
 
-`profiles` prints exactly `java-jacoco-v1`. `version` prints exactly `codegauge 0.3.0` <!-- x-release-please-version -->.
+`profiles` prints exactly `jvm-jacoco-v1` followed by `typescript-oxc-istanbul-v1`. `version` prints exactly
+`codegauge 0.3.0` <!-- x-release-please-version -->.
 `analyze` writes exactly one result or structured error JSON document to stdout; human diagnostics go
-to stderr. The only accepted format is `json`.
+to stderr. The only accepted format is `json`. Repeat `--input ROLE=PATH` for source files; roles and cardinality are
+declared by each profile, so missing, duplicate, unknown, or uncorrelatable inputs fail rather than being guessed.
 
 ### Status and exits
 
@@ -68,7 +76,7 @@ Results contain `schema`, `tool`, `profile`, `analysis`, `summary`, `symbols`, a
 Errors contain `schema`, `tool`, `code`, `message`, and `details`; parseable-input errors include the
 display path and exact artifact digest in `details`.
 
-The tool/profile/schema versions are independent. `java-jacoco-v1` declares `crap-original-v1`; a
+The tool/profile/schema versions are independent. Both profiles declare `crap-original-v1`; a
 semantic provider change requires a new profile, not a silent change to v1.
 
 ### JaCoCo method semantics
@@ -82,11 +90,33 @@ semantic provider change requires a new profile, not a silent change to v1.
   omitted with a bounded diagnostic; missing evidence never becomes zero. Malformed structure, duplicate identities,
   missing identity fields, and invalid descriptors reject the artifact.
 
+### Native Kover boundary
+
+A native Kover XML report is not a CodeGauge CRAP profile because it lacks the `COMPLEXITY` counter. CodeGauge never proxies
+complexity from instructions, lines, or branches. Configure Kover with `useJacoco()` when JaCoCo-compatible
+`COMPLEXITY` evidence is required, then analyze that XML as `jvm-jacoco-v1`; there is no `kotlin-jacoco-v1` alias.
+
+### TypeScript Oxc/Istanbul semantics
+
+- `typescript-oxc-istanbul-v1` requires exactly one `coverage` input and one or more `source` inputs. Paths are
+  explicit, normalized to `/`, and joined one-to-one; no project manifest, realpath, prefix inference, or language
+  autodetection is used.
+- Oxc discovers functions, arrows, class/object methods, constructors, getters, and setters. Callable identities are
+  span-based (`typescript:<path>#<name>@<start>-<end>`), so overloads and anonymous callables do not collide.
+- `typescript-oxc-mccabe-v1` starts at one and counts `if`, ternary, `for`/`for-in`/`for-of`, `while`, `do`,
+  non-default `case`, `catch`, `&&`, and `||`. Nested callable bodies are excluded from parent complexity.
+- Istanbul statement locations and `s` counts are authoritative. Function and branch hit maps are ignored; raw V8,
+  malformed locations, duplicate spans, unmatched paths, and ambiguous ownership are invalid input. Coverage is
+  covered owned statements divided by owned statements. Zero-owned callables are omitted.
+- `.tsx` source is supported by the pinned Oxc parser. The source and Istanbul path must still match exactly after
+  slash normalization.
+
 ## Provenance and determinism
 
 The input digest is SHA-256 of the exact bytes read, rendered as lowercase 64-hex. Provenance records
-the display path, provider semantics, and UTC RFC3339 `analysis_timestamp` ending in `Z`; unknown
-metadata is absent, not fabricated. Goldens mask only `analysis_timestamp`.
+the primary coverage `input`, additive role-tagged `provenance.inputs`, provider semantics, and UTC RFC3339
+`analysis_timestamp` ending in `Z`; unknown metadata is absent, not fabricated. Goldens mask only
+`analysis_timestamp`.
 
 Symbols sort bytewise by `symbol.id`; paths use `/` without `realpath` or inferred prefixes. Compatible
 summary values are unrounded until canonical serialization. All numbers are finite binary64, rendered
@@ -95,9 +125,9 @@ newline-terminated.
 
 ## Security limits
 
-Input is read-only UTF-8 XML with an optional BOM. The parser limits are 64 MiB, depth 128,
+Inputs are read-only UTF-8 XML or JSON/source bytes. The parser limits are 64 MiB, depth 128,
 100,000 classes and methods, 16 counters per method, and 1,000,000,000 per required count. DTD/DOCTYPE,
-entities, external resolution, unsupported encodings, network access,
+entities, external resolution, unsupported encodings, raw V8, network access,
 commands, installation, source mutation, and plugins are rejected or absent.
 
 ## References and future integration
@@ -112,7 +142,7 @@ The approved release version is synchronized across the `codegauge-cli` binary, 
 Cargo runtime graph, npm packages, archives, and OCI metadata. The registry/source channels are:
 
 - Cargo: the runtime crates publish in dependency order — `codegauge-model`, `codegauge-core`,
-  `codegauge-application`, `codegauge-provider-jacoco`, then `codegauge-cli` — with source/Git at an
+  `codegauge-application`, `codegauge-provider-jacoco`, `codegauge-provider-typescript`, then `codegauge-cli` — with source/Git at an
   immutable revision retained as a fallback. The virtual workspace root is not a package.
 - npm: install `@yacosta738/codegauge`; it selects exactly one of the six GNU platform packages:
   `@yacosta738/codegauge-linux-x64-gnu`, `@yacosta738/codegauge-linux-arm64-gnu`,

@@ -28,6 +28,11 @@ fn checked_in_schemas_match_authoritative_dtos() {
     let mut generated_error = serde_json::to_value(schema_for!(ErrorDocument)).unwrap();
     generated_result["$id"] = result["$id"].clone();
     generated_error["$id"] = error["$id"].clone();
+    assert_eq!(
+        result["$defs"]["ProfileId"]["enum"],
+        serde_json::json!(["jvm-jacoco-v1", "typescript-oxc-istanbul-v1"])
+    );
+    assert!(result["$defs"]["Provenance"]["properties"]["inputs"].is_object());
     assert_eq!(result, generated_result);
     assert_eq!(error, generated_error);
 }

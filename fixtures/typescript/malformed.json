@@ -1,0 +1,6 @@
+{
+  "path": "../../fixtures/typescript/valid.ts",
+  "statementMap": {
+    "0": {"start": {"line": 2, "column": 4}, "end": {"line": 4, "column": 5}}
+  }
+}

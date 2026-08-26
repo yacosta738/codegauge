@@ -2,19 +2,24 @@
 
 use codegauge_application::{
     AnalysisError, Analyzer, FsArtifactReader, ProviderRegistry, canonical_error_json,
-    canonical_result_json, format_canonical_number, sha256_hex,
+    canonical_result_json, format_canonical_number, profile_id, sha256_hex,
 };
 use codegauge_core::{CrapInput, calculate_crap};
 use codegauge_model::{
-    AnalysisStatus, ErrorCode, ErrorDocument, ProfileId, ResultDocument, SymbolResult,
+    AnalysisInput, AnalysisStatus, ErrorCode, ErrorDocument, InputRole, ProfileId, ResultDocument,
+    SymbolResult,
 };
 use codegauge_provider_jacoco::{DiagnosticCode, JacocoProvider, ProviderObservations, collect};
+use codegauge_provider_typescript::TypescriptProvider;
 use schemars::schema_for;
 use serde_json::Value;
 use std::path::Path;
 
 const VALID_PATH: &str = "../../fixtures/jacoco/valid-methods.xml";
 const GOLDEN: &str = include_str!("../../../tests/golden/valid-methods.json");
+const TYPESCRIPT_COVERAGE_PATH: &str = "../../fixtures/typescript/valid-coverage.json";
+const TYPESCRIPT_SOURCE_PATH: &str = "../../fixtures/typescript/valid.ts";
+const TYPESCRIPT_GOLDEN: &str = include_str!("../../../tests/golden/typescript-valid.json");
 
 fn fixture(name: &str) -> &'static [u8] {
     match name {
@@ -22,6 +27,7 @@ fn fixture(name: &str) -> &'static [u8] {
         "duplicate" => include_bytes!("../../../fixtures/jacoco/duplicate-identity.xml"),
         "descriptor" => include_bytes!("../../../fixtures/jacoco/invalid-descriptor.xml"),
         "malformed" => include_bytes!("../../../fixtures/jacoco/malformed.xml"),
+        "kover" => include_bytes!("../../../fixtures/jacoco/native-kover.xml"),
         "doctype" => include_bytes!("../../../fixtures/jacoco/doctype.xml"),
         "entity" => include_bytes!("../../../fixtures/jacoco/entity.xml"),
         "encoding" => include_bytes!("../../../fixtures/jacoco/unsupported-encoding.xml"),
@@ -58,9 +64,15 @@ fn analyzer() -> Analyzer<FsArtifactReader> {
     Analyzer::new(FsArtifactReader, registry)
 }
 
+fn typescript_analyzer() -> Analyzer<FsArtifactReader> {
+    let mut registry = ProviderRegistry::new();
+    registry.register(TypescriptProvider::new());
+    Analyzer::new(FsArtifactReader, registry)
+}
+
 fn valid_result() -> (ResultDocument, Vec<codegauge_application::Diagnostic>) {
     analyzer()
-        .analyze_with_diagnostics(ProfileId::JavaJacocoV1, Path::new(VALID_PATH))
+        .analyze_with_diagnostics(ProfileId::JvmJacocoV1, Path::new(VALID_PATH))
         .unwrap()
 }
 
@@ -201,6 +213,21 @@ fn invalid_hostile_and_limit_vectors_are_rejected_or_indeterminate() {
 }
 
 #[test]
+fn native_kover_without_complexity_is_incompatible() {
+    let error = analyzer()
+        .analyze(
+            ProfileId::JvmJacocoV1,
+            Path::new("../../fixtures/jacoco/native-kover.xml"),
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::IncompatibleMeasurements);
+    assert_eq!(
+        error.details().path.as_deref(),
+        Some("../../fixtures/jacoco/native-kover.xml")
+    );
+}
+
+#[test]
 fn schemas_equal_authoritative_dtos_and_contract_documents_parse() {
     let checked_result: Value = serde_json::from_str(include_str!(
         "../../../schemas/codegauge-result-v1.schema.json"
@@ -220,13 +247,14 @@ fn schemas_equal_authoritative_dtos_and_contract_documents_parse() {
     assert_eq!(checked_error, generated_error);
 
     let (result, _) = valid_result();
+    assert_eq!(result.profile, ProfileId::JvmJacocoV1);
     let parsed: ResultDocument = serde_json::from_str(&canonical_result_json(&result)).unwrap();
     assert_eq!(parsed.schema, result.schema);
     assert_eq!(parsed.symbols.len(), 10);
 
     let invalid = analyzer()
         .analyze(
-            ProfileId::JavaJacocoV1,
+            ProfileId::JvmJacocoV1,
             Path::new("../../fixtures/jacoco/malformed.xml"),
         )
         .unwrap_err();
@@ -311,6 +339,14 @@ fn bounded_formula_properties_hold_for_all_test_domain_values() {
 }
 
 #[test]
+fn renamed_jvm_profile_is_canonical_and_legacy_names_are_rejected() {
+    assert_eq!(profile_id("jvm-jacoco-v1"), Some(ProfileId::JvmJacocoV1));
+    assert!(profile_id("java-jacoco-v1").is_none());
+    assert!(profile_id("kotlin-jacoco-v1").is_none());
+    assert!(profile_id("kotlin-kover-v1").is_none());
+}
+
+#[test]
 fn repeatability_and_descriptor_identity_have_no_path_range_or_policy_fallback() {
     let (first, _) = valid_result();
     let (second, _) = valid_result();
@@ -344,4 +380,126 @@ fn repeatability_and_descriptor_identity_have_no_path_range_or_policy_fallback()
         assert!(identity.get("start_line").is_none());
         assert!(identity.get("range").is_none());
     }
+}
+
+#[test]
+fn typescript_vector_emits_role_provenance_and_stable_golden() {
+    let inputs = [
+        AnalysisInput {
+            role: InputRole::Source,
+            path: TYPESCRIPT_SOURCE_PATH.into(),
+        },
+        AnalysisInput {
+            role: InputRole::Coverage,
+            path: TYPESCRIPT_COVERAGE_PATH.into(),
+        },
+    ];
+    let (result, diagnostics) = typescript_analyzer()
+        .analyze_with_diagnostics(ProfileId::TypescriptOxcIstanbulV1, &inputs)
+        .unwrap();
+    assert!(diagnostics.is_empty());
+    assert_eq!(result.profile, ProfileId::TypescriptOxcIstanbulV1);
+    assert_eq!(result.provenance.provider, "typescript-oxc-istanbul");
+    assert_eq!(result.provenance.inputs.len(), 2);
+    assert_eq!(result.provenance.inputs[0].role, InputRole::Coverage);
+    assert_eq!(result.provenance.inputs[1].role, InputRole::Source);
+    assert!(result.symbols.iter().all(|symbol| {
+        symbol.symbol.language() == "typescript"
+            && symbol.metrics.crap.is_some()
+            && symbol.complexity.is_some()
+            && symbol.coverage.is_some()
+    }));
+
+    let mut actual: Value = serde_json::from_str(&canonical_result_json(&result)).unwrap();
+    mask_timestamp(&mut actual);
+    assert_eq!(
+        actual,
+        serde_json::from_str::<Value>(TYPESCRIPT_GOLDEN).unwrap()
+    );
+}
+
+#[test]
+fn typescript_hostile_coverage_vectors_reject_without_fallback() {
+    for coverage_path in [
+        "../../fixtures/typescript/raw-v8.json",
+        "../../fixtures/typescript/malformed.json",
+    ] {
+        let error = typescript_analyzer()
+            .analyze(
+                ProfileId::TypescriptOxcIstanbulV1,
+                &[
+                    AnalysisInput {
+                        role: InputRole::Coverage,
+                        path: coverage_path.into(),
+                    },
+                    AnalysisInput {
+                        role: InputRole::Source,
+                        path: TYPESCRIPT_SOURCE_PATH.into(),
+                    },
+                ][..],
+            )
+            .unwrap_err();
+        assert_eq!(error.code(), ErrorCode::InvalidInput);
+        assert_eq!(error.details().path.as_deref(), Some(coverage_path));
+    }
+}
+
+#[test]
+fn typescript_reordered_inputs_are_timestamp_masked_identical() {
+    let first = typescript_analyzer()
+        .analyze(
+            ProfileId::TypescriptOxcIstanbulV1,
+            &[
+                AnalysisInput {
+                    role: InputRole::Coverage,
+                    path: TYPESCRIPT_COVERAGE_PATH.into(),
+                },
+                AnalysisInput {
+                    role: InputRole::Source,
+                    path: TYPESCRIPT_SOURCE_PATH.into(),
+                },
+            ][..],
+        )
+        .unwrap();
+    let second = typescript_analyzer()
+        .analyze(
+            ProfileId::TypescriptOxcIstanbulV1,
+            &[
+                AnalysisInput {
+                    role: InputRole::Source,
+                    path: TYPESCRIPT_SOURCE_PATH.into(),
+                },
+                AnalysisInput {
+                    role: InputRole::Coverage,
+                    path: TYPESCRIPT_COVERAGE_PATH.into(),
+                },
+            ][..],
+        )
+        .unwrap();
+    let mut first_json: Value = serde_json::from_str(&canonical_result_json(&first)).unwrap();
+    let mut second_json: Value = serde_json::from_str(&canonical_result_json(&second)).unwrap();
+    mask_timestamp(&mut first_json);
+    mask_timestamp(&mut second_json);
+    assert_eq!(first_json, second_json);
+}
+
+#[test]
+fn typescript_tsx_scope_is_supported_by_the_pinned_oxc_parser() {
+    let result = typescript_analyzer()
+        .analyze(
+            ProfileId::TypescriptOxcIstanbulV1,
+            &[
+                AnalysisInput {
+                    role: InputRole::Coverage,
+                    path: "../../fixtures/typescript/tsx-coverage.json".into(),
+                },
+                AnalysisInput {
+                    role: InputRole::Source,
+                    path: "../../fixtures/typescript/tsx.tsx".into(),
+                },
+            ][..],
+        )
+        .unwrap();
+    assert_eq!(result.symbols.len(), 1);
+    assert_eq!(result.symbols[0].symbol.language(), "typescript");
 }

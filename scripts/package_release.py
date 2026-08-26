@@ -104,7 +104,7 @@ def main() -> int:
     if binary_evidence.get("mode") == "native":
         if binary_evidence.get("version") != f"codegauge {args.version}\n":
             raise SystemExit("native binary version does not match release metadata")
-        if binary_evidence.get("profiles") != "java-jacoco-v1\n":
+        if binary_evidence.get("profiles") != "jvm-jacoco-v1\ntypescript-oxc-istanbul-v1\n":
             raise SystemExit("native binary profiles do not match the released profile contract")
     if args.target in UNIX_TARGETS and not args.binary.stat().st_mode & stat.S_IXUSR:
         raise SystemExit("release binary must be executable")

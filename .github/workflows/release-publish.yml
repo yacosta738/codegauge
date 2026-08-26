@@ -122,8 +122,28 @@ jobs:
           cargo publish -p codegauge-provider-jacoco --locked --dry-run
           cargo publish -p codegauge-provider-jacoco --locked
 
-  publish-cargo-cli:
+  publish-cargo-provider-typescript:
     needs: publish-cargo-provider
+    if: inputs.dry_run == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Dry-run and publish TypeScript provider crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          sleep 30
+          cargo publish -p codegauge-provider-typescript --locked --dry-run
+          cargo publish -p codegauge-provider-typescript --locked
+
+  publish-cargo-cli:
+    needs: publish-cargo-provider-typescript
     if: inputs.dry_run == false
     runs-on: ubuntu-24.04
     timeout-minutes: 15

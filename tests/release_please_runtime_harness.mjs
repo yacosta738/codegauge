@@ -222,7 +222,7 @@ if (
   privateCandidatePaths.some((updatePath) => updatePath !== privateManifestPath)
 ) {
   throw new Error(
-    `Stage-A private update set is not exactly one conformance dependency update containing four pin edits: ${privateCandidatePaths.join(", ")}`,
+    `Stage-A private update set is not exactly one conformance dependency update containing five pin edits: ${privateCandidatePaths.join(", ")}`,
   );
 }
 const expectedRootPaths = new Set([
@@ -231,6 +231,7 @@ const expectedRootPaths = new Set([
   ".release-please-manifest.json",
   "README.md",
   "tests/golden/valid-methods.json",
+  "tests/golden/typescript-valid.json",
   "crates/codegauge-model/tests/contracts.rs",
   "crates/codegauge-cli/tests/cli.rs",
   privateManifestPath,
@@ -241,6 +242,7 @@ const expectedRuntimeChangelogs = new Set([
     "codegauge-core",
     "codegauge-application",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
     "codegauge-cli",
   ].map((crate) => `crates/${crate}/CHANGELOG.md`),
   "npm/codegauge/CHANGELOG.md",
@@ -268,6 +270,7 @@ const expectedPackagePaths = new Set([
     "codegauge-core",
     "codegauge-application",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
     "codegauge-cli",
   ].map((crate) => `crates/${crate}/Cargo.toml`),
 ]);
@@ -281,9 +284,9 @@ for (const expectedPath of [
     throw new Error(`exact Release Please chain omitted update path: ${expectedPath}`);
   }
 }
-if (generatedPaths.size !== 32) {
+if (generatedPaths.size !== 35) {
   throw new Error(
-    `expected the exact 32-path Stage-A effective update set, got ${generatedPaths.size}`,
+    `expected the exact 35-path Stage-A effective update set, got ${generatedPaths.size}`,
   );
 }
 
@@ -300,26 +303,29 @@ const rewrittenBase = JSON.parse(
   ),
 );
 const releaseVersion = rewrittenBase.version;
-const goldenUpdate = updates.find(
-  (update) => update.path === "tests/golden/valid-methods.json",
-);
-if (!goldenUpdate) {
-  throw new Error("the typed golden JSON updater was not generated");
-}
-const goldenBefore = JSON.parse(
-  fs.readFileSync(path.join(repositoryRoot, "tests/golden/valid-methods.json"), "utf8"),
-);
-const goldenAfter = JSON.parse(
-  goldenUpdate.updater.updateContent(
-    fs.readFileSync(path.join(repositoryRoot, "tests/golden/valid-methods.json"), "utf8"),
-  ),
-);
-const expectedGolden = structuredClone(goldenBefore);
-expectedGolden.tool.version = releaseVersion;
-if (JSON.stringify(goldenAfter) !== JSON.stringify(expectedGolden)) {
-  throw new Error(
-    `typed golden updater changed more than $.tool.version or kept the wrong version: ${JSON.stringify(goldenAfter.tool)}`,
+for (const goldenPath of [
+  "tests/golden/valid-methods.json",
+  "tests/golden/typescript-valid.json",
+]) {
+  const goldenUpdate = updates.find((update) => update.path === goldenPath);
+  if (!goldenUpdate) {
+    throw new Error(`the typed golden JSON updater was not generated for ${goldenPath}`);
+  }
+  const goldenBefore = JSON.parse(
+    fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
   );
+  const goldenAfter = JSON.parse(
+    goldenUpdate.updater.updateContent(
+      fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
+    ),
+  );
+  const expectedGolden = structuredClone(goldenBefore);
+  expectedGolden.tool.version = releaseVersion;
+  if (JSON.stringify(goldenAfter) !== JSON.stringify(expectedGolden)) {
+    throw new Error(
+      `typed golden updater changed more than $.tool.version or kept the wrong version for ${goldenPath}: ${JSON.stringify(goldenAfter.tool)}`,
+    );
+  }
 }
 
 function assertAnnotatedVersionUpdater(updatePath, expectedLines) {
@@ -386,6 +392,7 @@ for (const crate of [
   "codegauge-core",
   "codegauge-application",
   "codegauge-provider-jacoco",
+  "codegauge-provider-typescript",
   "codegauge-cli",
 ]) {
   if (lockVersion(crate) !== releaseVersion) {
@@ -416,6 +423,7 @@ for (const dependency of [
   "codegauge-core",
   "codegauge-model",
   "codegauge-provider-jacoco",
+  "codegauge-provider-typescript",
 ]) {
   const dependencyPattern = new RegExp(
     `${dependency} = \\{ version = "${releaseVersion}", path = "../${dependency}" \\}`,
@@ -436,6 +444,7 @@ const expectedPrivatePairs = new Set(
     "codegauge-core",
     "codegauge-model",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
   ].map((dependency) =>
     JSON.stringify([
       `${dependency} = { version = "${currentReleaseVersion}", path = "../${dependency}" }`,
@@ -444,7 +453,7 @@ const expectedPrivatePairs = new Set(
   ),
 );
 if (
-  changedPrivatePairs.length !== 4 ||
+  changedPrivatePairs.length !== 5 ||
   changedPrivatePairs.some((pair) => !expectedPrivatePairs.has(JSON.stringify(pair)))
 ) {
   throw new Error(
@@ -462,10 +471,15 @@ const runtimeCargoDependencies = {
     "codegauge-application",
     "codegauge-model",
   ],
+  "crates/codegauge-provider-typescript/Cargo.toml": [
+    "codegauge-application",
+    "codegauge-model",
+  ],
   "crates/codegauge-cli/Cargo.toml": [
     "codegauge-application",
     "codegauge-model",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
   ],
 };
 for (const [manifestPath, packageName] of Object.entries({
@@ -473,6 +487,7 @@ for (const [manifestPath, packageName] of Object.entries({
   "crates/codegauge-core/Cargo.toml": "codegauge-core",
   "crates/codegauge-application/Cargo.toml": "codegauge-application",
   "crates/codegauge-provider-jacoco/Cargo.toml": "codegauge-provider-jacoco",
+  "crates/codegauge-provider-typescript/Cargo.toml": "codegauge-provider-typescript",
   "crates/codegauge-cli/Cargo.toml": "codegauge-cli",
 })) {
   const manifestUpdate = updates.find((update) => update.path === manifestPath);

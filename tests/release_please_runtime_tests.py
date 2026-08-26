@@ -13,14 +13,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "tests" / "release_please_runtime_harness.mjs"
 PRIVATE_CONFORMANCE_PATH = "crates/codegauge-conformance/Cargo.toml"
-BASELINE_VERSION = "0.1.0"
-TARGET_VERSION = "0.2.0"
+BASELINE_VERSION = "0.2.0"
+TARGET_VERSION = "0.3.0"
 STAGE_A_MANIFEST_PATHS = (
     ".",
     "crates/codegauge-model",
     "crates/codegauge-core",
     "crates/codegauge-application",
     "crates/codegauge-provider-jacoco",
+    "crates/codegauge-provider-typescript",
     "crates/codegauge-cli",
     "npm/codegauge",
     "npm/packages/codegauge-linux-x64-gnu",
@@ -35,6 +36,7 @@ STAGE_A_RUNTIME_CRATES = (
     "codegauge-core",
     "codegauge-application",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
     "codegauge-cli",
 )
 STAGE_A_OPTIONAL_DEPENDENCIES = (
@@ -50,6 +52,7 @@ PRIVATE_DEPENDENCIES = (
     "codegauge-core",
     "codegauge-model",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
 )
 
 sys.path.insert(0, str(ROOT))
@@ -63,7 +66,7 @@ def private_patch(extra_changes: str = "") -> str:
         "index 1111111..2222222 100644",
         "--- a/crates/codegauge-conformance/Cargo.toml",
         "+++ b/crates/codegauge-conformance/Cargo.toml",
-        "@@ -10,11 +10,11 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
+        "@@ -10,12 +10,12 @@ description = \"Private cross-crate CodeGauge conformance suite\"",
         ' description = "Private cross-crate CodeGauge conformance suite"',
         " ",
         " [dependencies]",
@@ -88,7 +91,7 @@ def private_patch(extra_changes: str = "") -> str:
     return "\n".join(lines) + "\n"
 
 
-def private_entry(patch: str | None = None, *, additions: int = 4, deletions: int = 4):
+def private_entry(patch: str | None = None, *, additions: int = 5, deletions: int = 5):
     entry = {
         "filename": PRIVATE_CONFORMANCE_PATH,
         "status": "modified",
@@ -186,7 +189,7 @@ def test_stage_a_fixture_rejects_noop_and_wrong_version() -> None:
             _replace_patch_line(
                 manifest,
                 f'+  ".": "{TARGET_VERSION}",',
-                '+  ".": "0.3.0",',
+                '+  ".": "0.4.0",',
             ),
         ),
     )
@@ -339,16 +342,16 @@ def main() -> int:
                     f'@@ -1 +1 @@\n-version = "{BASELINE_VERSION}"\n'
                     f'+version = "{TARGET_VERSION}"'
                 ),
-                additions=5,
-                deletions=5,
+                additions=6,
+                deletions=6,
             ),
         ),
         (
             "publish-flag",
             private_entry(
                 private_patch("@@ -7 +7 @@\n-publish = false\n+publish = true"),
-                additions=5,
-                deletions=5,
+                additions=6,
+                deletions=6,
             ),
         ),
         (

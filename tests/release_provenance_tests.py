@@ -37,20 +37,23 @@ ROOT_EXTRA_PATHS = {
     "crates/codegauge-core/Cargo.toml",
     "crates/codegauge-application/Cargo.toml",
     "crates/codegauge-provider-jacoco/Cargo.toml",
+    "crates/codegauge-provider-typescript/Cargo.toml",
     "crates/codegauge-cli/Cargo.toml",
     "README.md",
     "tests/golden/valid-methods.json",
+    "tests/golden/typescript-valid.json",
     "crates/codegauge-model/tests/contracts.rs",
     "crates/codegauge-cli/tests/cli.rs",
     "crates/codegauge-conformance/Cargo.toml",
 }
-NEW_RELEASE_VERSION = "0.2.0"
+NEW_RELEASE_VERSION = "0.3.0"
 RUNTIME_GRAPH_PATHS = {
     ".",
     "crates/codegauge-model",
     "crates/codegauge-core",
     "crates/codegauge-application",
     "crates/codegauge-provider-jacoco",
+    "crates/codegauge-provider-typescript",
     "crates/codegauge-cli",
     "npm/codegauge",
     "npm/packages/codegauge-linux-x64-gnu",
@@ -111,7 +114,7 @@ def _explicit_runtime_candidates_17_6_0(
     """Model the explicit Stage-A candidate boundary.
 
     The exact v17.6.0 cargo-workspace source has no member exclusion option, so
-    Stage A does not invoke it. The configured five Rust paths are the only
+    Stage A does not invoke it. The configured six Rust paths are the only
     Cargo candidates retained; non-Cargo carriers remain in the manifest.
     """
 
@@ -120,6 +123,7 @@ def _explicit_runtime_candidates_17_6_0(
         "crates/codegauge-core",
         "crates/codegauge-application",
         "crates/codegauge-provider-jacoco",
+        "crates/codegauge-provider-typescript",
         "crates/codegauge-cli",
     }
     return [
@@ -325,6 +329,11 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
         "path": "/tests/golden/valid-methods.json",
         "jsonpath": "$.tool.version",
     }, "the conformance golden must use the typed JSON updater"
+    assert root_extra_files["/tests/golden/typescript-valid.json"] == {
+        "type": "json",
+        "path": "/tests/golden/typescript-valid.json",
+        "jsonpath": "$.tool.version",
+    }, "the TypeScript golden must use the typed JSON updater"
     assert root_extra_files["/README.md"] == {
         "type": "generic",
         "path": "/README.md",
@@ -385,6 +394,61 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
     assert operations == [], "Stage A must not create a Release Please tag or release"
 
 
+def test_publishable_typescript_provider_is_in_release_graph() -> None:
+    config = json.loads(
+        (ROOT / "release-please-config.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads(
+        (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
+    )
+    packages = config["packages"]
+    linked_components = {
+        component
+        for plugin in config["plugins"]
+        if plugin.get("type") == "linked-versions"
+        for component in plugin["components"]
+    }
+    root_extra_files = packages["."]["extra-files"]
+    root_extra_text = json.dumps(root_extra_files)
+
+    assert "crates/codegauge-provider-typescript" in packages
+    assert manifest["crates/codegauge-provider-typescript"] == "0.3.0"
+    assert "codegauge-provider-typescript" in linked_components
+    assert "/crates/codegauge-provider-typescript/Cargo.toml" in root_extra_text
+    assert "codegauge-provider-typescript" in root_extra_text
+
+    build_workflow = (ROOT / ".github/workflows/release-build.yml").read_text(
+        encoding="utf-8"
+    )
+    publish_workflow = (ROOT / ".github/workflows/release-publish.yml").read_text(
+        encoding="utf-8"
+    )
+    package_order = [
+        build_workflow.index(f"cargo package --locked -p {crate}")
+        for crate in (
+            "codegauge-model",
+            "codegauge-core",
+            "codegauge-application",
+            "codegauge-provider-jacoco",
+            "codegauge-provider-typescript",
+            "codegauge-cli",
+        )
+    ]
+    publish_order = [
+        publish_workflow.index(f"cargo publish -p {crate}")
+        for crate in (
+            "codegauge-model",
+            "codegauge-core",
+            "codegauge-application",
+            "codegauge-provider-jacoco",
+            "codegauge-provider-typescript",
+            "codegauge-cli",
+        )
+    ]
+    assert package_order == sorted(package_order)
+    assert publish_order == sorted(publish_order)
+
+
 def main() -> int:
     caller = CALLER.read_text(encoding="utf-8")
     build = BUILD.read_text(encoding="utf-8")
@@ -429,6 +493,7 @@ def main() -> int:
                 '@.name.value == "codegauge-core" || '
                 '@.name.value == "codegauge-application" || '
                 '@.name.value == "codegauge-provider-jacoco" || '
+                '@.name.value == "codegauge-provider-typescript" || '
                 '@.name.value == "codegauge-cli")].version'
             ),
         },
@@ -459,6 +524,16 @@ def main() -> int:
         },
         {
             "type": "toml",
+            "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-application"].version',
+        },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-model"].version',
+        },
+        {
+            "type": "toml",
             "path": "/crates/codegauge-cli/Cargo.toml",
             "jsonpath": '$.dependencies["codegauge-application"].version',
         },
@@ -471,6 +546,11 @@ def main() -> int:
             "type": "toml",
             "path": "/crates/codegauge-cli/Cargo.toml",
             "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
+        },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-cli/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-provider-typescript"].version',
         },
         {
             "type": "toml",
@@ -492,10 +572,20 @@ def main() -> int:
             "path": "/crates/codegauge-conformance/Cargo.toml",
             "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
         },
+        {
+            "type": "toml",
+            "path": "/crates/codegauge-conformance/Cargo.toml",
+            "jsonpath": '$.dependencies["codegauge-provider-typescript"].version',
+        },
         {"type": "generic", "path": "/README.md"},
         {
             "type": "json",
             "path": "/tests/golden/valid-methods.json",
+            "jsonpath": "$.tool.version",
+        },
+        {
+            "type": "json",
+            "path": "/tests/golden/typescript-valid.json",
             "jsonpath": "$.tool.version",
         },
         {"type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs"},
@@ -585,12 +675,21 @@ def main() -> int:
     assert "verify_release_provenance.py binary" in build
     assert '--mode "${{ matrix.evidence_mode }}"' in build
     assert "gh release upload" in publish and "--clobber" in publish
-    assert "gh release create" in publish, "the post-gate publisher must own GitHub Release creation"
-    assert "gh release view" in publish, "the post-gate publisher must verify release conflicts"
+    assert "gh release create" not in publish, (
+        "the post-gate publisher must not create the canonical GitHub Release"
+    )
+    assert "gh release view" in publish, (
+        "the post-gate publisher must verify the existing canonical release"
+    )
     assert "release-preflight:" not in publish, "build preflight must gate the publish caller"
     assert "uses: ./.github/workflows/release.yml" not in release_please
     assert "steps.release.outputs" not in release_please
-    assert "skip-github-release: true" in release_please
+    assert "skip-github-release: true" not in release_please, (
+        "Release Please ownership belongs in release-please-config.json"
+    )
+    assert config.get("skip-github-release") is True, (
+        "release-please-config.json must own canonical release suppression"
+    )
     assert 'tags: ["v*.*.*"]' in tag_caller
     assert "github.ref_name" in tag_caller and "github.sha" in tag_caller
 
@@ -653,7 +752,7 @@ def main() -> int:
             "#!/bin/sh\n"
             "case \"$1\" in\n"
             "  version) printf 'codegauge 0.1.0\\n' ;;\n"
-            "  profiles) printf 'java-jacoco-v1\\n' ;;\n"
+            "  profiles) printf 'jvm-jacoco-v1\\ntypescript-oxc-istanbul-v1\\n' ;;\n"
             "esac\n",
             encoding="utf-8",
         )

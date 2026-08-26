@@ -53,6 +53,7 @@ RUNTIME_CRATES = (
     "codegauge-core",
     "codegauge-application",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
     "codegauge-cli",
 )
 NPM_PACKAGES = (
@@ -81,6 +82,7 @@ PRIVATE_CONFORMANCE_DEPENDENCIES = (
     "codegauge-core",
     "codegauge-model",
     "codegauge-provider-jacoco",
+    "codegauge-provider-typescript",
 )
 PRIVATE_CONFORMANCE_EXTRA_FILES = tuple(
     {
@@ -104,6 +106,7 @@ ROOT_EXTRA_FILES = (
             '@.name.value == "codegauge-core" || '
             '@.name.value == "codegauge-application" || '
             '@.name.value == "codegauge-provider-jacoco" || '
+            '@.name.value == "codegauge-provider-typescript" || '
             '@.name.value == "codegauge-cli")].version'
         ),
     },
@@ -134,6 +137,16 @@ ROOT_EXTRA_FILES = (
     },
     {
         "type": "toml",
+        "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+        "jsonpath": '$.dependencies["codegauge-application"].version',
+    },
+    {
+        "type": "toml",
+        "path": "/crates/codegauge-provider-typescript/Cargo.toml",
+        "jsonpath": '$.dependencies["codegauge-model"].version',
+    },
+    {
+        "type": "toml",
         "path": "/crates/codegauge-cli/Cargo.toml",
         "jsonpath": '$.dependencies["codegauge-application"].version',
     },
@@ -147,11 +160,21 @@ ROOT_EXTRA_FILES = (
         "path": "/crates/codegauge-cli/Cargo.toml",
         "jsonpath": '$.dependencies["codegauge-provider-jacoco"].version',
     },
+    {
+        "type": "toml",
+        "path": "/crates/codegauge-cli/Cargo.toml",
+        "jsonpath": '$.dependencies["codegauge-provider-typescript"].version',
+    },
     *PRIVATE_CONFORMANCE_EXTRA_FILES,
     {"type": "generic", "path": "/README.md"},
     {
         "type": "json",
         "path": "/tests/golden/valid-methods.json",
+        "jsonpath": "$.tool.version",
+    },
+    {
+        "type": "json",
+        "path": "/tests/golden/typescript-valid.json",
         "jsonpath": "$.tool.version",
     },
     {"type": "generic", "path": "/crates/codegauge-model/tests/contracts.rs"},
@@ -169,6 +192,7 @@ RUNTIME_GRAPH_PATHS = frozenset(
         "crates/codegauge-core",
         "crates/codegauge-application",
         "crates/codegauge-provider-jacoco",
+        "crates/codegauge-provider-typescript",
         "crates/codegauge-cli",
         "npm/codegauge",
         "npm/packages/codegauge-linux-x64-gnu",
@@ -210,6 +234,7 @@ ALLOWED_STAGE_A_DIFFS = (
             ".release-please-manifest.json",
             "README.md",
             "tests/golden/valid-methods.json",
+            "tests/golden/typescript-valid.json",
             "crates/codegauge-model/tests/contracts.rs",
             "crates/codegauge-cli/tests/cli.rs",
         }
@@ -226,6 +251,7 @@ ANNOTATED_ROOT_VERSION_LINES = {
 }
 TYPED_JSON_ROOT_PATHS = {
     "tests/golden/valid-methods.json": ("tool", "version"),
+    "tests/golden/typescript-valid.json": ("tool", "version"),
 }
 RUNTIME_CARGO_DEPENDENCIES = {
     "crates/codegauge-core/Cargo.toml": ("codegauge-model",),
@@ -237,10 +263,15 @@ RUNTIME_CARGO_DEPENDENCIES = {
         "codegauge-application",
         "codegauge-model",
     ),
+    "crates/codegauge-provider-typescript/Cargo.toml": (
+        "codegauge-application",
+        "codegauge-model",
+    ),
     "crates/codegauge-cli/Cargo.toml": (
         "codegauge-application",
         "codegauge-model",
         "codegauge-provider-jacoco",
+        "codegauge-provider-typescript",
     ),
 }
 RUNTIME_CARGO_MANIFEST_DEPENDENCIES = {
@@ -489,6 +520,7 @@ def validate_stage_a_configuration(root: Path = ROOT) -> None:
         "crates/codegauge-core",
         "crates/codegauge-application",
         "crates/codegauge-provider-jacoco",
+        "crates/codegauge-provider-typescript",
         "crates/codegauge-cli",
         "npm/codegauge",
         "npm/packages/codegauge-linux-x64-gnu",
@@ -1136,7 +1168,7 @@ def _validate_toml_version_patch(
     if path == "Cargo.toml" and package_versions != 1:
         raise ProvenanceError("root Cargo.toml must update only workspace.package.version")
     if path == "Cargo.lock" and package_versions != expected_pairs:
-        raise ProvenanceError("Cargo.lock must update exactly the five runtime versions")
+        raise ProvenanceError("Cargo.lock must update exactly the six runtime versions")
     if path in RUNTIME_CARGO_MANIFEST_DEPENDENCIES:
         if package_versions != 1 or dependency_versions != set(
             RUNTIME_CARGO_MANIFEST_DEPENDENCIES[path]
@@ -1288,7 +1320,7 @@ def _validate_private_conformance_patch(
     *,
     runtime_version: str | None,
 ) -> None:
-    """Allow only four complete dependency-version replacements in the private manifest."""
+    """Allow only five complete dependency-version replacements in the private manifest."""
 
     if runtime_version is None or not VERSION_RE.fullmatch(runtime_version):
         raise ProvenanceError(
@@ -1307,7 +1339,7 @@ def _validate_private_conformance_patch(
         or entry["changes"] != entry["additions"] + entry["deletions"]
     ):
         raise ProvenanceError(
-            "private conformance diff must contain exactly four additions and four deletions"
+            "private conformance diff must contain exactly five additions and five deletions"
         )
 
     required_context = {
@@ -1515,7 +1547,7 @@ def validate_archive_manifest(path: Path, version: str, source_revision: str) ->
     if evidence.get("mode") == "native":
         if evidence.get("execution") != "native":
             raise ProvenanceError(f"{path.name} native evidence is not executable evidence")
-        if evidence.get("version") != f"codegauge {version}\n" or evidence.get("profiles") != "java-jacoco-v1\n":
+        if evidence.get("version") != f"codegauge {version}\n" or evidence.get("profiles") != "jvm-jacoco-v1\ntypescript-oxc-istanbul-v1\n":
             raise ProvenanceError(f"{path.name} native version/profiles evidence drift")
     elif evidence.get("mode") == "cross-target":
         if evidence.get("execution") != "not-run":
@@ -1582,7 +1614,7 @@ def write_binary_evidence(
             "version": version_output,
             "profiles": profiles_output,
         }
-        if version_output != f"codegauge {version}\n" or profiles_output != "java-jacoco-v1\n":
+        if version_output != f"codegauge {version}\n" or profiles_output != "jvm-jacoco-v1\ntypescript-oxc-istanbul-v1\n":
             raise ProvenanceError("native release binary version/profiles do not match release metadata")
     elif mode == "cross-target":
         evidence = {

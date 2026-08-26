@@ -1,10 +1,12 @@
 use codegauge_model::{
-    Analysis, AnalysisStatus, CRAP_ORIGINAL_V1, ComplexityMeasurement, CoverageMeasurement,
-    CrapSummary, DerivedMetrics, ErrorCode, ErrorDetails, ErrorDocument, ErrorSchemaId,
-    InputArtifact, JAVA_JACOCO_V1, ProfileId, Provenance, ResultDocument, ResultSchemaId,
-    Sha256Digest, Summary, SymbolIdentity, SymbolResult, ToolInfo,
+    Analysis, AnalysisInput, AnalysisStatus, CRAP_ORIGINAL_V1, ComplexityMeasurement,
+    CoverageMeasurement, CrapSummary, DerivedMetrics, ErrorCode, ErrorDetails, ErrorDocument,
+    ErrorSchemaId, InputArtifact, InputRole, JVM_JACOCO_V1, ProfileId, Provenance, ResultDocument,
+    ResultSchemaId, Sha256Digest, Summary, SymbolIdentity, SymbolResult,
+    TYPESCRIPT_OXC_ISTANBUL_V1, ToolInfo,
 };
 use std::collections::HashSet;
+use std::str::FromStr;
 
 fn complexity() -> ComplexityMeasurement {
     ComplexityMeasurement {
@@ -28,12 +30,19 @@ fn coverage() -> CoverageMeasurement {
 
 #[test]
 fn ids_identity_and_measurements_are_stable() {
-    assert_eq!(JAVA_JACOCO_V1, "java-jacoco-v1");
+    assert_eq!(JVM_JACOCO_V1, "jvm-jacoco-v1");
     assert_eq!(CRAP_ORIGINAL_V1, "crap-original-v1");
     assert_eq!(
-        serde_json::to_string(&ProfileId::JavaJacocoV1).unwrap(),
-        "\"java-jacoco-v1\""
+        serde_json::to_string(&ProfileId::JvmJacocoV1).unwrap(),
+        "\"jvm-jacoco-v1\""
     );
+    assert_eq!(TYPESCRIPT_OXC_ISTANBUL_V1, "typescript-oxc-istanbul-v1");
+    assert_eq!(
+        serde_json::to_string(&ProfileId::TypescriptOxcIstanbulV1).unwrap(),
+        "\"typescript-oxc-istanbul-v1\""
+    );
+    assert!(serde_json::from_str::<ProfileId>("\"java-jacoco-v1\"").is_err());
+    assert!(serde_json::from_str::<ProfileId>("\"kotlin-jacoco-v1\"").is_err());
     assert_eq!(
         serde_json::to_string(&ResultSchemaId::V1).unwrap(),
         "\"codegauge-result/v1\""
@@ -120,7 +129,7 @@ fn result_and_error_dtos_round_trip_without_policy_statuses() {
             name: "codegauge".into(),
             version: "0.3.0".into(), // x-release-please-version
         },
-        profile: ProfileId::JavaJacocoV1,
+        profile: ProfileId::JvmJacocoV1,
         analysis: Analysis {
             status: AnalysisStatus::Complete,
             symbols: 1,
@@ -144,6 +153,7 @@ fn result_and_error_dtos_round_trip_without_policy_statuses() {
                 path: "report.xml".into(),
                 sha256: Sha256Digest::new("a".repeat(64)).unwrap(),
             },
+            inputs: Vec::new(),
             analysis_timestamp: "2026-08-10T12:00:00Z".into(),
         },
     };
@@ -176,4 +186,40 @@ fn result_and_error_dtos_round_trip_without_policy_statuses() {
         serde_json::from_str::<ErrorDocument>(&serde_json::to_string(&error).unwrap()).unwrap(),
         error
     );
+}
+
+#[test]
+fn typed_input_roles_are_stable_and_unknown_roles_are_rejected() {
+    assert_eq!(
+        serde_json::to_string(&InputRole::Coverage).unwrap(),
+        "\"coverage\""
+    );
+    assert_eq!(
+        serde_json::to_string(&InputRole::Source).unwrap(),
+        "\"source\""
+    );
+    assert_eq!(
+        InputRole::from_str("coverage").unwrap(),
+        InputRole::Coverage
+    );
+    assert_eq!(InputRole::from_str("source").unwrap(), InputRole::Source);
+
+    let error = InputRole::from_str("covrage").unwrap_err();
+    assert_eq!(error.to_string(), "unknown input role: covrage");
+
+    let input = AnalysisInput {
+        role: InputRole::Coverage,
+        path: "reports/jacoco.xml".into(),
+    };
+    assert_eq!(input.role, InputRole::Coverage);
+    assert_eq!(input.path, "reports/jacoco.xml");
+}
+
+#[test]
+fn role_tagged_provenance_round_trips_without_changing_legacy_json() {
+    let input = AnalysisInput {
+        role: InputRole::Source,
+        path: "src/lib.ts".into(),
+    };
+    assert_eq!(serde_json::to_value(input).unwrap()["role"], "source");
 }

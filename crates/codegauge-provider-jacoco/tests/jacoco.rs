@@ -1,4 +1,8 @@
-use codegauge_model::SymbolResult;
+use codegauge_application::{
+    Artifact, CollectionRequest, InputCardinality, InputRequirement, InputSet, MetricProvider,
+    sha256_hex,
+};
+use codegauge_model::{AnalysisInput, InputRole, ProfileId, SymbolResult};
 use codegauge_provider_jacoco::{DiagnosticCode, ProviderObservations, collect};
 
 fn fixture(name: &str) -> &'static [u8] {
@@ -28,6 +32,39 @@ fn diagnostic(report: &ProviderObservations, code: DiagnosticCode) -> bool {
 
 fn invalid(input: &[u8]) {
     assert!(collect(input).is_err(), "accepted {} bytes", input.len());
+}
+
+#[test]
+fn jvm_descriptor_requires_exactly_one_coverage_input() {
+    let provider = codegauge_provider_jacoco::JacocoProvider::new();
+    let descriptor =
+        <codegauge_provider_jacoco::JacocoProvider as MetricProvider>::descriptor(&provider);
+    assert_eq!(descriptor.profile, ProfileId::JvmJacocoV1);
+    assert_eq!(
+        descriptor.required_inputs,
+        vec![InputRequirement {
+            role: InputRole::Coverage,
+            cardinality: InputCardinality::ExactlyOne,
+        }]
+    );
+    let input_set = InputSet::from_artifacts(vec![(
+        AnalysisInput {
+            role: InputRole::Coverage,
+            path: "report.xml".into(),
+        },
+        Artifact {
+            path: "report.xml".into(),
+            bytes: fixture("valid").to_vec(),
+            sha256: sha256_hex(fixture("valid")),
+        },
+    )])
+    .unwrap();
+    let report = <codegauge_provider_jacoco::JacocoProvider as MetricProvider>::collect(
+        &provider,
+        CollectionRequest::new(&input_set),
+    )
+    .unwrap();
+    assert_eq!(report.symbols.len(), 10);
 }
 
 #[test]

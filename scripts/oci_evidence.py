@@ -17,7 +17,8 @@ from typing import Any
 
 
 SOURCE = "https://github.com/yacosta738/codegauge"
-PROFILE = "java-jacoco-v1"
+PROFILE = "jvm-jacoco-v1"
+PROFILES = "jvm-jacoco-v1\ntypescript-oxc-istanbul-v1"
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -230,8 +231,8 @@ def _validate_runtime(
         )
 
     profiles_text = _read_text(profiles_output, "profiles")
-    if profiles_text != PROFILE:
-        raise EvidenceError(f"runtime profile mismatch: expected {PROFILE!r}, got {profiles_text!r}")
+    if profiles_text != PROFILES:
+        raise EvidenceError(f"runtime profiles mismatch: expected {PROFILES!r}, got {profiles_text!r}")
 
     contract = _read_json(contract_output)
     if contract.get("schema") != "codegauge-result/v1":

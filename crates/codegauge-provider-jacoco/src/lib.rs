@@ -2,11 +2,13 @@
 
 //! Bounded, artifact-only JaCoCo XML adaptation.
 
-use codegauge_application::{CollectionRequest, MetricProvider, ProfileDescriptor};
+use codegauge_application::{
+    CollectionRequest, InputCardinality, InputRequirement, MetricProvider, ProfileDescriptor,
+};
 pub use codegauge_application::{Diagnostic, DiagnosticCode, ProviderError, ProviderObservations};
 use codegauge_model::{
-    ComplexityMeasurement, CoverageMeasurement, DerivedMetrics, ProfileId, SymbolIdentity,
-    SymbolResult,
+    ComplexityMeasurement, CoverageMeasurement, DerivedMetrics, InputRole, ProfileId,
+    SymbolIdentity, SymbolResult,
 };
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
@@ -19,23 +21,35 @@ pub struct JacocoProvider;
 #[rustfmt::skip]
 impl JacocoProvider {
     pub const fn new() -> Self { Self }
-    pub const fn descriptor(&self) -> ProfileId { ProfileId::JavaJacocoV1 }
+    pub const fn descriptor(&self) -> ProfileId { ProfileId::JvmJacocoV1 }
     pub fn collect(&self, input: &[u8]) -> Result<ProviderObservations, ProviderError> { collect(input) }
 }
 
 impl MetricProvider for JacocoProvider {
     fn descriptor(&self) -> ProfileDescriptor {
         ProfileDescriptor {
-            profile: ProfileId::JavaJacocoV1,
+            profile: ProfileId::JvmJacocoV1,
             provider: "jacoco".into(),
             semantics: vec!["jacoco-cyclomatic".into(), "jacoco-instruction".into()],
+            required_inputs: vec![InputRequirement {
+                role: InputRole::Coverage,
+                cardinality: InputCardinality::ExactlyOne,
+            }],
         }
     }
     fn collect(
         &self,
         request: CollectionRequest<'_>,
     ) -> Result<ProviderObservations, ProviderError> {
-        parse_report(&request.artifact.bytes)
+        request
+            .inputs
+            .validate(&<Self as MetricProvider>::descriptor(self).required_inputs)
+            .map_err(|_| bad())?;
+        let artifact = request
+            .inputs
+            .primary(InputRole::Coverage)
+            .ok_or_else(bad)?;
+        parse_report(&artifact.bytes)
     }
 }
 
