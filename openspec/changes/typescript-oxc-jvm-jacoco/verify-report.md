@@ -152,3 +152,111 @@ required local build/test/lint/package/workflow/release/OCI/npm gates pass, and 
 remains. Warnings are limited to unavailable deterministic runner/coverage configuration, hosted
 publication paths, uncommitted TDD ordering, and review workload. Hand off technical evidence to
 `sdd-qa` for independent acceptance testing; do not archive before QA completes.
+
+## Follow-up verification: provenance boundary fix (`df8526c`)
+
+**Date**: 2026-08-26
+**Trigger**: Hosted Release Please rehearsal showed that GitHub's PR-files API reports an
+existing changelog as `status: modified` when Release Please inserts a new version section.  The
+regression test and minimal validator change were delivered together in `df8526c` after the
+feature baseline `1b0776e`.
+
+This section is additive.  The original verification evidence and verdict above are preserved;
+this follow-up records the post-hosted-dry-run validation and its remaining limitations.
+
+### Follow-up source and artifact inspection
+
+| Area | Evidence | Result |
+|---|---|---|
+| Fix scope | `scripts/verify_release_provenance.py` changes only `_validate_generated_changelog_patch`: permits `added`/`modified`, requires `# Changelog` in modified-file context, and retains addition-only/version-header/annotation checks. | ✅ Coherent |
+| Regression coverage | `tests/release_carrier_tests.py::test_modified_generated_changelog_patch` models a hunk-only GitHub patch with `status: modified`, `# Changelog` context, no deletions, and the synchronized version header. | ✅ Present |
+| Product/feature boundary | `git diff 1b0776e..df8526c` contains only the validator and its regression test; no Rust provider, model, core, CLI, schema, or release-graph product code changed in the follow-up. | ✅ Preserved |
+| Task completeness | All 13 implementation tasks remain `[x]`; the follow-up is corrective release-provenance coverage under the existing verification/release boundary, not a new product task. | ✅ Complete |
+| Design coherence | The fix remains in the release provenance validator, preserves strict hunk parsing and approved-path dispatch, and does not alter the inward Rust layering or CRAP semantics. | ✅ Coherent |
+
+### Follow-up provenance boundary matrix
+
+The focused executable matrix was run against the current `HEAD` (`df8526c`).
+
+| Case | Runtime evidence | Result |
+|---|---|---|
+| Existing changelog, hunk-only `status: modified`, `# Changelog` context, additions only, synchronized version header | `python3 tests/release_carrier_tests.py`; direct validator matrix | ✅ ACCEPTED |
+| Modified changelog with a deletion | Direct validator matrix; `_validate_generated_changelog_patch` rejects non-empty `deleted` lines | ✅ REJECTED |
+| Arbitrary changelog replacement that includes a deletion | Existing `arbitrary generated-file content` regression plus direct matrix | ✅ REJECTED |
+| Modified changelog with a valid header plus arbitrary extra release-note lines | Adversarial direct validator matrix | ✅ ACCEPTED (expected generated Release Please content) |
+| Unapproved changelog path | Existing unapproved-path cases plus direct matrix (`crates/codegauge-evil/CHANGELOG.md`) | ✅ REJECTED |
+| Missing patch or truncated/inconsistent hunk | Existing missing/truncated/malformed patch cases plus direct matrix | ✅ REJECTED |
+
+The parser still validates GitHub change metadata, unified/hunk-only headers, every hunk's old/new
+line counts, and addition/deletion counts before the generated-changelog contract runs.  Release
+Please changelog lines are generated from commit messages and are intentionally not allowlisted:
+the existing `status: added` contract already accepts arbitrary generated release-note lines, so
+the equivalent `status: modified` additions-only form correctly accepts them as well.  Deletion,
+path, patch-completeness, synchronized-version-header, and annotation rejection remain strict.
+
+### Follow-up local execution evidence
+
+All commands were executed from `/Users/acosta/Dev/agent-swarm/codegauge`.  The configured
+`quality-runner/v1` manifest is disabled (`enabled: false`), so this is explicitly `fallback`
+evidence rather than a runner envelope.
+
+| Command | Exit | Result | Evidence |
+|---|---:|---|---|
+| `python3 tests/release_carrier_tests.py` | 0 | PASS | `RELEASE CARRIER TESTS: PASS`; includes the new modified-changelog regression and existing negative boundary cases. |
+| `python3 -m pytest -q tests/release_carrier_tests.py` | 0 | PASS | 4 passed. |
+| `python3 -m pytest -q tests/*_tests.py` | 0 | PASS | 24 passed. |
+| `python3 tests/release_provenance_tests.py`, `release_carrier_mode_tests.py`, `release_carrier_static_tests.py` | 0 | PASS | All three named suites printed their `PASS` summaries. |
+| `python3 tests/bootstrap_checks.py`, `readme_checks.py`, `distribution_checks.py` | 0 | PASS | All three printed `PASS`. |
+| `python3 tests/oci_distribution_tests.py`, `oci_distribution_failure_tests.py`, `oci_distribution_static_tests.py`, `oci_distribution_evidence_tests.py` | 0 | PASS | All four printed `PASS`. |
+| `python3 tests/release_please_runtime_tests.py` | 0 | PASS | Exact Release Please `17.6.0` was made available through `npx`; the read-only fake-SCM harness ended with `RELEASE PLEASE V17.6.0 RUNTIME TESTS: PASS`, `releaseCalls: 0`, and `tagCalls: 0`. |
+| `cargo test --workspace --locked` | 0 | PASS | 59 passed, 0 failed, 0 ignored; Rust unit, integration, provider, CLI, conformance, and doc tests passed. |
+| `cargo fmt --all -- --check` | 0 | PASS | No formatting diagnostics. |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` | 0 | PASS | No denied warnings. |
+| `cargo check --workspace --locked` | 0 | PASS | All workspace members type-checked. |
+| `cargo metadata --locked --format-version 1` | 0 | PASS | Locked workspace graph parsed successfully. |
+| `actionlint .github/workflows/*.yml` | 0 | PASS | No workflow diagnostics. |
+| `git diff --check` | 0 | PASS | No whitespace errors; the current uncommitted files are listed in the working-tree note below. |
+| `npm test` from `npm/codegauge` | 0 | PASS | With `npm/codegauge/tsconfig.json` (`compilerOptions.types: ["node"]`, commit `cb24e54`), TypeScript builds and all 6 Node tests pass. |
+
+The npm gate is green and reproducible from commit `cb24e54`.  The change is outside `df8526c`
+(`git diff 1b0776e..df8526c` has no npm-file changes); it is recorded separately as a focused
+TypeScript build fix.  Dependency installation created only ignored local test artifacts.
+Working-tree accounting: this phase changes only `verify-report.md` and preserves `state.yaml` at
+`verify -> qa`; the implementation/config commits were already pushed.
+
+### Hosted evidence and limitations
+
+| Hosted run | Observed result | Verification meaning |
+|---|---|---|
+| `32939386068` | PASS with `no-matching-release-please-pr` | Carrier mode/selection path only; it skipped before full Release Please PR file/provenance validation. It is not full hosted acceptance evidence. |
+| `32939482165` replay of historical PR `#75` | FAILURE | The validator rejected the real existing-changelog representation because GitHub returned `status: modified`; the root cause was reproduced locally and corrected in `df8526c`. The hosted replay was not rerun after the fix in this phase. |
+
+Other limitations remain unchanged from the original report: coverage is unavailable, the
+configured quality runner is disabled, and registry/GitHub Release/GHCR publication was not
+performed.  `strict_tdd: true` is configured, but the referenced `strict-tdd-verify.md` module is
+not present in the available skill tree; commit ordering is therefore not independently enforced
+by that module.  The regression-plus-fix commit and runtime RED/GREEN evidence are inspectable.
+
+### State tracking
+
+Because this follow-up verifies a post-QA code change, `state.yaml` was moved back to
+`current_phase: verify` with `next: qa`; the prior QA artifact is preserved but must be rerun after
+this follow-up.  No archive action was taken.
+
+### Follow-up issues and verdict
+
+| Finding | Judge A | Judge B | Severity | Status |
+|---|---|---|---|---|
+| `df8526c` accepts the real GitHub hunk-only modified changelog form while retaining structural negative boundaries | ✅ | ✅ | — | Confirmed |
+| Arbitrary generated Release Please release-note lines are accepted for additions-only changelogs | ✅ | ✅ | — | Confirmed expected behavior; not an allowlist contract |
+| Existing JVM/TypeScript feature behavior still passes the locked Rust and conformance gates | ✅ | ✅ | — | Confirmed |
+| Hosted run `32939386068` skipped full validation because no matching Release Please PR existed | ✅ | ✅ | WARNING | Confirmed limitation |
+| Hosted run `32939482165` has not been replayed after `df8526c` | ✅ | ✅ | WARNING | Re-run required for hosted confirmation |
+| Configured quality runner is disabled; evidence is manual `fallback` | ✅ | ✅ | WARNING | Confirmed limitation |
+| `npm test` requires `compilerOptions.types: ["node"]` in the tsconfig | ✅ | ✅ | — | Confirmed and reproducible from `cb24e54` |
+
+**Follow-up verdict: PASS WITH WARNINGS.**  The real hosted changelog representation is accepted,
+arbitrary generated release-note lines are accepted as intended, all local Rust/Python/workflow/
+npm gates pass from committed changes, and no CRITICAL issue remains.  Warnings are limited to the
+disabled quality runner/coverage and the hosted replay still awaiting rerun on the fixed current
+graph.  Do not archive before `sdd-qa` records that hosted acceptance evidence.
