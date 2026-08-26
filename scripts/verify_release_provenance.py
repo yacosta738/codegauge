@@ -1244,10 +1244,13 @@ def _validate_generated_changelog_patch(
     path: str,
     runtime_version: str,
 ) -> None:
-    added, deleted, _ = _patch_change_lines(entry, path=path)
-    if entry.get("status") != "added" or deleted or not added:
+    added, deleted, patch_lines = _patch_change_lines(entry, path=path)
+    if entry.get("status") not in {"added", "modified"} or deleted or not added:
         raise ProvenanceError(f"{path} must be a complete generated changelog addition")
-    if added[0] != "# Changelog":
+    if entry.get("status") == "added":
+        if added[0] != "# Changelog":
+            raise ProvenanceError(f"{path} is not a Release Please changelog")
+    elif " # Changelog" not in patch_lines:
         raise ProvenanceError(f"{path} is not a Release Please changelog")
     version_header = re.compile(
         rf"^##+ (?:\[)?v?{re.escape(runtime_version)}(?:\]|(?:\s|$))"

@@ -327,6 +327,45 @@ def valid_changelog_entry(path: str = GENERATED_CHANGELOG_PATH) -> dict[str, obj
     )
 
 
+def modified_generated_changelog_entry(
+    path: str = GENERATED_CHANGELOG_PATH,
+) -> dict[str, object]:
+    """Reproduce a Release Please addition to an existing changelog file."""
+
+    added_lines = (
+        "## [0.2.0](https://github.com/yacosta738/codegauge/compare/codegauge-model-v0.1.0...codegauge-model-v0.2.0) (2026-08-15)",
+        "",
+        "### Features",
+        "",
+        "* chore: synchronized runtime graph",
+    )
+    patch = "\n".join(
+        [
+            "@@ -1,2 +1,7 @@",
+            " # Changelog",
+            " ",
+            *[f"+{line}" for line in added_lines],
+            "",
+        ]
+    )
+    return carrier_content_entry(
+        path,
+        patch,
+        status="modified",
+        additions=len(added_lines),
+        deletions=0,
+    )
+
+
+def test_modified_generated_changelog_patch() -> None:
+    """Accept the hunk-only modified changelog patch returned by GitHub."""
+
+    validate_stage_a_diff(
+        [*CORE_STAGE_A_DIFF, modified_generated_changelog_entry()],
+        version=VERSION,
+    )
+
+
 def release_please_npm_base_api_patch(*, version: str = VERSION) -> str:
     """Reproduce the complete hunk-only base-package patch returned by PR #59."""
 
@@ -688,6 +727,7 @@ def test_release_please_npm_base_api_hunk_only_patch() -> None:
 def main() -> int:
     test_manual_replay_event_selection()
     test_private_conformance_api_hunk_only_patch()
+    test_modified_generated_changelog_patch()
     test_release_please_npm_base_api_hunk_only_patch()
     fixture = copy_release_tree()
     try:
