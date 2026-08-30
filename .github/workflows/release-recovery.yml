@@ -1,0 +1,204 @@
+name: Historical Release Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Checked-in RecoveryRequest JSON file"
+        required: true
+        default: fixtures/release-recovery/v0.3.0-dry-run-request.json
+        type: string
+      snapshot:
+        description: "Checked-in dry-run ResourceSnapshot JSON file (ignored for live preflight)"
+        required: false
+        default: fixtures/release-recovery/v0.3.0-empty-snapshot.json
+        type: string
+      release_tag:
+        description: "Identity guard; must match the request file"
+        required: true
+        default: v0.3.0
+        type: string
+      merged_sha:
+        description: "Identity guard; must match the request file"
+        required: true
+        default: cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0
+        type: string
+      idempotency_key:
+        description: "Derived identity guard; must match the request file"
+        required: true
+        default: d68c3a3f6f34430398000e13073019fc4d610f2c97229828ae7a8251815690d3
+        type: string
+      execute_live:
+        description: "Explicitly authorize canonical tag then GitHub Release reconciliation"
+        required: true
+        default: false
+        type: boolean
+      confirm_live:
+        description: "Repeat the exact live mutation confirmation"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # The request path is not an identity. Keep concurrent runs serialized by the
+  # authoritative repository plus the typed release tag and merged SHA inputs.
+  group: release-recovery-${{ github.repository }}-${{ inputs.release_tag }}-${{ inputs.merged_sha }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate live authorization
+        env:
+          EXECUTE_LIVE: ${{ inputs.execute_live }}
+          CONFIRM_LIVE: ${{ inputs.confirm_live }}
+        run: |
+          set -euo pipefail
+          if [[ "$EXECUTE_LIVE" == "true" ]]; then
+            test "$CONFIRM_LIVE" = "RECOVER_RELEASE_LIVE"
+          fi
+
+      - name: Validate checked-in recovery inputs
+        env:
+          REQUEST_PATH: ${{ inputs.request }}
+          SNAPSHOT_PATH: ${{ inputs.snapshot }}
+        run: |
+          set -euo pipefail
+          case "$REQUEST_PATH" in
+            fixtures/release-recovery/*.json) ;;
+            *) echo "request must use a checked-in recovery fixture" >&2; exit 1 ;;
+          esac
+          test -f "$REQUEST_PATH"
+          if [[ "${{ inputs.execute_live }}" != "true" ]]; then
+            case "$SNAPSHOT_PATH" in
+              fixtures/release-recovery/*.json) ;;
+              *) echo "snapshot must use a checked-in recovery fixture" >&2; exit 1 ;;
+            esac
+            test -f "$SNAPSHOT_PATH"
+          fi
+
+      - name: Validate request and produce no-write plan
+        if: inputs.execute_live == false
+        env:
+          REQUEST_PATH: ${{ inputs.request }}
+          SNAPSHOT_PATH: ${{ inputs.snapshot }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          EXPECTED_TAG: ${{ inputs.release_tag }}
+          EXPECTED_SHA: ${{ inputs.merged_sha }}
+          EXPECTED_KEY: ${{ inputs.idempotency_key }}
+        run: |
+          set -euo pipefail
+          python3 scripts/recover_release.py \
+            --request "$REQUEST_PATH" \
+            --snapshot "$SNAPSHOT_PATH" \
+            --expected-repository "$EXPECTED_REPOSITORY" \
+            --expected-default-branch main \
+            --expected-tag "$EXPECTED_TAG" \
+            --expected-merged-sha "$EXPECTED_SHA" \
+            --expected-idempotency-key "$EXPECTED_KEY" \
+            --audit-output recovery-audit.json \
+            --human-output recovery-audit.txt
+          grep -F 'NO_WRITES: True' recovery-audit.txt
+
+      - name: Validate live request with independent read-only preflight
+        if: inputs.execute_live == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIVE_ENABLED: ${{ vars.RELEASE_RECOVERY_LIVE_ENABLED }}
+          REQUEST_PATH: ${{ inputs.request }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          EXPECTED_TAG: ${{ inputs.release_tag }}
+          EXPECTED_SHA: ${{ inputs.merged_sha }}
+          EXPECTED_KEY: ${{ inputs.idempotency_key }}
+        run: |
+          set -euo pipefail
+          # Live recovery is disabled until a maintainer enables the repository variable.
+          test "$LIVE_ENABLED" = "true"
+          python3 scripts/recover_release.py \
+            --request "$REQUEST_PATH" \
+            --plan-only \
+            --expected-repository "$EXPECTED_REPOSITORY" \
+            --expected-default-branch main \
+            --expected-tag "$EXPECTED_TAG" \
+            --expected-merged-sha "$EXPECTED_SHA" \
+            --expected-idempotency-key "$EXPECTED_KEY" \
+            --github-api-url "${GITHUB_API_URL:-https://api.github.com}" \
+            --audit-output recovery-audit.json \
+            --human-output recovery-audit.txt
+          grep -F 'NO_WRITES: True' recovery-audit.txt
+
+      - name: Upload planning audit
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: release-recovery-plan-audit
+          path: recovery-audit.{json,txt}
+          if-no-files-found: ignore
+
+  recover:
+    needs: plan
+    if: github.ref == 'refs/heads/main' && inputs.execute_live == true && inputs.confirm_live == 'RECOVER_RELEASE_LIVE'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    environment:
+      name: release-recovery-live
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # This protected job is the only live recovery boundary. It performs
+      # exactly tag-then-release reconciliation; it never rolls back by delete,
+      # force-move, or publication, and its ambiguous failures remain audited.
+      - name: Reconcile canonical tag then GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REQUEST_PATH: ${{ inputs.request }}
+          CONFIRM_LIVE: ${{ inputs.confirm_live }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+          EXPECTED_TAG: ${{ inputs.release_tag }}
+          EXPECTED_SHA: ${{ inputs.merged_sha }}
+          EXPECTED_KEY: ${{ inputs.idempotency_key }}
+        run: |
+          set -euo pipefail
+          python3 scripts/recover_release.py \
+            --request "$REQUEST_PATH" \
+            --execute-live \
+            --confirm-live "$CONFIRM_LIVE" \
+            --expected-repository "$EXPECTED_REPOSITORY" \
+            --expected-default-branch main \
+            --expected-tag "$EXPECTED_TAG" \
+            --expected-merged-sha "$EXPECTED_SHA" \
+            --expected-idempotency-key "$EXPECTED_KEY" \
+            --github-api-url "${GITHUB_API_URL:-https://api.github.com}" \
+            --lock-path "$RUNNER_TEMP/codegauge-release-recovery-${EXPECTED_TAG}-${EXPECTED_SHA}.lock" \
+            --audit-output recovery-live-audit.json \
+            --human-output recovery-live-audit.txt
+          grep -E '^outcome: (reconciled|no-op)$' recovery-live-audit.txt
+
+      - name: Upload live recovery audit
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: release-recovery-live-audit
+          path: recovery-live-audit.{json,txt}
+          if-no-files-found: ignore

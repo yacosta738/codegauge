@@ -34,6 +34,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve carrier mode
         id: mode
@@ -118,7 +119,7 @@ jobs:
       - name: Collect the one merged Release Please PR
         id: collect
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
           SOURCE_CHECKOUT_SHA: ${{ steps.mode.outputs.source_checkout_sha }}
           REPLAY_MODE: ${{ steps.mode.outputs.replay }}
@@ -293,7 +294,7 @@ jobs:
       - name: Validate canonical release owner is external
         if: steps.collect.outputs.status == 'matched'
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           EVENT_SHA: ${{ steps.mode.outputs.event_sha }}
         shell: bash
         run: |

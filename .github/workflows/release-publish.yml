@@ -54,6 +54,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish leaf Cargo crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -73,6 +74,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish Cargo core crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -93,6 +95,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish Cargo application crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -113,6 +116,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish JaCoCo provider crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -133,6 +137,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish TypeScript provider crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -153,6 +158,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - name: Dry-run and publish CLI Cargo crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -176,6 +182,7 @@ jobs:
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: archive-*
@@ -192,7 +199,7 @@ jobs:
           set -euo pipefail
           release_json="$(gh release view "${RELEASE_REF}" --repo "$GITHUB_REPOSITORY" --json tagName,url)"
           test "$(printf '%s' "$release_json" | jq -r .tagName)" = "$RELEASE_REF"
-          tag_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_REF#v}")"
+          tag_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_REF}")"
           test "$(printf '%s' "$tag_json" | jq -r .object.type)" = "commit"
           test "$(printf '%s' "$tag_json" | jq -r .object.sha)" = "$RELEASE_SHA"
           if [[ -n "$RELEASE_URL" ]]; then
@@ -219,6 +226,7 @@ jobs:
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: npm-packages
@@ -272,6 +280,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.release_sha }}
+          persist-credentials: false
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Download verified OCI build artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -358,3 +367,186 @@ jobs:
           path: oci-evidence/
           if-no-files-found: error
           retention-days: 14
+
+  publication-failure-inventory:
+    # Keep the dependency chain observable without turning failure handling into
+    # a rollback or a second publication writer.
+    needs: [publish-cargo-model, publish-cargo-core, publish-cargo-application, publish-cargo-provider, publish-cargo-provider-typescript, publish-cargo-cli, publish-release, publish-npm, publish-oci]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Write audit-only publication inventory
+        env:
+          NEEDS_RESULTS: ${{ toJSON(needs) }}
+          RELEASE_REF: ${{ inputs.release_tag }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          MAIN_SHA: ${{ inputs.main_sha }}
+        run: |
+          set -euo pipefail
+          export RELEASE_VERSION="${RELEASE_REF#v}"
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_RESULTS"])
+          release_ref = os.environ["RELEASE_REF"]
+          release_version = os.environ["RELEASE_VERSION"]
+          release_sha = os.environ["RELEASE_SHA"]
+
+          def job_result(job):
+              value = needs.get(job, {})
+              return value.get("result", "UNKNOWN") if isinstance(value, dict) else "UNKNOWN"
+
+          targets = []
+
+          def add(target, kind, job, evidence_location):
+              targets.append(
+                  {
+                      "target": target,
+                      "kind": kind,
+                      "canonical_version": release_version,
+                      "canonical_reference": release_ref,
+                      "source_sha": release_sha,
+                      "published_digest_or_package_version": "UNKNOWN",
+                      "job_result": job_result(job),
+                      "evidence_location": evidence_location,
+                  }
+              )
+
+          cargo_crates = (
+              "codegauge-model",
+              "codegauge-core",
+              "codegauge-application",
+              "codegauge-provider-jacoco",
+              "codegauge-provider-typescript",
+              "codegauge-cli",
+          )
+          cargo_jobs = {
+              "codegauge-model": "publish-cargo-model",
+              "codegauge-core": "publish-cargo-core",
+              "codegauge-application": "publish-cargo-application",
+              "codegauge-provider-jacoco": "publish-cargo-provider",
+              "codegauge-provider-typescript": "publish-cargo-provider-typescript",
+              "codegauge-cli": "publish-cargo-cli",
+          }
+          for crate in cargo_crates:
+              job = cargo_jobs[crate]
+              add(
+                  crate,
+                  "cargo-crate",
+                  job,
+                  f"job://{job}/cargo-publish --locked; artifact://publication-failure-inventory-{release_ref}",
+              )
+
+          npm_packages = (
+              "@yacosta738/codegauge",
+              "@yacosta738/codegauge-linux-x64-gnu",
+              "@yacosta738/codegauge-linux-arm64-gnu",
+              "@yacosta738/codegauge-darwin-x64",
+              "@yacosta738/codegauge-darwin-arm64",
+              "@yacosta738/codegauge-win32-x64-msvc",
+              "@yacosta738/codegauge-win32-arm64-msvc",
+          )
+          for package in npm_packages:
+              add(
+                  package,
+                  "npm-package",
+                  "publish-npm",
+                  f"job://publish-npm/npm publish {package}; artifact://publication-failure-inventory-{release_ref}",
+              )
+
+          # The v0.3.0 catalog is: codegauge-0.3.0-x86_64-unknown-linux-gnu.tar.gz,
+          # codegauge-0.3.0-aarch64-unknown-linux-gnu.tar.gz,
+          # codegauge-0.3.0-x86_64-unknown-linux-musl.tar.gz,
+          # codegauge-0.3.0-aarch64-unknown-linux-musl.tar.gz,
+          # codegauge-0.3.0-x86_64-apple-darwin.tar.gz,
+          # codegauge-0.3.0-aarch64-apple-darwin.tar.gz,
+          # codegauge-0.3.0-x86_64-pc-windows-msvc.zip, and
+          # codegauge-0.3.0-aarch64-pc-windows-msvc.zip.
+          archive_targets = (
+              ("x86_64-unknown-linux-gnu", "tar.gz"),
+              ("aarch64-unknown-linux-gnu", "tar.gz"),
+              ("x86_64-unknown-linux-musl", "tar.gz"),
+              ("aarch64-unknown-linux-musl", "tar.gz"),
+              ("x86_64-apple-darwin", "tar.gz"),
+              ("aarch64-apple-darwin", "tar.gz"),
+              ("x86_64-pc-windows-msvc", "zip"),
+              ("aarch64-pc-windows-msvc", "zip"),
+          )
+          for target, extension in archive_targets:
+              archive = f"codegauge-{release_version}-{target}.{extension}"
+              source = f"job://archives/{target}/release-out/{archive}"
+              add(archive, "github-release-asset", "publish-release", source)
+              add(f"{archive}.sha256", "github-release-checksum", "publish-release", f"{source}.sha256")
+              add(
+                  f"release-manifest-{target}.json",
+                  "github-release-evidence",
+                  "publish-release",
+                  f"job://archives/{target}/release-out/release-manifest-{target}.json",
+              )
+
+          image = "ghcr.io/yacosta738/codegauge"
+          # The v0.3.0 OCI catalog is ghcr.io/yacosta738/codegauge:0.3.0-amd64,
+          # ghcr.io/yacosta738/codegauge:0.3.0-arm64, and
+          # ghcr.io/yacosta738/codegauge:0.3.0.
+          oci_architecture_targets = ("amd64", "arm64")
+          for architecture in oci_architecture_targets:
+              reference = f"{image}:{release_version}-{architecture}"
+              add(
+                  reference,
+                  "oci-architecture-manifest",
+                  "publish-oci",
+                  f"job://publish-oci/oci-evidence/{architecture}.json",
+              )
+          final_reference = f"{image}:{release_version}"
+          add(
+              final_reference,
+              "oci-final-manifest",
+              "publish-oci",
+              "job://publish-oci/oci-evidence/manifest.digest",
+          )
+          latest_reference = "ghcr.io/yacosta738/codegauge:latest"
+          add(
+              latest_reference,
+              "oci-mutable-alias",
+              "publish-oci",
+              "job://publish-oci/oci-evidence/manifest.digest",
+          )
+          add(
+              "attestation: ghcr.io/yacosta738/codegauge@UNKNOWN",
+              "oci-attestation",
+              "publish-oci",
+              "job://publish-oci/attest-build-provenance",
+          )
+
+          inventory = {
+              "schema": "publication-failure-inventory/v1",
+              "canonical_version": release_version,
+              "canonical_reference": release_ref,
+              "source_sha": release_sha,
+              "merged_main_sha": os.environ["MAIN_SHA"],
+              "policy": "No rollback, deletion, or force-move is performed here.",
+              "stop_chain": "Stop later publication stages after the first failed dependency.",
+              "republish_policy": "This audit-only inventory never republishes immutable outputs.",
+              "runbook": "docs/release-recovery-runbook.md",
+              "job_results": {
+                  job: job_result(job)
+                  for job in sorted(needs)
+              },
+              "targets": targets,
+          }
+          with open("publication-failure-inventory.json", "w", encoding="utf-8") as stream:
+              json.dump(inventory, stream, indent=2, sort_keys=True)
+              stream.write("\n")
+          PY
+
+      - name: Upload publication failure inventory
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: publication-failure-inventory-${{ inputs.release_tag }}
+          path: publication-failure-inventory.json
+          if-no-files-found: error
+          retention-days: 30

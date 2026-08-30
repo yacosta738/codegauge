@@ -2,13 +2,12 @@
   "release-type": "rust",
   "include-component-in-tag": true,
   "separate-pull-requests": false,
-  "skip-github-release": true,
   "packages": {
     ".": {
       "component": "codegauge-root",
       "release-type": "java",
       "initial-version": "0.1.0",
-      "skip-github-release": true,
+      "include-component-in-tag": false,
       "skip-changelog": true,
       "skip-snapshot": true,
       "extra-files": [
@@ -117,26 +116,27 @@
         { "type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs" }
       ]
     },
-    "crates/codegauge-model": { "component": "codegauge-model", "release-type": "rust" },
-    "crates/codegauge-core": { "component": "codegauge-core", "release-type": "rust" },
-    "crates/codegauge-application": { "component": "codegauge-application", "release-type": "rust" },
-    "crates/codegauge-provider-jacoco": { "component": "codegauge-provider-jacoco", "release-type": "rust" },
-    "crates/codegauge-provider-typescript": { "component": "codegauge-provider-typescript", "release-type": "rust" },
-    "crates/codegauge-cli": { "component": "codegauge-cli", "release-type": "rust" },
+    "crates/codegauge-model": { "component": "codegauge-model", "release-type": "rust", "skip-github-release": true },
+    "crates/codegauge-core": { "component": "codegauge-core", "release-type": "rust", "skip-github-release": true },
+    "crates/codegauge-application": { "component": "codegauge-application", "release-type": "rust", "skip-github-release": true },
+    "crates/codegauge-provider-jacoco": { "component": "codegauge-provider-jacoco", "release-type": "rust", "skip-github-release": true },
+    "crates/codegauge-provider-typescript": { "component": "codegauge-provider-typescript", "release-type": "rust", "skip-github-release": true },
+    "crates/codegauge-cli": { "component": "codegauge-cli", "release-type": "rust", "skip-github-release": true },
     "npm/codegauge": {
       "component": "codegauge",
       "release-type": "node",
+      "skip-github-release": true,
       "package-name": "@yacosta738/codegauge",
       "extra-files": [
         { "type": "json", "path": "package.json", "jsonpath": "$.version" }
       ]
     },
-    "npm/packages/codegauge-linux-x64-gnu": { "component": "codegauge-linux-x64-gnu", "release-type": "node" },
-    "npm/packages/codegauge-linux-arm64-gnu": { "component": "codegauge-linux-arm64-gnu", "release-type": "node" },
-    "npm/packages/codegauge-darwin-x64": { "component": "codegauge-darwin-x64", "release-type": "node" },
-    "npm/packages/codegauge-darwin-arm64": { "component": "codegauge-darwin-arm64", "release-type": "node" },
-    "npm/packages/codegauge-win32-x64-msvc": { "component": "codegauge-win32-x64-msvc", "release-type": "node" },
-    "npm/packages/codegauge-win32-arm64-msvc": { "component": "codegauge-win32-arm64-msvc", "release-type": "node" }
+    "npm/packages/codegauge-linux-x64-gnu": { "component": "codegauge-linux-x64-gnu", "release-type": "node", "skip-github-release": true },
+    "npm/packages/codegauge-linux-arm64-gnu": { "component": "codegauge-linux-arm64-gnu", "release-type": "node", "skip-github-release": true },
+    "npm/packages/codegauge-darwin-x64": { "component": "codegauge-darwin-x64", "release-type": "node", "skip-github-release": true },
+    "npm/packages/codegauge-darwin-arm64": { "component": "codegauge-darwin-arm64", "release-type": "node", "skip-github-release": true },
+    "npm/packages/codegauge-win32-x64-msvc": { "component": "codegauge-win32-x64-msvc", "release-type": "node", "skip-github-release": true },
+    "npm/packages/codegauge-win32-arm64-msvc": { "component": "codegauge-win32-arm64-msvc", "release-type": "node", "skip-github-release": true }
   },
   "plugins": [
     { "type": "node-workspace", "merge": false },

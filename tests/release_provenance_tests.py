@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
-import re
+import hashlib
 import json
-import tempfile
+import re
 import sys
+import tempfile
+
+import pytest
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import rmtree
@@ -27,6 +30,10 @@ from scripts.verify_release_provenance import (  # noqa: E402
     validate_linked_components,
     validate_package_versions,
     validate_release_identity,
+    validate_historical_provenance,
+    validate_release_assets,
+    publication_order,
+    release_dispatch_count,
     write_binary_evidence,
 )
 
@@ -75,6 +82,23 @@ class EffectiveCandidate:
     release_type: str
     extra_files: tuple[object, ...]
     skip_github_release: bool
+
+
+def test_release_please_effective_candidates_create_github_releases() -> None:
+    """Only the unprefixed root candidate owns the canonical GitHub release."""
+
+    config = json.loads(
+        (ROOT / "release-please-config.json").read_text(encoding="utf-8")
+    )
+
+    assert config.get("skip-github-release", False) is False
+    assert config["packages"]["."]["include-component-in-tag"] is False
+    assert config["packages"]["."].get("skip-github-release", False) is False
+    assert all(
+        candidate.get("skip-github-release") is True
+        for path, candidate in config["packages"].items()
+        if path != "."
+    )
 
 
 def _effective_candidates(config: dict[str, Any]) -> list[EffectiveCandidate]:
@@ -260,12 +284,16 @@ def _single_release_operations(
     version: str,
     linked_versions: dict[str, str],
 ) -> list[tuple[str, str]]:
-    """Model the suppressed Stage-A release operation and its would-be tag."""
+    """Model the effective Stage-A release operation and its canonical tag."""
 
     assert config.get("include-component-in-tag") is True
     potential_operations = []
     for candidate in candidates:
-        if candidate.path not in linked_versions:
+        # The root strategy deliberately has an empty strategy component so the
+        # merged/root release uses the unprefixed tag. LinkedVersions still
+        # groups it by its configured component, while non-root candidates
+        # remain version carriers with GitHub releases disabled.
+        if candidate.path not in linked_versions and candidate.path != ".":
             continue
         tag = (
             f"{candidate.strategy_component}-v{version}"
@@ -275,8 +303,13 @@ def _single_release_operations(
         potential_operations.append((candidate.path, tag))
 
     assert ("crates/codegauge-cli", f"codegauge-cli-v{version}") in potential_operations
-    assert config.get("skip-github-release") is True
-    return []
+    assert (".", f"v{version}") in potential_operations
+    assert all(
+        not candidate.skip_github_release
+        for candidate in candidates
+        if candidate.path == "."
+    )
+    return [operation for operation in potential_operations if operation[0] == "."]
 
 
 def _linked_root_candidate_17_6_0(
@@ -361,9 +394,9 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
     ), "Stage A must use the explicit runtime Cargo package list, not cargo-workspace discovery"
 
     linked_versions = _linked_versions_preconfigure_17_6_0(config, after_cargo)
-    assert set(linked_versions) == RUNTIME_GRAPH_PATHS, (
-        "Release Please 17.6.0 LinkedVersions.preconfigure produced no full runtime map; "
-        "include-component-in-tag=false makes every strategy component empty"
+    assert set(linked_versions) == RUNTIME_GRAPH_PATHS - {"."}, (
+        "Release Please 17.6.0 LinkedVersions.preconfigure must retain every "
+        "non-root runtime component while the root strategy emits an unprefixed tag"
     )
     assert set(linked_versions.values()) == {NEW_RELEASE_VERSION}, (
         "linked-versions must force every runtime candidate to the primary release version"
@@ -385,13 +418,18 @@ def assert_release_please_17_6_0_root_pipeline(config: dict[str, Any]) -> None:
     assert effective_root_path == "."
     assert root_updates <= effective_root_updates
     assert optional_update_path in effective_root_updates
-    assert root.skip_github_release, "the non-publishable root candidate must not create a fake release"
+    assert root.strategy_component == "", (
+        "the root strategy must omit its component only for the canonical tag"
+    )
+    assert not root.skip_github_release, "the canonical root candidate owns the GitHub release"
     assert "package-name" not in config["packages"]["."]
 
     operations = _single_release_operations(
         config, candidates, NEW_RELEASE_VERSION, linked_versions
     )
-    assert operations == [], "Stage A must not create a Release Please tag or release"
+    assert operations == [(".", f"v{NEW_RELEASE_VERSION}")], (
+        "Stage A must create exactly one unprefixed canonical Release Please tag and release"
+    )
 
 
 def test_publishable_typescript_provider_is_in_release_graph() -> None:
@@ -449,6 +487,197 @@ def test_publishable_typescript_provider_is_in_release_graph() -> None:
     assert publish_order == sorted(publish_order)
 
 
+
+def test_historical_release_provenance_allows_13_entry_snapshot_against_current_14_entry_graph() -> None:
+    historical = {
+        "commit": "cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0",
+        "tree": "f9fca04cb359e843bd13ab7ff4db0ff1a9ba4a1c",
+        "manifest": {path: NEW_RELEASE_VERSION for path in RUNTIME_GRAPH_PATHS if path != "crates/codegauge-provider-typescript"},
+    }
+    result = validate_historical_provenance(
+        historical,
+        version=NEW_RELEASE_VERSION,
+        merged_sha="cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0",
+        root=ROOT,
+        expected_tree=historical["tree"],
+    )
+
+    assert result["historical_entry_count"] == 13
+    assert result["current_entry_count"] == 14
+    assert result["graph_mismatch"] is True
+    assert result["commit"] == historical["commit"]
+    assert result["tree"] == historical["tree"]
+    assert result["merged_sha"] == "cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0"
+
+
+def test_historical_provenance_rejects_a_different_tree_or_graph_without_subset() -> None:
+    historical = {
+        "commit": "cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0",
+        "tree": "f9fca04cb359e843bd13ab7ff4db0ff1a9ba4a1c",
+        "manifest": {path: NEW_RELEASE_VERSION for path in RUNTIME_GRAPH_PATHS if path != "crates/codegauge-provider-typescript"},
+    }
+    with pytest.raises(ProvenanceError, match="historical provenance is anchored"):
+        validate_historical_provenance(
+            {**historical, "tree": "0" * 40},
+            version=NEW_RELEASE_VERSION,
+            merged_sha=historical["commit"],
+            root=ROOT,
+            expected_tree=historical["tree"],
+        )
+
+    with pytest.raises(ProvenanceError, match="not present in the current graph"):
+        validate_historical_provenance(
+            {
+                "commit": historical["commit"],
+                "tree": historical["tree"],
+                "manifest": {
+                    **{path: value for path, value in historical["manifest"].items() if path != "."},
+                    "crates/removed-runtime": NEW_RELEASE_VERSION,
+                },
+            },
+            version=NEW_RELEASE_VERSION,
+            merged_sha=historical["commit"],
+            root=ROOT,
+        )
+
+    with pytest.raises(ProvenanceError, match="invalid path"):
+        validate_historical_provenance(
+            {
+                "commit": historical["commit"],
+                "tree": historical["tree"],
+                "manifest": {
+                    **{path: value for path, value in historical["manifest"].items() if path != "."},
+                    "../outside": NEW_RELEASE_VERSION,
+                },
+            },
+            version=NEW_RELEASE_VERSION,
+            merged_sha=historical["commit"],
+            root=ROOT,
+        )
+
+
+def test_release_assets_validate_manifests_checksums_and_required_inputs(tmp_path: Path) -> None:
+
+    archive = tmp_path / "codegauge-0.3.0-x86_64-unknown-linux-gnu.tar.gz"
+
+    archive.write_bytes(b"historical archive")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    sidecar = tmp_path / f"{archive.name}.sha256"
+    sidecar.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+    manifest = tmp_path / "release-manifest-x86_64-unknown-linux-gnu.json"
+    manifest.write_text(
+        json.dumps({
+            "version": NEW_RELEASE_VERSION,
+            "source_revision": "a" * 40,
+            "target": "x86_64-unknown-linux-gnu",
+            "archive": archive.name,
+            "sha256": digest,
+            "rust_toolchain": "1.97.1",
+            "binary_evidence": {
+                "target": "x86_64-unknown-linux-gnu",
+                "mode": "cross-target",
+                "execution": "not-run",
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    result = validate_release_assets(
+        tmp_path,
+        version=NEW_RELEASE_VERSION,
+        source_revision="a" * 40,
+    )
+
+    assert result == {"manifest_count": 1, "archive_count": 1, "checksum_count": 1}
+
+
+def test_release_assets_can_require_an_exact_target_matrix(tmp_path: Path) -> None:
+    archive = tmp_path / "codegauge-0.3.0-x86_64-unknown-linux-gnu.tar.gz"
+    archive.write_bytes(b"historical archive")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    (tmp_path / f"{archive.name}.sha256").write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+    (tmp_path / "release-manifest-x86_64-unknown-linux-gnu.json").write_text(
+        json.dumps({
+            "version": NEW_RELEASE_VERSION,
+            "source_revision": "a" * 40,
+            "target": "x86_64-unknown-linux-gnu",
+            "archive": archive.name,
+            "sha256": digest,
+            "rust_toolchain": "1.97.1",
+            "binary_evidence": {
+                "target": "x86_64-unknown-linux-gnu",
+                "mode": "cross-target",
+                "execution": "not-run",
+            },
+        }),
+        encoding="utf-8",
+    )
+    with pytest.raises(ProvenanceError, match="target matrix"):
+        validate_release_assets(
+            tmp_path,
+            version=NEW_RELEASE_VERSION,
+            source_revision="a" * 40,
+            expected_targets={"x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"},
+        )
+
+
+def test_release_assets_reject_a_tampered_checksum_sidecar(tmp_path: Path) -> None:
+    archive = tmp_path / "codegauge-0.3.0-x86_64-unknown-linux-gnu.tar.gz"
+    archive.write_bytes(b"historical archive")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    (tmp_path / f"{archive.name}.sha256").write_text(
+        f"{'0' * 64}  {archive.name}\n", encoding="utf-8"
+    )
+    (tmp_path / "release-manifest-x86_64-unknown-linux-gnu.json").write_text(
+        json.dumps({
+            "version": NEW_RELEASE_VERSION,
+            "source_revision": "a" * 40,
+            "target": "x86_64-unknown-linux-gnu",
+            "archive": archive.name,
+            "sha256": digest,
+            "rust_toolchain": "1.97.1",
+            "binary_evidence": {
+                "target": "x86_64-unknown-linux-gnu",
+                "mode": "cross-target",
+                "execution": "not-run",
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ProvenanceError, match="checksum"):
+        validate_release_assets(
+            tmp_path,
+            version=NEW_RELEASE_VERSION,
+            source_revision="a" * 40,
+        )
+
+def test_publication_contract_is_serial_and_at_most_once_per_release_identity() -> None:
+    publish = PUBLISH.read_text(encoding="utf-8")
+    tag_workflow = (ROOT / ".github/workflows/release-on-tag.yml").read_text(encoding="utf-8")
+    assert publication_order(publish) == ("cargo", "npm", "oci")
+    assert release_dispatch_count(tag_workflow) == 1
+    assert "needs: publish-npm" in publish
+    assert "needs: publish-release" in publish
+    assert "cancel-in-progress: false" in tag_workflow
+
+
+def test_publication_contract_rejects_parallel_or_fallback_writers() -> None:
+    publish = PUBLISH.read_text(encoding="utf-8")
+    tag_workflow = (ROOT / ".github/workflows/release-on-tag.yml").read_text(encoding="utf-8")
+    with pytest.raises(ProvenanceError, match="required target|Cargo before npm before OCI"):
+        publication_order(publish.replace("docker push", "npm publish", 1))
+    with pytest.raises(ProvenanceError, match="exactly once"):
+        release_dispatch_count(tag_workflow + "\nuses: ./.github/workflows/release.yml\n")
+
+
+def test_publisher_verifies_the_exact_canonical_tag_without_stripping_v() -> None:
+    publish = PUBLISH.read_text(encoding="utf-8")
+
+    assert 'git/ref/tags/${RELEASE_REF}' in publish
+    assert 'git/ref/tags/${RELEASE_REF#v}' not in publish
+
+
 def main() -> int:
     caller = CALLER.read_text(encoding="utf-8")
     build = BUILD.read_text(encoding="utf-8")
@@ -461,7 +690,7 @@ def main() -> int:
 
     assert config.get("include-component-in-tag") is True, "Stage A must enable linked components"
     assert "extra-files" not in config, "root extra-files must not be inherited by every package"
-    assert config.get("skip-github-release") is True, "non-canonical components must not create duplicate releases"
+    assert "skip-github-release" not in config, "canonical Release Please ownership must not be globally suppressed"
 
     release_manifest = json.loads(
         (ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")
@@ -475,7 +704,8 @@ def main() -> int:
     assert root_package["component"] == "codegauge-root"
     assert root_package["release-type"] == "java"
     assert root_package["initial-version"] == "0.1.0"
-    assert root_package["skip-github-release"] is True
+    assert root_package["include-component-in-tag"] is False
+    assert "skip-github-release" not in root_package
     assert root_package["skip-changelog"] is True
     assert root_package["skip-snapshot"] is True
     assert "package-name" not in root_package
@@ -592,7 +822,7 @@ def main() -> int:
         {"type": "generic", "path": "/crates/codegauge-cli/tests/cli.rs"},
     ], "root release files must be root-anchored and owned by the root candidate"
 
-    assert packages["crates/codegauge-cli"].get("skip-github-release", True) is True
+    assert packages["crates/codegauge-cli"]["skip-github-release"] is True
 
     npm_package = packages["npm/codegauge"]
     npm_extra_files = npm_package.get("extra-files", [])
@@ -687,14 +917,28 @@ def main() -> int:
     assert "skip-github-release: true" not in release_please, (
         "Release Please ownership belongs in release-please-config.json"
     )
-    assert config.get("skip-github-release") is True, (
-        "release-please-config.json must own canonical release suppression"
+    assert config.get("skip-github-release", False) is False, (
+        "release-please-config.json must preserve canonical Release Please ownership"
     )
     assert 'tags: ["v*.*.*"]' in tag_caller
     assert "github.ref_name" in tag_caller and "github.sha" in tag_caller
 
     version = read_workspace_version(ROOT)
     validate_package_versions(version)
+    validate_historical_provenance(
+        {
+            "tree": "84f44690af8c1105666f8e62d8dcffa9b44c8f2b",
+            "manifest": {
+                path: NEW_RELEASE_VERSION
+                for path in RUNTIME_GRAPH_PATHS
+                if path != "crates/codegauge-provider-typescript"
+            },
+        },
+        version=NEW_RELEASE_VERSION,
+        merged_sha="cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0",
+        root=ROOT,
+        expected_tree="84f44690af8c1105666f8e62d8dcffa9b44c8f2b",
+    )
     for component in (
         "codegauge-linux-x64-gnu",
         "codegauge-linux-arm64-gnu",

@@ -17,7 +17,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 try:
     import tomllib
@@ -297,6 +297,228 @@ CONTENT_VALIDATED_STAGE_A_DIFFS = (
 )
 
 
+def _validate_historical_manifest_paths(manifest: Mapping[str, Any]) -> None:
+    """Validate a historical manifest independently from the current graph."""
+
+    if not isinstance(manifest, Mapping) or not manifest:
+        raise ProvenanceError("historical release manifest must be a non-empty object")
+    if len(manifest) != 13:
+        raise ProvenanceError(f"historical release manifest must contain 13 entries, found {len(manifest)}")
+    for path, value in manifest.items():
+        if (
+            not isinstance(path, str)
+            or not path
+            or path.startswith("/")
+            or "\\" in path
+            or ".." in path.split("/")
+        ):
+            raise ProvenanceError("historical release manifest contains an invalid path")
+        if not isinstance(value, str) or not VERSION_RE.fullmatch(value):
+            raise ProvenanceError("historical release manifest contains an invalid version")
+
+
+def validate_historical_provenance(
+    historical: Mapping[str, Any],
+    *,
+    version: str,
+    merged_sha: str,
+    root: Path = ROOT,
+    release_out: Path | None = None,
+    expected_tree: str | None = None,
+) -> dict[str, Any]:
+    """Validate exact historical provenance while allowing a later graph to grow.
+
+    The supplied tree is the immutable historical anchor; the current checkout
+    is used only for synchronized compatibility checks.
+    """
+
+    if not isinstance(historical, Mapping):
+        raise ProvenanceError("historical provenance must be an object")
+    if set(historical) - {"commit", "tree", "manifest"}:
+        raise ProvenanceError("historical provenance contains unexpected fields")
+    version = validate_release_version(version)
+    merged_sha = require_sha(merged_sha, "merged_sha")
+    historical_commit = historical.get("commit", merged_sha)
+    if not isinstance(historical_commit, str) or not SHA_RE.fullmatch(historical_commit):
+        raise ProvenanceError("historical commit must be an exact Git commit SHA")
+    if historical_commit != merged_sha:
+        raise ProvenanceError("historical provenance commit does not match merged SHA")
+    tree = historical.get("tree")
+    if not isinstance(tree, str) or not SHA_RE.fullmatch(tree):
+        raise ProvenanceError("historical tree must be an exact Git tree SHA")
+    if expected_tree is not None:
+        if not SHA_RE.fullmatch(expected_tree):
+            raise ProvenanceError("expected historical tree must be an exact Git tree SHA")
+        if tree != expected_tree:
+            raise ProvenanceError("historical provenance is anchored to a different Git tree")
+    manifest = historical.get("manifest")
+    _validate_historical_manifest_paths(manifest)
+    if set(manifest.values()) != {version}:
+        raise ProvenanceError("historical release manifest versions do not match the release")
+
+    current_manifest_path = root / RELEASE_METADATA_PATH
+    current_manifest = load_json(current_manifest_path)
+    if len(current_manifest) != len(EXPECTED_RELEASE_MANIFEST_PATHS):
+        raise ProvenanceError("current release manifest graph has an unexpected entry count")
+    if any(
+        not isinstance(value, str) or not VERSION_RE.fullmatch(value) or value != version
+        for value in current_manifest.values()
+    ):
+        raise ProvenanceError("current release manifest versions do not match the release")
+    current_paths = set(current_manifest)
+    historical_paths = set(manifest)
+    if not historical_paths.issubset(current_paths):
+        raise ProvenanceError("historical release paths are not present in the current graph")
+    if len(current_paths) < len(historical_paths):
+        raise ProvenanceError("current release graph cannot be smaller than historical provenance")
+
+    # These are current-tree compatibility checks only. Historical identity is anchored
+    # by the supplied commit/tree and its own manifest; current graph equality is not required.
+    validate_package_versions(version, root)
+    dockerfile = root / "Dockerfile"
+    if not dockerfile.is_file():
+        raise ProvenanceError("Dockerfile is required for release provenance")
+    dockerfile_text = dockerfile.read_text(encoding="utf-8")
+    if "FROM rust:1.97.1-alpine@sha256:" not in dockerfile_text or "FROM alpine:3.24@sha256:" not in dockerfile_text:
+        raise ProvenanceError("Dockerfile base images must use immutable digests")
+    if "ARG CODEGAUGE_VERSION" not in dockerfile_text or "ARG CODEGAUGE_REVISION" not in dockerfile_text:
+        raise ProvenanceError("Dockerfile must expose version and immutable revision build arguments")
+    if "org.opencontainers.image.version" not in dockerfile_text or "org.opencontainers.image.revision" not in dockerfile_text:
+        raise ProvenanceError("Dockerfile must label the version and immutable revision")
+    if release_out is not None:
+        validate_release_assets(
+            release_out,
+            version=version,
+            source_revision=merged_sha,
+            expected_targets=set(TARGET_EXTENSIONS),
+        )
+    return {
+        "commit": historical_commit,
+        "tree": tree,
+        "merged_sha": merged_sha,
+        "version": version,
+        "historical_entry_count": len(historical_paths),
+        "current_entry_count": len(current_paths),
+        "graph_mismatch": historical_paths != current_paths,
+    }
+
+
+def validate_release_assets(
+    release_out: Path,
+    *,
+    version: str,
+    source_revision: str,
+    allow_missing: bool = False,
+    expected_targets: set[str] | None = None,
+) -> dict[str, int]:
+    """Verify every release manifest, archive byte digest, and checksum sidecar."""
+
+    source_revision = require_sha(source_revision, "source_revision")
+    manifests = sorted(release_out.glob("release-manifest-*.json")) if release_out.is_dir() else []
+    if not manifests:
+        if allow_missing:
+            return {"manifest_count": 0, "archive_count": 0, "checksum_count": 0}
+        raise ProvenanceError("release assets are missing release manifests")
+
+    archives: set[str] = set()
+    checksums: set[str] = set()
+    targets: set[str] = set()
+    for manifest_path in manifests:
+        manifest = validate_archive_manifest(manifest_path, version, source_revision)
+        target = manifest.get("target")
+        if not isinstance(target, str):
+            raise ProvenanceError(f"{manifest_path.name} has no valid target")
+        targets.add(target)
+        archive_name = manifest.get("archive")
+        if not isinstance(archive_name, str) or archive_name in archives:
+            raise ProvenanceError(f"duplicate or invalid release archive asset: {archive_name}")
+        archives.add(archive_name)
+        archive_path = release_out / archive_name
+        checksum_path = release_out / f"{archive_name}.sha256"
+        if not archive_path.is_file() or not checksum_path.is_file():
+            raise ProvenanceError(f"missing archive or checksum sidecar for {archive_name}")
+        parts = checksum_path.read_text(encoding="utf-8").split()
+        if len(parts) != 2 or parts[1] != archive_name or not re.fullmatch(r"[0-9a-f]{64}", parts[0]):
+            raise ProvenanceError(f"{checksum_path.name} must contain one valid archive checksum")
+        if parts[0] != manifest.get("sha256") or sha256(archive_path) != parts[0]:
+            raise ProvenanceError(f"{archive_name} checksum does not match its manifest and bytes")
+        checksums.add(checksum_path.name)
+    if expected_targets is not None and targets != expected_targets:
+        raise ProvenanceError("release asset target matrix is incomplete or unexpected")
+    return {
+        "manifest_count": len(manifests),
+        "archive_count": len(archives),
+        "checksum_count": len(checksums),
+    }
+
+
+def publication_order(workflow: str) -> tuple[str, ...]:
+    """Require the coarse Cargo -> npm -> OCI publication order."""
+
+    if not isinstance(workflow, str):
+        raise ProvenanceError("publication workflow must be text")
+    positions = {
+        "cargo": workflow.find("cargo publish -p"),
+        "npm": workflow.find("npm publish"),
+        "oci": workflow.find("docker push"),
+    }
+    if any(position < 0 for position in positions.values()):
+        raise ProvenanceError("publication workflow is missing a required target")
+    if not positions["cargo"] < positions["npm"] < positions["oci"]:
+        raise ProvenanceError("publication workflow must order Cargo before npm before OCI")
+    if "needs: publish-release" not in workflow or "needs: publish-npm" not in workflow:
+        raise ProvenanceError("publication workflow must gate npm after Cargo and OCI after npm")
+    if "secrets.RELEASE_PLEASE_TOKEN" not in workflow or "gh release view" not in workflow:
+        raise ProvenanceError("publication workflow must consume an existing canonical release")
+    publication_lines = [
+        line
+        for line in workflow.splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    publication_text = "\n".join(publication_lines)
+    if any(
+        marker in publication_text
+        for marker in (
+            "gh release create",
+            "gh release edit",
+            "gh release delete",
+            "git tag",
+            "git push",
+        )
+    ):
+        raise ProvenanceError("publication workflow must not create fallback release identity")
+    for dependency in (
+        "publish-cargo-model",
+        "publish-cargo-core",
+        "publish-cargo-application",
+        "publish-cargo-provider",
+        "publish-cargo-provider-typescript",
+        "publish-cargo-cli",
+    ):
+        if f"needs: {dependency}" not in workflow:
+            raise ProvenanceError(f"publication workflow is missing the Cargo gate {dependency}")
+    publish_section_start = workflow.find("  publish-cargo-model:")
+    publish_section = workflow[publish_section_start:] if publish_section_start >= 0 else workflow
+    # An unconditional evidence-upload job is allowed only outside the publication jobs.
+    publication_jobs = publish_section.split("  publish-oci:", 1)[0]
+    if "continue-on-error" in publication_jobs or "if: always()" in publication_jobs:
+        raise ProvenanceError("publication workflow must stop later stages after failure")
+    return ("cargo", "npm", "oci")
+
+
+def release_dispatch_count(workflow: str) -> int:
+    """Require one tag-triggered handoff and a non-canceling identity lock."""
+
+    if not isinstance(workflow, str):
+        raise ProvenanceError("release workflow must be text")
+    count = workflow.count("uses: ./.github/workflows/release.yml")
+    if count != 1:
+        raise ProvenanceError("release identity must dispatch publication exactly once")
+    if "concurrency:" not in workflow or "cancel-in-progress: false" not in workflow:
+        raise ProvenanceError("release publication dispatch must be concurrency guarded")
+    return count
+
+
 class ProvenanceError(ValueError):
     """Raised when a release input or artifact is not release-safe."""
 
@@ -499,13 +721,13 @@ def validate_linked_components(root: Path = ROOT) -> None:
 
 
 def validate_stage_a_configuration(root: Path = ROOT) -> None:
-    """Validate the release-free, component-tagged Release Please manifest."""
+    """Validate linked versioning with one unprefixed, release-owning root."""
 
     config = load_json(root / "release-please-config.json")
     if config.get("include-component-in-tag") is not True:
         raise ProvenanceError("Stage A must enable component-tagged strategy components")
-    if config.get("skip-github-release") is not True:
-        raise ProvenanceError("Stage A must skip all Release Please releases")
+    if config.get("skip-github-release", False) is True:
+        raise ProvenanceError("Stage A must not suppress canonical GitHub Releases")
     if config.get("separate-pull-requests") is not False:
         raise ProvenanceError("Stage A must create one synchronized release PR")
     if "extra-files" in config:
@@ -545,20 +767,25 @@ def validate_stage_a_configuration(root: Path = ROOT) -> None:
     if root_package.get("initial-version") != "0.1.0":
         raise ProvenanceError("root metadata carrier initial version drift")
     if (
-        root_package.get("skip-github-release") is not True
+        root_package.get("skip-github-release", False) is True
+        or root_package.get("include-component-in-tag") is not False
         or root_package.get("skip-changelog") is not True
         or root_package.get("skip-snapshot") is not True
         or "package-name" in root_package
     ):
-        raise ProvenanceError("root metadata carrier must not publish as a package")
+        raise ProvenanceError(
+            "root metadata carrier must own the unprefixed canonical release"
+        )
     if tuple(root_package.get("extra-files", [])) != ROOT_EXTRA_FILES:
         raise ProvenanceError("root metadata carrier extra-files drift")
 
     for path, package in packages.items():
         if not isinstance(package, dict):
             raise ProvenanceError(f"invalid Release Please package config: {path}")
-        if package.get("skip-github-release", True) is not True:
-            raise ProvenanceError(f"Stage A package can create a release: {path}")
+        if path != "." and package.get("skip-github-release") is not True:
+            raise ProvenanceError(
+                f"non-root Stage A package must not create a duplicate GitHub Release: {path}"
+            )
     npm_package = packages.get("npm/codegauge", {})
     if npm_package.get("extra-files") != [
         {"type": "json", "path": "package.json", "jsonpath": "$.version"}

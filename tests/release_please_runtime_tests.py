@@ -207,6 +207,31 @@ def test_stage_a_fixture_rejects_noop_and_wrong_version() -> None:
         raise AssertionError(f"Stage-A fixture accepted {mutation_name} manifest replacement")
 
 
+def test_release_please_17_6_0_harness_proves_unprefixed_root_release_tag() -> None:
+    """The actual Release Please runtime must emit the canonical root tag."""
+
+    package_root = find_exact_package()
+    assert package_root is not None, "Release Please 17.6.0 is required for the runtime contract"
+
+    environment = {
+        **os.environ,
+        "CODEGAUGE_ROOT": str(ROOT),
+        "RELEASE_PLEASE_17_6_0_ROOT": str(package_root),
+    }
+    result = subprocess.run(
+        ["node", str(HARNESS)],
+        check=False,
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '"rootReleaseTag": "v0.3.0"' in result.stdout
+    assert '"rootReleaseTag": "codegauge-root-v0.3.0"' not in result.stdout
+
+
 def stage_a_prefix() -> list[dict[str, object]]:
     if BASELINE_VERSION == TARGET_VERSION:
         raise AssertionError("historical fixture baseline and target versions must differ")

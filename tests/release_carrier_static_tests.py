@@ -22,6 +22,7 @@ def run_checks() -> list[str]:
     release = (WORKFLOW_DIR / "release.yml").read_text(encoding="utf-8")
     build = (WORKFLOW_DIR / "release-build.yml").read_text(encoding="utf-8")
     publish = (WORKFLOW_DIR / "release-publish.yml").read_text(encoding="utf-8")
+    recovery = (WORKFLOW_DIR / "release-recovery.yml").read_text(encoding="utf-8")
 
     for path in WORKFLOW_DIR.glob("*.yml"):
         text = path.read_text(encoding="utf-8")
@@ -33,6 +34,23 @@ def run_checks() -> list[str]:
         errors.append("Release Please must run on main and own the canonical GitHub Release")
     if "contents: write" not in release_please:
         errors.append("Release Please must have contents: write for canonical tag/release ownership")
+    if "name: Historical Release Recovery" not in recovery:
+        errors.append("historical recovery workflow must be explicit and separately invoked")
+    if "workflow_dispatch:" not in recovery or "--execute-live" not in recovery:
+        errors.append("historical recovery must expose explicit dry-run and live paths")
+    if "RECOVER_RELEASE_LIVE" not in recovery:
+        errors.append("historical recovery must require the live authorization confirmation")
+    if "--plan-only" not in recovery or '--confirm-live "$CONFIRM_LIVE"' not in recovery:
+        errors.append("historical recovery must plan live requests before explicit execution")
+    live_step = recovery[recovery.index("- name: Reconcile canonical tag then GitHub Release") :]
+    if "grep -F 'NO_WRITES: True' recovery-live-audit.txt" in live_step:
+        errors.append("live recovery must audit reconciled/no-op outcomes instead of NO_WRITES")
+    if "contents: ${{ inputs.execute_live" in recovery:
+        errors.append("recovery permissions must be statically declared per job")
+    if "name: Validate live authorization" not in recovery:
+        errors.append("recovery must fail closed when live confirmation is missing")
+    if "contents: write" in recovery.split("jobs:", 1)[0]:
+        errors.append("historical recovery must not grant write permissions at workflow scope")
     if '"include-component-in-tag": true' not in release_config:
         errors.append("Stage A must enable component-tagged linked version lookup")
     if "secrets.RELEASE_PLEASE_TOKEN ||" in release_please or "github.token" in release_please:
@@ -58,7 +76,6 @@ def run_checks() -> list[str]:
         'autorelease: tagged',
         '--method PUT',
         '--method DELETE',
-        'github.token',
         'GITHUB_TOKEN',
     )
     for marker in carrier_mutation_markers:

@@ -1,0 +1,14 @@
+{
+  "repository": "yacosta738/codegauge",
+  "default_branch": "main",
+  "version": "0.3.0",
+  "tag": "v0.3.0",
+  "merged_sha": "cf46ba64bd2e723c28406ca6b7fc3c97d183f1d0",
+  "pull_request": 75,
+  "historical_tree": "f9fca04cb359e843bd13ab7ff4db0ff1a9ba4a1c",
+  "historical_manifest": "43a6692a93b9648960906342f86ad69dd09bf8e151e990b5816bdb33f3220efc",
+  "artifact_plan": ["canonical-tag", "github-release"],
+  "mode": "live",
+  "authorization": "RECOVER_RELEASE_LIVE",
+  "idempotency_key": "d68c3a3f6f34430398000e13073019fc4d610f2c97229828ae7a8251815690d3"
+}

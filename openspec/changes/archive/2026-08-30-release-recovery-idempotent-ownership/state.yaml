@@ -1,0 +1,28 @@
+change: release-recovery-idempotent-ownership
+current_phase: archive
+completed:
+  - init
+  - explore
+  - propose
+  - spec
+  - design
+  - tasks
+  - apply-slice-1
+  - apply-slice-2
+  - apply-slice-3
+  - apply-slice-4
+  - apply-slice-5
+  - apply-slice-5-rework
+  - verify
+  - qa
+  - archive
+next: done
+archived: 2026-08-30
+qa_verdict: PASS WITH WARNINGS
+qa_findings:
+  critical: 0
+  p0: 0
+  p1: 0
+  p2: 0
+  p3: 7
+updated: 2026-08-30
