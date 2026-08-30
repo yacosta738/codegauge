@@ -193,10 +193,8 @@ def check_cargo(errors: list[str]) -> None:
         )
     if root_package.get("release-type") == "rust":
         errors.append("the virtual Cargo root must use a non-Cargo release candidate")
-    if root_package.get("skip-github-release") is not True or "package-name" in root_package:
-        errors.append("the root release candidate must be a non-publishable metadata carrier")
-    if release_config.get("skip-github-release") is not True:
-        errors.append("non-canonical release components must skip GitHub releases")
+    if "package-name" in root_package:
+        errors.append("the root release candidate must remain a metadata carrier")
     if release_config.get("include-component-in-tag") is not True:
         errors.append("Stage A must enable component-tagged linked version lookup")
     if any(
@@ -279,8 +277,6 @@ def check_cargo(errors: list[str]) -> None:
         ROOT / "crates" / "codegauge-cli" / "tests" / "cli.rs", errors
     ):
         errors.append("cli.rs must not carry an unrelated Release Please version marker")
-    if release_config.get("packages", {}).get("crates/codegauge-cli", {}).get("skip-github-release", True) is not True:
-        errors.append("Stage A must suppress the CLI component release")
 
 
 def workflow_section(text: str, heading: str, next_heading: str | None = None) -> str:

@@ -37,6 +37,12 @@ const manifestVersions = JSON.parse(
   ),
 );
 const currentReleaseVersion = manifestVersions["."];
+// Keep the checked-in repository at the recovery target version while giving
+// updater probes a pre-release fixture to transform. The generated release
+// candidate must still be the exact canonical v0.3.0 tag.
+const fixturePreviousVersion = "0.2.0";
+const asPreviousReleaseFixture = (contents) =>
+  contents.replaceAll(currentReleaseVersion, fixturePreviousVersion);
 
 const runtimePaths = Object.keys(manifestVersions);
 const bootstrapSha = "b".repeat(40);
@@ -77,6 +83,7 @@ class ReadOnlyFakeScm {
   releaseCalls = [];
   tagCalls = [];
   mutationCalls = [];
+  mergedPullRequest = undefined;
 
   async getFileContentsOnBranch(filePath, _branch) {
     const relativePath = filePath.replace(/^\/+/, "");
@@ -100,12 +107,17 @@ class ReadOnlyFakeScm {
 
   async *tagIterator() {}
 
-  async *pullRequestIterator() {}
+  async *pullRequestIterator(_targetBranch, state) {
+    if (state === "MERGED" && this.mergedPullRequest) {
+      yield this.mergedPullRequest;
+    }
+  }
 
   async *mergeCommitIterator() {
     yield {
       sha: commitSha,
-      message: "feat: exercise the complete runtime release graph",
+      message:
+        "feat: exercise the complete runtime release graph\n\nRelease-As: 0.3.0",
       files: [],
       pullRequest: undefined,
     };
@@ -197,6 +209,30 @@ const pullRequests = await manifest.createPullRequests();
 if (pullRequests.length !== 1 || scm.pullRequestCreates.length !== 1) {
   throw new Error(
     `expected one synchronized Stage-A PR, got ${pullRequests.length} results and ${scm.pullRequestCreates.length} fake creates`,
+  );
+}
+
+scm.mergedPullRequest = {
+  ...scm.pullRequestCreates[0].pullRequest,
+  number: 9001,
+  sha: commitSha,
+};
+const candidateReleases = await manifest.buildReleases();
+const rootReleases = candidateReleases.filter((release) => release.path === ".");
+if (rootReleases.length !== 1) {
+  throw new Error(
+    `expected exactly one merged/root release candidate, got ${rootReleases.length}`,
+  );
+}
+if (candidateReleases.length !== 1) {
+  throw new Error(
+    `expected non-root candidates to remain version carriers, got ${candidateReleases.length} release candidates`,
+  );
+}
+const rootReleaseTag = rootReleases[0].tag.toString();
+if (rootReleaseTag !== `v${currentReleaseVersion}`) {
+  throw new Error(
+    `expected the merged/root release to use the unprefixed canonical tag v${currentReleaseVersion}, got ${rootReleaseTag}`,
   );
 }
 
@@ -299,7 +335,7 @@ if (!optionalDependencyUpdate) {
 const basePackagePath = path.join(repositoryRoot, "npm/codegauge/package.json");
 const rewrittenBase = JSON.parse(
   optionalDependencyUpdate.updater.updateContent(
-    fs.readFileSync(basePackagePath, "utf8"),
+    asPreviousReleaseFixture(fs.readFileSync(basePackagePath, "utf8")),
   ),
 );
 const releaseVersion = rewrittenBase.version;
@@ -312,11 +348,15 @@ for (const goldenPath of [
     throw new Error(`the typed golden JSON updater was not generated for ${goldenPath}`);
   }
   const goldenBefore = JSON.parse(
-    fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
+    asPreviousReleaseFixture(
+      fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
+    ),
   );
   const goldenAfter = JSON.parse(
     goldenUpdate.updater.updateContent(
-      fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
+      asPreviousReleaseFixture(
+        fs.readFileSync(path.join(repositoryRoot, goldenPath), "utf8"),
+      ),
     ),
   );
   const expectedGolden = structuredClone(goldenBefore);
@@ -333,7 +373,9 @@ function assertAnnotatedVersionUpdater(updatePath, expectedLines) {
   if (!update) {
     throw new Error(`annotated root updater was not generated: ${updatePath}`);
   }
-  const before = fs.readFileSync(path.join(repositoryRoot, updatePath), "utf8");
+  const before = asPreviousReleaseFixture(
+    fs.readFileSync(path.join(repositoryRoot, updatePath), "utf8"),
+  );
   const after = update.updater.updateContent(before);
   if (after === before) {
     throw new Error(`annotated root updater made no version substitutions: ${updatePath}`);
@@ -352,7 +394,7 @@ function assertAnnotatedVersionUpdater(updatePath, expectedLines) {
     if (
       !oldLine.includes("x-release-please-version") ||
       !newLine.includes("x-release-please-version") ||
-       oldLine.replaceAll(currentReleaseVersion, releaseVersion) !== newLine
+       oldLine.replaceAll(fixturePreviousVersion, releaseVersion) !== newLine
     ) {
       throw new Error(
         `annotated updater changed an unexpected line in ${updatePath}: ${JSON.stringify([oldLine, newLine])}`,
@@ -378,7 +420,9 @@ if (!cargoLockUpdate) {
   throw new Error("the explicit runtime Cargo carrier did not generate Cargo.lock");
 }
 const rewrittenCargoLock = cargoLockUpdate.updater.updateContent(
-  fs.readFileSync(path.join(repositoryRoot, "Cargo.lock"), "utf8"),
+  asPreviousReleaseFixture(
+    fs.readFileSync(path.join(repositoryRoot, "Cargo.lock"), "utf8"),
+  ),
 );
 const lockVersion = (packageName) => {
   const escapedName = packageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -404,7 +448,9 @@ if (lockVersion("codegauge-conformance") !== "0.1.0") {
 }
 
 const privateManifestPathOnDisk = path.join(repositoryRoot, privateManifestPath);
-const privateBefore = fs.readFileSync(privateManifestPathOnDisk, "utf8");
+const privateBefore = asPreviousReleaseFixture(
+  fs.readFileSync(privateManifestPathOnDisk, "utf8"),
+);
 const privateAfter = privateUpdates.reduce(
   (contents, update) => update.updater.updateContent(contents),
   privateBefore,
@@ -447,7 +493,7 @@ const expectedPrivatePairs = new Set(
     "codegauge-provider-typescript",
   ].map((dependency) =>
     JSON.stringify([
-      `${dependency} = { version = "${currentReleaseVersion}", path = "../${dependency}" }`,
+      `${dependency} = { version = "${fixturePreviousVersion}", path = "../${dependency}" }`,
       `${dependency} = { version = "${releaseVersion}", path = "../${dependency}" }`,
     ]),
   ),
@@ -492,7 +538,9 @@ for (const [manifestPath, packageName] of Object.entries({
 })) {
   const manifestUpdate = updates.find((update) => update.path === manifestPath);
   const rewrittenManifest = manifestUpdate?.updater.updateContent(
-    fs.readFileSync(path.join(repositoryRoot, manifestPath), "utf8"),
+    asPreviousReleaseFixture(
+      fs.readFileSync(path.join(repositoryRoot, manifestPath), "utf8"),
+    ),
   );
   if (
     !rewrittenManifest ||
@@ -509,7 +557,9 @@ for (const [manifestPath, dependencies] of Object.entries(runtimeCargoDependenci
     throw new Error(`explicit runtime package omitted Cargo manifest update: ${manifestPath}`);
   }
   const rewrittenManifest = manifestUpdate.updater.updateContent(
-    fs.readFileSync(path.join(repositoryRoot, manifestPath), "utf8"),
+    asPreviousReleaseFixture(
+      fs.readFileSync(path.join(repositoryRoot, manifestPath), "utf8"),
+    ),
   );
   for (const dependency of dependencies) {
     const escapedDependency = dependency.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -538,6 +588,8 @@ console.log(
       packageVersion: releasePleasePackage.version,
       generatedUpdatePaths: [...generatedPaths].sort(),
       releaseVersion,
+      rootReleaseTag,
+      releaseCandidatePaths: candidateReleases.map((release) => release.path),
       optionalDependencyVersions: rewrittenBase.optionalDependencies,
       privateDependencyUpdates: privateUpdates.length,
       synchronizedPullRequests: scm.pullRequestCreates.length,
