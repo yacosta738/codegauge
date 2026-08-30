@@ -544,7 +544,7 @@ jobs:
           PY
 
       - name: Upload publication failure inventory
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: publication-failure-inventory-${{ inputs.release_tag }}
           path: publication-failure-inventory.json
