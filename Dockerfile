@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.28
-FROM rust:1.97.1-alpine@sha256:3c38f3f82c2f3d73da3b38e18d279393a04cb43ddded0e35088a8c3324d40900 AS builder
+FROM rust:1.99.1-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS builder
 
 ARG TARGETARCH
 ARG CODEGAUGE_VERSION=unknown
