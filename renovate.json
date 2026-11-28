@@ -9,7 +9,9 @@
     "* * * * 1-5"
   ],
   "semanticCommits": "enabled",
-  "dependencyDashboard": true,
+  "dependencyDashboard": {
+    "enabled": true
+  },
   "assignees": [
     "yacosta738"
   ],
