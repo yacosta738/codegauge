@@ -1,6 +1,231 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:best-practices",
+    "security:minimumReleaseAgeCrate"
+  ],
+  "timezone": "Europe/Madrid",
+  "schedule": [
+    "* * * * 1-5"
+  ],
+  "semanticCommits": "enabled",
+  "dependencyDashboard": true,
+  "assignees": [
+    "yacosta738"
+  ],
+  "reviewers": [
+    "yacosta738"
+  ],
+  "assignAutomerge": true,
+  "labels": [
+    "dependencies"
+  ],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "automerge": false,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "automerge": false,
+    "addLabels": [
+      "security"
+    ],
+    "assignees": [
+      "yacosta738"
+    ],
+    "reviewers": [
+      "yacosta738"
+    ]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": false,
+    "addLabels": [
+      "lockfile"
+    ],
+    "schedule": [
+      "* 0-3 * * 1"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Label breaking updates, including pre-1.0 Cargo minor updates",
+      "matchIsBreaking": true,
+      "addLabels": [
+        "breaking-change"
+      ]
+    },
+    {
+      "description": "Batch compatible Cargo updates in the shared workspace",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchIsBreaking": false,
+      "groupName": "Rust crates (non-breaking)",
+      "groupSlug": "cargo-non-breaking",
+      "addLabels": [
+        "rust"
+      ]
+    },
+    {
+      "description": "Keep the OXC parser ecosystem in one lockstep upgrade across all release types",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "/^oxc_/"
+      ],
+      "groupName": "OXC parser ecosystem",
+      "groupSlug": "oxc",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
+      "addLabels": [
+        "rust",
+        "oxc"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Keep the XML parser migration independently reviewable when breaking",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "quick-xml"
+      ],
+      "matchIsBreaking": true,
+      "addLabels": [
+        "rust"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Group compatible GitHub Actions and reusable workflow updates without absorbing Node or runner versions",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "action",
+        "workflow"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pinDigest"
+      ],
+      "groupName": "GitHub Actions (non-major)",
+      "groupSlug": "github-actions-non-major",
+      "addLabels": [
+        "ci"
+      ]
+    },
+    {
+      "description": "Keep hosted runner upgrades separately reviewable",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "github-runner"
+      ],
+      "addLabels": [
+        "ci"
+      ]
+    },
+    {
+      "description": "Group compatible Docker base image and frontend updates, excluding the Rust builder from this batch",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchDepNames": [
+        "!rust",
+        "!docker.io/library/rust"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pinDigest"
+      ],
+      "groupName": "Docker images (non-major)",
+      "groupSlug": "docker-non-major",
+      "addLabels": [
+        "docker"
+      ]
+    },
+    {
+      "description": "Keep Rust toolchain and Docker builder version updates together",
+      "matchManagers": [
+        "rust-toolchain",
+        "dockerfile"
+      ],
+      "matchDepNames": [
+        "rust"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "groupName": "rust",
+      "groupSlug": "rust",
+      "addLabels": [
+        "rust"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Batch npm development tooling without overriding the Node.js and @types/node preset grouping",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "matchPackageNames": [
+        "!@types/node"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "npm tooling (non-major)",
+      "groupSlug": "npm-tooling-non-major",
+      "addLabels": [
+        "npm"
+      ]
+    },
+    {
+      "description": "CodeGauge platform packages are synchronized by the release process, not by Renovate",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchFileNames": [
+        "npm/codegauge/package.json"
+      ],
+      "matchDepTypes": [
+        "optionalDependencies"
+      ],
+      "matchPackageNames": [
+        "/^@yacosta738\\/codegauge-(linux|darwin|win32)-/"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The minimum supported Node.js version is a deliberate compatibility contract",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "engines"
+      ],
+      "matchPackageNames": [
+        "node"
+      ],
+      "enabled": false
+    }
   ]
 }
