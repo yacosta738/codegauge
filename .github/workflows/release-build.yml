@@ -183,7 +183,7 @@ jobs:
             --rust-toolchain "$RUST_TOOLCHAIN" \
             --binary-evidence binary-evidence.json \
             --output-dir release-out
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: archive-${{ matrix.target }}
           path: release-out/
@@ -306,7 +306,7 @@ jobs:
             --npm-root npm
           for package in npm/packages/*; do (cd "$package" && npm pack --dry-run); done
           (cd npm/codegauge && npm pack --dry-run)
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-packages
           path: npm/packages/
@@ -352,7 +352,7 @@ jobs:
         run: bash scripts/build_oci_release.sh
       - name: OCI architecture evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: oci-build-evidence-${{ inputs.release_tag }}
           path: oci-evidence/
